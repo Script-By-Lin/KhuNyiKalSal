@@ -1,0 +1,101 @@
+"""Authentication service — registration and login logic."""
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import HTTPException
+
+from app.models.account import Account, RoleEnum
+from app.models.user_profile import UserProfile
+from app.models.organization import Organization
+from app.core.security import hash_password, verify_password, create_access_token
+from app.schemas.auth import (
+    RegisterUserRequest, RegisterOrgRequest, LoginRequest, TokenResponse,
+)
+
+
+async def register_user(data: RegisterUserRequest, db: AsyncSession) -> TokenResponse:
+    """Register a new user account with profile."""
+    result = await db.execute(select(Account).where(Account.email == data.email))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    account = Account(
+        email=data.email,
+        hashed_password=hash_password(data.password),
+        role=RoleEnum.USER,
+    )
+    db.add(account)
+    await db.flush()
+
+    profile = UserProfile(
+        account_id=account.id,
+        full_name=data.full_name,
+        phone_number=data.phone_number,
+        blood_type=data.blood_type,
+        medical_conditions=data.medical_conditions,
+        emergency_contacts=data.emergency_contacts,
+    )
+    db.add(profile)
+    await db.commit()
+
+    token = create_access_token(
+        data={"sub": str(account.id), "role": RoleEnum.USER.value}
+    )
+    return TokenResponse(
+        access_token=token, role=RoleEnum.USER.value, user_id=str(account.id)
+    )
+
+
+async def register_organization(
+    data: RegisterOrgRequest, db: AsyncSession
+) -> TokenResponse:
+    """Register a new organization account."""
+    result = await db.execute(select(Account).where(Account.email == data.email))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    account = Account(
+        email=data.email,
+        hashed_password=hash_password(data.password),
+        role=RoleEnum.ORGANIZATION,
+    )
+    db.add(account)
+    await db.flush()
+
+    org = Organization(
+        account_id=account.id,
+        org_name=data.org_name,
+        phone_number=data.phone_number,
+        geo_lat=data.geo_lat,
+        geo_lng=data.geo_lng,
+        coverage_radius_km=data.coverage_radius_km,
+    )
+    db.add(org)
+    await db.commit()
+
+    token = create_access_token(
+        data={"sub": str(account.id), "role": RoleEnum.ORGANIZATION.value}
+    )
+    return TokenResponse(
+        access_token=token,
+        role=RoleEnum.ORGANIZATION.value,
+        user_id=str(account.id),
+    )
+
+
+async def login(data: LoginRequest, db: AsyncSession) -> TokenResponse:
+    """Authenticate and return a JWT token."""
+    result = await db.execute(select(Account).where(Account.email == data.email))
+    account = result.scalar_one_or_none()
+
+    if not account or not verify_password(data.password, account.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not account.is_active:
+        raise HTTPException(status_code=403, detail="Account is deactivated")
+
+    token = create_access_token(
+        data={"sub": str(account.id), "role": account.role.value}
+    )
+    return TokenResponse(
+        access_token=token, role=account.role.value, user_id=str(account.id)
+    )
