@@ -40,12 +40,13 @@ class NotificationService {
   }) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
-      'emergency_alerts',
-      'Emergency Alerts',
+      'emergency_alerts_v2',
+      'Emergency Alerts (Loud)',
       channelDescription: 'High priority alerts for SOS emergencies',
       importance: Importance.max,
       priority: Priority.high,
       playSound: true,
+      sound: RawResourceAndroidNotificationSound('emergency_alarm'),
       enableVibration: true,
       category: AndroidNotificationCategory.alarm,
       fullScreenIntent: true, // Wake up screen and show alert

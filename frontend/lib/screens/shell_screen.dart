@@ -321,9 +321,13 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                 },
                 onLongPressEnd: (_) {
                   setState(() => _sosHolding = false);
-                  if (!_sosActivated) {
-                    _sosCtrl.reset();
-                  }
+                  _sosCtrl.reset();
+                  _sosActivated = false;
+                },
+                onLongPressCancel: () {
+                  setState(() => _sosHolding = false);
+                  _sosCtrl.reset();
+                  _sosActivated = false;
                 },
                 child: AnimatedBuilder(
                   animation: _sosCtrl,
