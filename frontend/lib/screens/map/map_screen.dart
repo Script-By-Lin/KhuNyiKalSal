@@ -95,8 +95,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
           );
           
       // Automatically route to target location if provided (SOS view)
-      if (widget.targetLocation != null) {
-        _fetchRoute(LatLng(widget.targetLocation!['lat']!, widget.targetLocation!['lng']!));
+      if (widget.targetLocation != null && _userLocation != null) {
+        _fetchRealRoadRoute(
+          _userLocation!,
+          LatLng(widget.targetLocation!['lat']!, widget.targetLocation!['lng']!)
+        );
         _mapCtrl.move(
           LatLng(widget.targetLocation!['lat']!, widget.targetLocation!['lng']!), 
           13.0
