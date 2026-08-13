@@ -61,7 +61,7 @@ async def list_organizations(
             "account_id": str(org.account_id),
             "org_name": org.org_name,
             "email": acc.email if acc else "",
-            "phone_number": org.phone_number,
+            "phone_number": org.get_decrypted_phone(),
             "geo_lat": org.geo_lat,
             "geo_lng": org.geo_lng,
             "registration_number": org.registration_number,
@@ -97,7 +97,7 @@ async def create_organization(
     org = Organization(
         account_id=account.id,
         org_name=data.org_name,
-        phone_number=data.phone_number,
+        phone_number="",
         geo_lat=data.geo_lat,
         geo_lng=data.geo_lng,
         registration_number=data.registration_number,
@@ -108,6 +108,7 @@ async def create_organization(
         status="Active",
         is_active=True,
     )
+    org.set_salted_phone(data.phone_number)
     db.add(org)
     await db.commit()
 

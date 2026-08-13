@@ -519,7 +519,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ),
 
           // ── Active Route / Live Responder Status Banner ──────────────
-          if (activeTargetOrg != null && (isSosPending || _previewOrg != null))
+          if (activeTargetOrg != null && (_previewOrg != null || activeEmergency?.isAccepted == true))
             Positioned(
               left: 16,
               bottom: 140,

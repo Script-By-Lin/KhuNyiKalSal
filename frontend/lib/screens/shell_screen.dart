@@ -154,82 +154,103 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
         children: [
           widget.child,
 
-          if (activeEmergency != null)
+          if (activeEmergency != null || _sosHolding)
             Positioned(
               top: MediaQuery.of(context).padding.top + 8,
               left: 20,
               right: 20,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.black, // Sleek black dynamic island look
-                  borderRadius: BorderRadius.circular(32),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.5),
-                      blurRadius: 16,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    // A pulsing red dot or icon
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.primaryRed,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'SOS ${activeEmergency.status.toUpperCase()}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            activeEmergency.isAccepted
-                                ? 'Help on the way'
-                                : 'Alerting teams...',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Cancel button
-                    GestureDetector(
-                      onTap: () {
-                        ref
-                            .read(emergencyProvider.notifier)
-                            .cancelEmergency(activeEmergency.id);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(20),
+              child: AnimatedBuilder(
+                animation: _sosCtrl,
+                builder: (context, _) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.black, // Sleek black dynamic island look
+                      borderRadius: BorderRadius.circular(32),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryRed.withValues(alpha: 0.5),
+                          blurRadius: 16,
+                          spreadRadius: 2,
+                          offset: const Offset(0, 4),
                         ),
-                        child: const Text(
-                          'CANCEL',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                        ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                    child: activeEmergency != null
+                        ? Row(
+                            children: [
+                              // A pulsing red dot or icon
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: const BoxDecoration(
+                                  color: AppTheme.primaryRed,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'SOS ${activeEmergency.status.toUpperCase()}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      activeEmergency.isAccepted
+                                          ? 'Help on the way'
+                                          : 'Alerting teams...',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.7),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Cancel button
+                              GestureDetector(
+                                onTap: () {
+                                  ref
+                                      .read(emergencyProvider.notifier)
+                                      .cancelEmergency(activeEmergency.id);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Text(
+                                    'CANCEL',
+                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Hold to activate SOS... ${(3 - (_sosCtrl.value * 3)).ceil().clamp(1, 3)}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                  );
+                },
               ),
             ),
         ],
@@ -334,7 +355,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          if (_sosHolding && _sosCtrl.value > 0) ...[
+                          if (_sosHolding && _sosCtrl.value > 0)
                             SizedBox(
                               width: 50,
                               height: 50,
@@ -345,20 +366,11 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withValues(alpha: 0.8)),
                               ),
                             ),
-                            Text(
-                              (3 - (_sosCtrl.value * 3)).ceil().clamp(1, 3).toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ] else
-                            const Icon(
-                              Icons.sos_rounded,
-                              color: Colors.white,
-                              size: 24,
-                            ),
+                          const Icon(
+                            Icons.sos_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
                         ],
                       ),
                     );
