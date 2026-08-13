@@ -1,4 +1,4 @@
-"""Emergency endpoints — SOS creation, status, history, completion, cancellation."""
+"""Emergency endpoints — SOS creation, status, history, completion, cancellation, real-time cache purge."""
 
 import asyncio
 import uuid as uuid_module
@@ -15,6 +15,7 @@ from app.core.permissions import require_role
 from app.core.abuse import check_sos_limit
 from app.schemas.emergency import SOSRequest, EmergencyResponse, SOSCreatedResponse
 from app.services.sos_service import process_sos
+from app.services.cache_service import location_cache
 from app.websocket.manager import manager
 
 router = APIRouter()
@@ -101,7 +102,18 @@ async def cancel_active_emergencies(
     current_user: Account = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Cancel all active pending/accepted emergencies (used during logout)."""
+    """Cancel all active pending/accepted emergencies (used during logout). Purges real-time location cache."""
+    result = await db.execute(
+        select(Emergency).where(
+            Emergency.user_id == current_user.id,
+            Emergency.status.in_([EmergencyStatus.PENDING, EmergencyStatus.ACCEPTED]),
+        )
+    )
+    active_list = result.scalars().all()
+    for e in active_list:
+        location_cache.purge_realtime_tracking(str(e.id))
+    location_cache.purge_user_tracking(str(current_user.id))
+
     await db.execute(
         update(Emergency)
         .where(
@@ -111,7 +123,7 @@ async def cancel_active_emergencies(
         .values(status=EmergencyStatus.CANCELLED)
     )
     await db.commit()
-    return {"message": "Active emergencies cancelled"}
+    return {"message": "Active emergencies cancelled and real-time tracking cache purged"}
 
 
 @router.get("/{emergency_id}", response_model=EmergencyResponse)
@@ -137,7 +149,7 @@ async def complete_emergency(
     current_user: Account = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Mark an emergency as completed and notify victim and responders via WebSocket."""
+    """Mark an emergency as completed, notify victim/responders via WebSocket, and purge real-time tracking cache."""
     emergency = None
     try:
         e_uuid = uuid_module.UUID(emergency_id)
@@ -163,6 +175,10 @@ async def complete_emergency(
     emergency.status = EmergencyStatus.COMPLETED
     await db.commit()
 
+    # Instantly purge real-time tracking cache for fast & secure data removal
+    location_cache.purge_realtime_tracking(str(emergency.id))
+    location_cache.purge_user_tracking(str(emergency.user_id))
+
     # Notify victim and responders via WebSocket
     payload = {
         "event": "EMERGENCY_COMPLETED",
@@ -175,7 +191,7 @@ async def complete_emergency(
     if emergency.assigned_volunteer_id:
         await manager.send_personal(str(emergency.assigned_volunteer_id), payload)
 
-    return {"message": "Emergency marked as completed"}
+    return {"message": "Emergency marked as completed and tracking cache purged"}
 
 
 @router.put("/{emergency_id}/cancel")
@@ -184,7 +200,7 @@ async def cancel_emergency_by_id(
     current_user: Account = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Cancel a specific emergency call by user."""
+    """Cancel a specific emergency call by user and purge real-time tracking cache."""
     emergency = None
     try:
         e_uuid = uuid_module.UUID(emergency_id)
@@ -210,6 +226,10 @@ async def cancel_emergency_by_id(
     emergency.status = EmergencyStatus.CANCELLED
     await db.commit()
 
+    # Instantly purge real-time tracking cache
+    location_cache.purge_realtime_tracking(str(emergency.id))
+    location_cache.purge_user_tracking(str(emergency.user_id))
+
     payload = {
         "event": "SOS_CANCELLED",
         "emergency_id": str(emergency.id),
@@ -219,7 +239,7 @@ async def cancel_emergency_by_id(
     if emergency.assigned_org_id:
         await manager.send_personal(str(emergency.assigned_org_id), payload)
 
-    return {"message": "Emergency call cancelled successfully"}
+    return {"message": "Emergency call cancelled successfully and tracking cache purged"}
 
 
 def _to_response(e: Emergency) -> EmergencyResponse:

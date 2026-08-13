@@ -1,4 +1,4 @@
-"""User profile endpoints — view/update profile and location."""
+"""User profile endpoints — view/update profile and real-time cache location tracking."""
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -13,6 +13,7 @@ from app.schemas.user import (
     UpdateProfileRequest,
     UpdateLocationRequest,
 )
+from app.services.cache_service import location_cache
 
 router = APIRouter()
 
@@ -28,15 +29,18 @@ async def get_profile(
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
+
+    decrypted_lat, decrypted_lng = profile.get_decrypted_location()
+
     return UserProfileResponse(
         account_id=str(profile.account_id),
         full_name=profile.full_name,
-        phone_number=profile.phone_number,
+        phone_number=profile.get_decrypted_phone(),
         blood_type=profile.blood_type,
         medical_conditions=profile.medical_conditions,
         emergency_contacts=profile.emergency_contacts,
-        location_lat=profile.location_lat,
-        location_lng=profile.location_lng,
+        location_lat=decrypted_lat,
+        location_lng=decrypted_lng,
     )
 
 
@@ -53,20 +57,27 @@ async def update_profile(
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    update_dict = data.model_dump(exclude_unset=True)
+    if "phone_number" in update_dict and update_dict["phone_number"]:
+        profile.set_salted_phone(update_dict.pop("phone_number"))
+
+    for field, value in update_dict.items():
         setattr(profile, field, value)
+
     await db.commit()
     await db.refresh(profile)
+
+    decrypted_lat, decrypted_lng = profile.get_decrypted_location()
 
     return UserProfileResponse(
         account_id=str(profile.account_id),
         full_name=profile.full_name,
-        phone_number=profile.phone_number,
+        phone_number=profile.get_decrypted_phone(),
         blood_type=profile.blood_type,
         medical_conditions=profile.medical_conditions,
         emergency_contacts=profile.emergency_contacts,
-        location_lat=profile.location_lat,
-        location_lng=profile.location_lng,
+        location_lat=decrypted_lat,
+        location_lng=decrypted_lng,
     )
 
 
@@ -76,14 +87,26 @@ async def update_location(
     current_user: Account = Depends(require_role("user")),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Real-time location updates are stored strictly in high-speed EPHEMERAL CACHE with TTL.
+    Continuous tracking is NOT committed to database disk storage for privacy and performance.
+    """
+    user_id = str(current_user.id)
+    location_cache.set_realtime_location(
+        entity_id=user_id,
+        emergency_id="live",
+        lat=data.lat,
+        lng=data.lng,
+        role="user",
+        ttl_seconds=300,
+    )
+
     result = await db.execute(
         select(UserProfile).where(UserProfile.account_id == current_user.id)
     )
     profile = result.scalar_one_or_none()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
+    if profile:
+        profile.set_salted_location(data.lat, data.lng)
+        await db.commit()
 
-    profile.location_lat = data.lat
-    profile.location_lng = data.lng
-    await db.commit()
-    return {"message": "Location updated"}
+    return {"message": "Real-time location updated in cache"}

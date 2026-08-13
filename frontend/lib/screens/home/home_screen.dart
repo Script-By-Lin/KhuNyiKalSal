@@ -93,7 +93,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 150),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -363,11 +363,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     Expanded(
                       child: _ActionCard(
-                        icon: Icons.person_outline,
-                        title: isMm ? 'ပရိုဖိုင်' : 'Profile',
-                        subtitle: isMm ? 'ဆေးဘက်ဆိုင်ရာနှင့် အရေးပေါ်အချက်အလက်' : 'Medical & emergency info',
-                        color: Colors.blue,
-                        onTap: () => context.push('/profile'),
+                        icon: Icons.family_restroom,
+                        title: isMm ? 'မိသားစု အဖွဲ့' : 'Family Group',
+                        subtitle: isMm ? 'မိသားစုဝင်များ ချိတ်ဆက်ရန်' : 'Link family members',
+                        color: Colors.purple,
+                        onTap: () => context.go('/family'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ActionCard(
+                        icon: Icons.notifications_active_outlined,
+                        title: isMm ? 'သတိပေးချက်များ' : 'Family Alerts',
+                        subtitle: isMm ? 'အရေးပေါ် သတိပေးချက်များ' : 'SOS alert messages',
+                        color: AppTheme.primaryRed,
+                        onTap: () => context.go('/family-alerts'),
                       ),
                     ),
                   ],

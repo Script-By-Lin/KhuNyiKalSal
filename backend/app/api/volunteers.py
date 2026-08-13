@@ -1,4 +1,4 @@
-"""Volunteer endpoints — CRUD, status toggle, emergency response, location, alerts."""
+"""Volunteer endpoints — CRUD, status toggle, emergency response, real-time cache location tracking, alerts."""
 
 import uuid as uuid_module
 
@@ -21,6 +21,7 @@ from app.schemas.volunteer import (
 )
 from app.services.sos_service import response_tracker
 from app.services.location_service import find_nearest_organizations
+from app.services.cache_service import location_cache
 from app.websocket.manager import manager
 
 router = APIRouter()
@@ -32,7 +33,7 @@ async def create_volunteer(
     current_user: Account = Depends(require_role("organization")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Organization creates a new volunteer account."""
+    """Organization creates a new volunteer account with salted phone number."""
     result = await db.execute(select(Account).where(Account.email == data.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -52,6 +53,7 @@ async def create_volunteer(
         phone_number=data.phone_number,
         is_active=True,
     )
+    volunteer.set_salted_phone(data.phone_number)
     db.add(volunteer)
     await db.commit()
 
@@ -59,7 +61,7 @@ async def create_volunteer(
         account_id=str(account.id),
         org_id=str(current_user.id),
         full_name=volunteer.full_name,
-        phone_number=volunteer.phone_number,
+        phone_number=volunteer.get_decrypted_phone(),
         is_active=volunteer.is_active,
     )
 
@@ -79,7 +81,7 @@ async def list_volunteers(
             account_id=str(v.account_id),
             org_id=str(v.org_id),
             full_name=v.full_name,
-            phone_number=v.phone_number,
+            phone_number=v.get_decrypted_phone(),
             is_active=v.is_active,
             current_lat=v.current_lat,
             current_lng=v.current_lng,
@@ -138,7 +140,7 @@ async def get_active_alerts(
             "org_location": org_loc,
             "user_info": {
                 "full_name": profile.full_name if profile else "Unknown User",
-                "phone_number": profile.phone_number if profile else "",
+                "phone_number": profile.get_decrypted_phone() if profile else "",
                 "blood_type": profile.blood_type or "Unknown",
                 "medical_conditions": profile.medical_conditions or "None",
             },
@@ -188,7 +190,7 @@ async def get_responder_history(
             "location": {"lat": e.location_lat, "lng": e.location_lng},
             "user_info": {
                 "full_name": profile.full_name if profile else "Unknown User",
-                "phone_number": profile.phone_number if profile else "",
+                "phone_number": profile.get_decrypted_phone() if profile else "",
                 "blood_type": profile.blood_type or "Unknown",
                 "medical_conditions": profile.medical_conditions or "None",
             },
@@ -315,7 +317,7 @@ async def respond_to_emergency(
             profile = prof_res.scalar_one_or_none()
             user_info = {
                 "full_name": profile.full_name if profile else "Unknown User",
-                "phone_number": profile.phone_number if profile else "",
+                "phone_number": profile.get_decrypted_phone() if profile else "",
                 "blood_type": profile.blood_type or "Unknown",
                 "medical_conditions": profile.medical_conditions or "None",
             }
@@ -369,16 +371,11 @@ async def update_volunteer_location(
     current_user: Account = Depends(require_role("volunteer", "organization")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update live location and broadcast location to victim."""
-    if current_user.role == RoleEnum.VOLUNTEER:
-        result = await db.execute(
-            select(Volunteer).where(Volunteer.account_id == current_user.id)
-        )
-        volunteer = result.scalar_one_or_none()
-        if volunteer:
-            volunteer.current_lat = data.lat
-            volunteer.current_lng = data.lng
-            await db.commit()
+    """
+    Update live responder location strictly in EPHEMERAL CACHE with TTL.
+    Broadcasts live coordinates to victim without writing continuous movement to DB disk.
+    """
+    responder_id = str(current_user.id)
 
     # Find active accepted emergencies for this responder
     em_result = await db.execute(
@@ -389,10 +386,21 @@ async def update_volunteer_location(
     active_emergencies = em_result.scalars().all()
     for e in active_emergencies:
         if e.assigned_volunteer_id == current_user.id or e.assigned_org_id == current_user.id:
+            # Store in Ephemeral Location Cache
+            location_cache.set_realtime_location(
+                entity_id=responder_id,
+                emergency_id=str(e.id),
+                lat=data.lat,
+                lng=data.lng,
+                role="responder",
+                ttl_seconds=300,
+            )
+
+            # Broadcast live location over WebSocket to victim
             await manager.send_personal(str(e.user_id), {
                 "event": "RESPONDER_LOCATION_UPDATED",
                 "emergency_id": str(e.id),
                 "location": {"lat": data.lat, "lng": data.lng},
             })
 
-    return {"message": "Location updated"}
+    return {"message": "Live responder location updated in cache"}

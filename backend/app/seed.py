@@ -116,6 +116,7 @@ async def seed(drop: bool = False):
                 status="Active",
                 coverage_radius_km=od["radius"],
             )
+            org.set_salted_phone(od["phone"])
             db.add(org)
             created_orgs += 1
 
@@ -147,6 +148,7 @@ async def seed(drop: bool = False):
                     current_lat=od["lat"] + (i * 0.01),
                     current_lng=od["lng"] + (i * 0.01),
                 )
+                volunteer.set_salted_phone(f"+95912345{i:04d}")
                 db.add(volunteer)
                 created_vols += 1
 
@@ -178,6 +180,8 @@ async def seed(drop: bool = False):
                     {"name": "Spouse", "relation": "Spouse", "phone": "+959222222222"},
                 ],
             )
+            profile.set_salted_phone("+959123456789")
+            profile.set_salted_location(16.8661, 96.1951)
             db.add(profile)
 
         # ── Super Admin Account ────────────────────────────────────────
@@ -193,7 +197,7 @@ async def seed(drop: bool = False):
 
         await db.commit()
 
-        print("[OK] Seed process completed!")
+        print("[OK] Seed process completed with salted privacy encryption!")
         print(f"    • Added {created_orgs} new Organisations ({created_vols} Volunteers)")
         print("    • Including Bago City sample rescue organizations")
         print("    • Test user: testuser@khunyikalsal.com / password123")
@@ -201,4 +205,4 @@ async def seed(drop: bool = False):
 
 
 if __name__ == "__main__":
-    asyncio.run(seed())
+    asyncio.run(seed(drop=True))

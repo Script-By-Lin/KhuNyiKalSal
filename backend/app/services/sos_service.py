@@ -123,13 +123,13 @@ async def process_sos(
             profile = result.scalar_one_or_none()
             user_info = {
                 "full_name": profile.full_name if profile else "Unknown",
-                "phone_number": profile.phone_number if profile else "",
+                "phone_number": profile.get_decrypted_phone() if profile else "",
                 "blood_type": profile.blood_type or "Unknown",
                 "medical_conditions": profile.medical_conditions or "None",
             }
 
             # ── Notify family contacts ─────────────────────────────────
-            await notify_family(user_id, emergency_type, lat, lng, db)
+            await notify_family(user_id, emergency_type, lat, lng, db, emergency_id=emergency_id)
 
             # ── Find nearest organisations (matching emergency_type) ────
             org_distances = await find_nearest_organizations(
@@ -200,4 +200,3 @@ async def _update_status(
         .values(status=status)
     )
     await db.commit()
-

@@ -1,5 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
+from app.schemas.auth import validate_myanmar_phone
 
 
 class UserProfileResponse(BaseModel):
@@ -21,6 +22,13 @@ class UpdateProfileRequest(BaseModel):
     blood_type: Optional[str] = None
     medical_conditions: Optional[str] = None
     emergency_contacts: Optional[list[dict]] = None
+
+    @field_validator("phone_number")
+    @classmethod
+    def check_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v.strip():
+            return validate_myanmar_phone(v)
+        return v
 
 
 class UpdateLocationRequest(BaseModel):

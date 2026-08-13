@@ -12,3 +12,4 @@ python-dotenv
 aiosqlite
 email-validator
 bcrypt==4.2.0
+redis

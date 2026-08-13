@@ -131,7 +131,7 @@ class _OrgsListScreenState extends ConsumerState<OrgsListScreen> {
                   onRefresh: _loadOrgs,
                   color: AppTheme.primaryRed,
                   child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final org = filtered[index];

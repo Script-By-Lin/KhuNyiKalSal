@@ -1,13 +1,19 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
+from app.schemas.auth import validate_myanmar_phone
 
 
 class CreateVolunteerRequest(BaseModel):
     """Organization creates a volunteer account."""
-    email: str
+    email: EmailStr
     password: str
     full_name: str
     phone_number: str
+
+    @field_validator("phone_number")
+    @classmethod
+    def check_phone(cls, v: str) -> str:
+        return validate_myanmar_phone(v)
 
 
 class VolunteerResponse(BaseModel):

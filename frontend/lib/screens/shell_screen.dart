@@ -195,10 +195,11 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
         ],
       ),
       bottomNavigationBar: SafeArea(
+        bottom: true,
         child: Container(
-          height: 72,
-          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 18),
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          height: 68,
+          margin: const EdgeInsets.only(left: 10, right: 10, bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(36),
@@ -222,7 +223,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
               _NavItem(
                 icon: Icons.home_outlined,
                 activeIcon: Icons.home,
-                label: isMm ? 'ပင်မစာမျက်နှာ' : 'Home',
+                label: isMm ? 'ပင်မ' : 'Home',
                 isActive: _currentIndex(context) == 0,
                 onTap: () => context.go('/home'),
               ),
@@ -236,7 +237,16 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                 onTap: () => context.go('/organizations'),
               ),
 
-              // 3. CENTER EMERGENCY SOS BUTTON (HOLD 3 SECONDS)
+              // 3. Family Group
+              _NavItem(
+                icon: Icons.family_restroom_outlined,
+                activeIcon: Icons.family_restroom,
+                label: isMm ? 'မိသားစု' : 'Family',
+                isActive: _currentIndex(context) == 2,
+                onTap: () => context.go('/family'),
+              ),
+
+              // 4. CENTER EMERGENCY SOS BUTTON (HOLD 3 SECONDS)
               GestureDetector(
                 onLongPressStart: (_) {
                   setState(() {
@@ -256,9 +266,9 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                   animation: _sosCtrl,
                   builder: (context, _) {
                     return Container(
-                      width: 58,
-                      height: 58,
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: 50,
+                      height: 50,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: const LinearGradient(
@@ -275,8 +285,8 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                             color: AppTheme.primaryRed.withValues(
                               alpha: 0.45 + _sosCtrl.value * 0.3,
                             ),
-                            blurRadius: 14 + _sosCtrl.value * 16,
-                            spreadRadius: 2 + _sosCtrl.value * 4,
+                            blurRadius: 12 + _sosCtrl.value * 14,
+                            spreadRadius: 2 + _sosCtrl.value * 3,
                             offset: const Offset(0, 4),
                           ),
                         ],
@@ -286,11 +296,11 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                         children: [
                           if (_sosCtrl.value > 0)
                             SizedBox(
-                              width: 54,
-                              height: 54,
+                              width: 46,
+                              height: 46,
                               child: CircularProgressIndicator(
                                 value: _sosCtrl.value,
-                                strokeWidth: 3.5,
+                                strokeWidth: 3.0,
                                 color: Colors.white,
                                 backgroundColor: Colors.white.withValues(alpha: 0.2),
                               ),
@@ -301,15 +311,15 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                               const Icon(
                                 Icons.sos_rounded,
                                 color: Colors.white,
-                                size: 24,
+                                size: 20,
                               ),
                               Text(
                                 _sosHolding ? 'HOLD...' : 'HOLD 3s',
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.9),
-                                  fontSize: 8,
+                                  fontSize: 7.5,
                                   fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.5,
+                                  letterSpacing: 0.4,
                                 ),
                               ),
                             ],
@@ -321,21 +331,30 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                 ),
               ),
 
-              // 4. Map
+              // 5. Family Emergency Alerts
+              _NavItem(
+                icon: Icons.notifications_none_outlined,
+                activeIcon: Icons.notifications_active,
+                label: isMm ? 'သတိပေးချက်' : 'Alerts',
+                isActive: _currentIndex(context) == 3,
+                onTap: () => context.go('/family-alerts'),
+              ),
+
+              // 6. Map
               _NavItem(
                 icon: Icons.map_outlined,
                 activeIcon: Icons.map,
                 label: isMm ? 'မြေပုံ' : 'Map',
-                isActive: _currentIndex(context) == 2,
+                isActive: _currentIndex(context) == 4,
                 onTap: () => context.go('/map'),
               ),
 
-              // 5. Settings
+              // 7. Settings
               _NavItem(
                 icon: Icons.settings_outlined,
                 activeIcon: Icons.settings,
-                label: isMm ? 'ဆက်တင်များ' : 'Settings',
-                isActive: _currentIndex(context) == 3,
+                label: isMm ? 'ပြင်ဆင်ရန်' : 'Settings',
+                isActive: _currentIndex(context) == 5,
                 onTap: () => context.go('/settings'),
               ),
             ],
@@ -348,8 +367,10 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
     if (location.startsWith('/organizations')) return 1;
-    if (location.startsWith('/map')) return 2;
-    if (location.startsWith('/settings')) return 3;
+    if (location.startsWith('/family-alerts')) return 3;
+    if (location.startsWith('/family')) return 2;
+    if (location.startsWith('/map')) return 4;
+    if (location.startsWith('/settings')) return 5;
     return 0;
   }
 }
@@ -377,12 +398,12 @@ class _NavItem extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
             color: isActive
                 ? AppTheme.primaryRed.withValues(alpha: 0.1)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -391,13 +412,13 @@ class _NavItem extends StatelessWidget {
               Icon(
                 isActive ? activeIcon : icon,
                 color: isActive ? AppTheme.primaryRed : AppTheme.subtleGrey,
-                size: 22,
+                size: 20,
               ),
               const SizedBox(height: 2),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                   color: isActive ? AppTheme.primaryRed : AppTheme.subtleGrey,
                 ),

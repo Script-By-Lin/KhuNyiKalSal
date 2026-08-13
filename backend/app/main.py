@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import create_tables
-from app.api import auth, users, organizations, volunteers, emergency, admin
+from app.api import auth, users, organizations, volunteers, emergency, admin, family
 from app.api import websocket as ws
 
 logging.basicConfig(
@@ -59,6 +59,9 @@ app.include_router(
 )
 app.include_router(
     emergency.router, prefix="/api/emergency", tags=["Emergency"]
+)
+app.include_router(
+    family.router, prefix="/api/family", tags=["Family"]
 )
 app.include_router(ws.router, tags=["WebSocket"])
 

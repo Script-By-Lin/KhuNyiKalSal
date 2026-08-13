@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../config/theme.dart';
 import '../../services/api_service.dart';
@@ -51,11 +50,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  String? _validatePhone(String value) {
+    final clean = value.trim().replaceAll(' ', '').replaceAll('-', '');
+    final regExp = RegExp(r'^(?:\+959|09)\d{7,8}$');
+    if (!regExp.hasMatch(clean)) {
+      return 'Phone must start with +959 or 09 & contain 9 or 10 digits total\n(e.g., 0912345678 or +95912345678)';
+    }
+    return null;
+  }
+
   Future<void> _save() async {
+    final phoneErr = _validatePhone(_phoneCtrl.text);
+    if (phoneErr != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⚠️ $phoneErr'),
+          backgroundColor: AppTheme.primaryRed,
+        ),
+      );
+      return;
+    }
+
     try {
+      final cleanPhone = _phoneCtrl.text.trim().replaceAll(' ', '').replaceAll('-', '');
       await ApiService().updateProfile({
         'full_name': _nameCtrl.text.trim(),
-        'phone_number': _phoneCtrl.text.trim(),
+        'phone_number': cleanPhone,
         'blood_type': _bloodCtrl.text.trim(),
         'medical_conditions': _medicalCtrl.text.trim(),
       });
@@ -64,6 +84,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully')),
         );
+        _loadData();
       }
     } catch (e) {
       if (mounted) {
@@ -73,8 +94,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     }
   }
-
-
 
   void _showHistoryModal() {
     showModalBottomSheet(
@@ -234,7 +253,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed))
           : SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 110),
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 160),
               child: Column(
                 children: [
                   // ── Avatar ────────────────────────────────────────────
@@ -280,7 +299,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                   // ── Fields ────────────────────────────────────────────
                   _field(isMm ? 'နာမည်အပြည့်အစုံ' : 'Full Name', _nameCtrl, Icons.person_outline),
-                  _field(isMm ? 'ဖုန်းနံပါတ်' : 'Phone Number', _phoneCtrl, Icons.phone_outlined),
+                  _field(isMm ? 'ဖုန်းနံပါတ်' : 'Phone Number', _phoneCtrl, Icons.phone_outlined,
+                      helperText: 'Must start with +959 or 09 (9 or 10 digits total)'),
                   _field(isMm ? 'သွေးအမျိုးအစား' : 'Blood Type', _bloodCtrl, Icons.bloodtype_outlined),
                   _field('Medical Conditions', _medicalCtrl,
                       Icons.medical_information_outlined,
@@ -379,8 +399,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         onPressed: () => setState(() => _editing = true),
                       ),
                     ),
-
                   ],
+                  // Extra space at bottom to ensure floating navbar never overlaps
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
@@ -392,6 +413,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     TextEditingController ctrl,
     IconData icon, {
     int maxLines = 1,
+    String? helperText,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -401,6 +423,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,
+          helperText: _editing ? helperText : null,
           prefixIcon: Icon(icon, color: _editing ? AppTheme.primaryRed : AppTheme.subtleGrey),
         ),
       ),

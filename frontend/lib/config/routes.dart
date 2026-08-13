@@ -11,6 +11,8 @@ import '../screens/home/how_to_use_screen.dart';
 import '../screens/home/rules_laws_screen.dart';
 import '../screens/map/map_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/family/family_group_screen.dart';
+import '../screens/family/family_alerts_screen.dart';
 import '../screens/volunteer/volunteer_dashboard.dart';
 import '../screens/organization/org_dashboard.dart';
 import '../screens/organization/manage_volunteers_screen.dart';
@@ -39,6 +41,8 @@ final goRouter = GoRouter(
       routes: [
         GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
         GoRoute(path: '/organizations', builder: (_, _) => const OrgsListScreen()),
+        GoRoute(path: '/family', builder: (_, _) => const FamilyGroupScreen()),
+        GoRoute(path: '/family-alerts', builder: (_, _) => const FamilyAlertsScreen()),
         GoRoute(
           path: '/map',
           builder: (_, state) => MapScreen(

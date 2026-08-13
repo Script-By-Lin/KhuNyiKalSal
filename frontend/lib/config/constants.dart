@@ -3,9 +3,9 @@ class AppConstants {
 
   // API host — Cloudflare Tunnel for remote testing
   static const String apiBaseUrl =
-      'https://bike-ham-duo-frederick.trycloudflare.com/api';
+      'https://khunyikalsal-production.up.railway.app/api';
   static const String wsBaseUrl =
-      'wss://bike-ham-duo-frederick.trycloudflare.com/ws';
+      'wss://khunyikalsal-production.up.railway.app/ws';
 
   // SOS
   static const Duration sosHoldDuration = Duration(seconds: 3);
@@ -16,3 +16,5 @@ class AppConstants {
   static const double defaultLng = 96.1951;
   static const double defaultZoom = 14.0;
 }
+
+// https://khunyikalsal-production.up.railway.app

@@ -28,6 +28,7 @@ async def create_tables(drop: bool = False):
     async with engine.begin() as conn:
         from app.models import (  # noqa: F401
             Account, UserProfile, Organization, Volunteer, Emergency,
+            FamilyGroup, FamilyMember, FamilyAlert,
         )
         if drop:
             await conn.run_sync(Base.metadata.drop_all)

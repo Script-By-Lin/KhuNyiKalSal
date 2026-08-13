@@ -41,7 +41,7 @@ async def list_all_organizations(
             OrganizationResponse(
                 account_id=str(org.account_id),
                 org_name=org.org_name,
-                phone_number=org.phone_number,
+                phone_number=org.get_decrypted_phone(),
                 geo_lat=org.geo_lat,
                 geo_lng=org.geo_lng,
                 coverage_radius_km=org.coverage_radius_km,
@@ -70,7 +70,7 @@ async def get_nearby_organizations(
         OrganizationResponse(
             account_id=str(org.account_id),
             org_name=org.org_name,
-            phone_number=org.phone_number,
+            phone_number=org.get_decrypted_phone(),
             geo_lat=org.geo_lat,
             geo_lng=org.geo_lng,
             coverage_radius_km=org.coverage_radius_km,
@@ -99,7 +99,7 @@ async def get_organization(
     return OrganizationResponse(
         account_id=str(org.account_id),
         org_name=org.org_name,
-        phone_number=org.phone_number,
+        phone_number=org.get_decrypted_phone(),
         geo_lat=org.geo_lat,
         geo_lng=org.geo_lng,
         coverage_radius_km=org.coverage_radius_km,
@@ -129,7 +129,11 @@ async def update_organization(
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    update_dict = data.model_dump(exclude_unset=True)
+    if "phone_number" in update_dict and update_dict["phone_number"]:
+        org.set_salted_phone(update_dict.pop("phone_number"))
+
+    for field, value in update_dict.items():
         setattr(org, field, value)
     await db.commit()
     await db.refresh(org)
@@ -137,7 +141,7 @@ async def update_organization(
     return OrganizationResponse(
         account_id=str(org.account_id),
         org_name=org.org_name,
-        phone_number=org.phone_number,
+        phone_number=org.get_decrypted_phone(),
         geo_lat=org.geo_lat,
         geo_lng=org.geo_lng,
         coverage_radius_km=org.coverage_radius_km,

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 from app.database import Base
+from app.core.privacy import encrypt_field, decrypt_field
 
 if TYPE_CHECKING:
     from app.models.account import Account
@@ -27,7 +28,9 @@ class Volunteer(Base):
         nullable=False,
     )
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    phone_number: Mapped[str] = mapped_column(String(50), nullable=False)
+    phone_number: Mapped[str] = mapped_column(String(500), nullable=False)
+    phone_salt: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
     nrc_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     date_of_birth: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     emergency_contact: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -38,3 +41,14 @@ class Volunteer(Base):
 
     account: Mapped["Account"] = relationship(back_populates="volunteer")
     organization: Mapped["Organization"] = relationship(back_populates="volunteers")
+
+    def get_decrypted_phone(self) -> str:
+        """Return decrypted phone number using stored salt."""
+        return decrypt_field(self.phone_number, self.phone_salt) or self.phone_number
+
+    def set_salted_phone(self, raw_phone: str):
+        """Encrypt and set phone number with a cryptographic salt."""
+        enc, salt = encrypt_field(raw_phone, self.phone_salt)
+        if enc:
+            self.phone_number = enc
+            self.phone_salt = salt

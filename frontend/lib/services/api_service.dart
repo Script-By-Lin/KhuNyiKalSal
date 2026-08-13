@@ -100,6 +100,20 @@ class ApiService {
   Future<Response> completeEmergency(String id) =>
       dio.put('/emergency/$id/complete');
 
+  // ── Family System ─────────────────────────────────────────────────────
+  Future<Response> createFamilyGroup(String name) =>
+      dio.post('/family/create', data: {'group_name': name});
+
+  Future<Response> getMyFamilyGroup() => dio.get('/family/my-group');
+
+  Future<Response> addFamilyMember(String email, String relationship) =>
+      dio.post('/family/add-member', data: {'email': email, 'relationship': relationship});
+
+  Future<Response> removeFamilyMember(String memberAccountId) =>
+      dio.delete('/family/members/$memberAccountId');
+
+  Future<Response> getFamilyAlerts() => dio.get('/family/alerts');
+
   // ── Volunteers ────────────────────────────────────────────────────────
   Future<Response> createVolunteer(Map<String, dynamic> data) =>
       dio.post('/volunteers/', data: data);
