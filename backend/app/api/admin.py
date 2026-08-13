@@ -139,7 +139,7 @@ async def update_organization(
     if data.org_name is not None:
         org.org_name = data.org_name
     if data.phone_number is not None:
-        org.phone_number = data.phone_number
+        org.set_salted_phone(data.phone_number)
     if data.geo_lat is not None:
         org.geo_lat = data.geo_lat
     if data.geo_lng is not None:

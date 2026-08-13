@@ -21,6 +21,7 @@ import '../screens/shell_screen.dart';
 import '../screens/settings/settings_screen.dart';
 
 import '../screens/admin/admin_dashboard.dart';
+import '../screens/admin/create_org_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -79,6 +80,10 @@ final goRouter = GoRouter(
     GoRoute(
       path: '/admin-dashboard',
       builder: (_, _) => const AdminDashboard(),
+    ),
+    GoRoute(
+      path: '/admin/create-org',
+      builder: (_, _) => const CreateOrgScreen(),
     ),
     GoRoute(
       path: '/volunteer-dashboard',

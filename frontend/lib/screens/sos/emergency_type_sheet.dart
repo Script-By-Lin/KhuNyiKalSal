@@ -8,66 +8,69 @@ class EmergencyTypeSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Handle bar
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24), // Reduced bottom padding since SafeArea handles it
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Select Emergency Type',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Choose the type of emergency you are experiencing',
-            style: TextStyle(color: AppTheme.subtleGrey, fontSize: 13),
-          ),
-          const SizedBox(height: 28),
-          Row(
-            children: [
-              Expanded(
-                child: _TypeButton(
-                  icon: Icons.local_fire_department,
-                  label: 'Fire',
-                  color: const Color(0xFFFF6B35),
-                  onTap: () => onTypeSelected('fire'),
+            const SizedBox(height: 20),
+            Text(
+              'Select Emergency Type',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Choose the type of emergency you are experiencing',
+              style: TextStyle(color: AppTheme.subtleGrey, fontSize: 13),
+            ),
+            const SizedBox(height: 28),
+            Row(
+              children: [
+                Expanded(
+                  child: _TypeButton(
+                    icon: Icons.local_fire_department,
+                    label: 'Fire',
+                    color: const Color(0xFFFF6B35),
+                    onTap: () => onTypeSelected('fire'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: _TypeButton(
-                  icon: Icons.medical_services,
-                  label: 'Medical',
-                  color: AppTheme.primaryRed,
-                  onTap: () => onTypeSelected('medical'),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _TypeButton(
+                    icon: Icons.medical_services,
+                    label: 'Medical',
+                    color: AppTheme.primaryRed,
+                    onTap: () => onTypeSelected('medical'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: _TypeButton(
-                  icon: Icons.shield,
-                  label: 'Crime',
-                  color: const Color(0xFF5C6BC0),
-                  onTap: () => onTypeSelected('crime'),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _TypeButton(
+                    icon: Icons.shield,
+                    label: 'Crime',
+                    color: const Color(0xFF5C6BC0),
+                    onTap: () => onTypeSelected('crime'),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

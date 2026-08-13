@@ -45,11 +45,11 @@ class Account(Base):
 
     # One-to-one relationships to role-specific profiles
     user_profile: Mapped[Optional["UserProfile"]] = relationship(
-        back_populates="account", uselist=False, lazy="selectin"
+        back_populates="account", uselist=False, lazy="selectin", cascade="all, delete-orphan", passive_deletes=True
     )
     organization: Mapped[Optional["Organization"]] = relationship(
-        back_populates="account", uselist=False, lazy="selectin"
+        back_populates="account", uselist=False, lazy="selectin", cascade="all, delete-orphan", passive_deletes=True
     )
     volunteer: Mapped[Optional["Volunteer"]] = relationship(
-        back_populates="account", uselist=False, lazy="selectin"
+        back_populates="account", uselist=False, lazy="selectin", cascade="all, delete-orphan", passive_deletes=True
     )

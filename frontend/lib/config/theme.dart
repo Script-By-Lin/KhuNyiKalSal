@@ -24,6 +24,12 @@ class AppTheme {
         onSurface: textDark,
       ),
       scaffoldBackgroundColor: backgroundWhite,
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 6,
+        insetPadding: const EdgeInsets.only(bottom: 84, left: 16, right: 16),
+      ),
       textTheme: GoogleFonts.interTextTheme(base.textTheme).copyWith(
         headlineLarge: GoogleFonts.inter(
           fontSize: 28,
