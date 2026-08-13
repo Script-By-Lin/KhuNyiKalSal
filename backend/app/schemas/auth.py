@@ -2,14 +2,14 @@ import re
 from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 
-PHONE_REGEX = re.compile(r"^(?:\+959|09)\d{7,8}$")
+PHONE_REGEX = re.compile(r"^(?:\+959|09)\d{9,10}$")
 
 
 def validate_myanmar_phone(v: str) -> str:
     cleaned = v.strip().replace(" ", "").replace("-", "")
     if not PHONE_REGEX.match(cleaned):
         raise ValueError(
-            "Phone number must start with +959 or 09 and contain 9 or 10 digits total (e.g. 0912345678 or +95912345678)"
+            "Phone number must start with +959 or 09 followed by 9 or 10 digits (e.g. 09123456789 or +959123456789)"
         )
     return cleaned
 

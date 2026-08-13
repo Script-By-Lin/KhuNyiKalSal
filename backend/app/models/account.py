@@ -35,7 +35,8 @@ class Account(Base):
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[RoleEnum] = mapped_column(
-        SAEnum(RoleEnum, name="role_enum"), nullable=False
+        SAEnum(RoleEnum, native_enum=False, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(

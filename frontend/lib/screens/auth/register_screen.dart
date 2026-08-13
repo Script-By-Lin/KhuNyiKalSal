@@ -83,9 +83,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       return 'Phone number is required';
     }
     final clean = value.trim().replaceAll(' ', '').replaceAll('-', '');
-    final regExp = RegExp(r'^(?:\+959|09)\d{7,8}$');
+    final regExp = RegExp(r'^(?:\+959|09)\d{9,10}$');
     if (!regExp.hasMatch(clean)) {
-      return 'Phone must start with +959 or 09 & contain 9 or 10 digits total\n(e.g., 0912345678 or +95912345678)';
+      return 'Phone must start with +959 or 09 followed by 9 or 10 digits\n(e.g., 09123456789 or +959123456789)';
     }
     return null;
   }
@@ -189,7 +189,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               decoration: const InputDecoration(
                 labelText: 'Phone Number (+959... or 09...)',
                 hintText: 'e.g. 0912345678 or +95912345678',
-                helperText: 'Must start with +959 or 09 (9 or 10 digits total)',
+                helperText: 'Must start with +959 or 09 followed by 9 or 10 digits',
                 prefixIcon: Icon(Icons.phone_outlined),
               ),
               keyboardType: TextInputType.phone,

@@ -89,7 +89,26 @@ class AppTheme {
           borderSide: const BorderSide(color: primaryRed, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        hintStyle: GoogleFonts.inter(color: subtleGrey, fontSize: 14),
+        hintStyle: GoogleFonts.inter(
+          color: Colors.grey.shade400,
+          fontSize: 13.5,
+          fontWeight: FontWeight.w400,
+        ),
+        labelStyle: GoogleFonts.inter(
+          color: Colors.grey.shade600,
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+        ),
+        floatingLabelStyle: GoogleFonts.inter(
+          color: primaryRed,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+        helperStyle: GoogleFonts.inter(
+          color: Colors.grey.shade500,
+          fontSize: 11,
+          fontWeight: FontWeight.w400,
+        ),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: backgroundWhite,
@@ -171,7 +190,10 @@ class AppTheme {
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: primaryRed, width: 2)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        hintStyle: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
+        hintStyle: GoogleFonts.inter(color: Colors.white38, fontSize: 13.5, fontWeight: FontWeight.w400),
+        labelStyle: GoogleFonts.inter(color: Colors.white60, fontSize: 14, fontWeight: FontWeight.w400),
+        floatingLabelStyle: GoogleFonts.inter(color: primaryRed, fontSize: 14, fontWeight: FontWeight.w600),
+        helperStyle: GoogleFonts.inter(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.w400),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: darkBackground,
