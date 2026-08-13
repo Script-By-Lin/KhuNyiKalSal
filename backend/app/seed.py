@@ -15,8 +15,8 @@ from app.models import Account, RoleEnum, UserProfile, Organization, Volunteer
 from app.core.security import hash_password
 
 
-async def seed():
-    await create_tables(drop=True)
+async def seed(drop: bool = False):
+    await create_tables(drop=drop)
 
     async with async_session_maker() as db:
         # ── Sample organisations ───────────────────────────────────────

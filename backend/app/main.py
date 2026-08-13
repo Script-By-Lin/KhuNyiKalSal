@@ -22,8 +22,13 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create database tables on startup."""
+    """Create database tables and seed initial data on startup."""
     await create_tables()
+    try:
+        from app.seed import seed
+        await seed(drop=False)
+    except Exception as e:
+        logging.warning(f"Database seed notice: {e}")
     yield
 
 

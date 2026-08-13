@@ -1,9 +1,11 @@
 class AppConstants {
   static const String appName = 'Khu Nyi Kal Sal';
 
-  // API — using ADB reverse port forwarding (127.0.0.1:8000)
-  static const String apiBaseUrl = 'http://127.0.0.1:8000/api';
-  static const String wsBaseUrl = 'ws://127.0.0.1:8000/ws';
+  // API host — Cloudflare Tunnel for remote testing
+  static const String apiBaseUrl =
+      'https://bike-ham-duo-frederick.trycloudflare.com/api';
+  static const String wsBaseUrl =
+      'wss://bike-ham-duo-frederick.trycloudflare.com/ws';
 
   // SOS
   static const Duration sosHoldDuration = Duration(seconds: 3);
