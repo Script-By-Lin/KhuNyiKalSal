@@ -155,92 +155,78 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
           widget.child,
           if (activeEmergency != null)
             Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(
-                bottom: false,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: activeEmergency.isAccepted
-                        ? Colors.green.shade600
-                        : AppTheme.primaryRed,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4)),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.warning_amber_rounded, color: Colors.white),
+              top: 20,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.4),
+                      blurRadius: 20,
+                      spreadRadius: 4,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'ACTIVE SOS - ${activeEmergency.type.toUpperCase()}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              activeEmergency.isAccepted
-                                  ? 'Responder assigned • Help on the way!'
-                                  : 'Alerting rescue teams • Waiting 5 min/org...',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      child: const Icon(Icons.warning_rounded, color: Colors.white, size: 28),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          TextButton.icon(
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              backgroundColor: Colors.black26,
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          Text(
+                            'SOS ${activeEmergency.status}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
                             ),
-                            icon: const Icon(Icons.cancel, color: Colors.white, size: 16),
-                            label: const Text('CANCEL SOS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
-                            onPressed: () {
-                              ref
-                                  .read(emergencyProvider.notifier)
-                                  .cancelEmergency(activeEmergency.id);
-                            },
                           ),
-                          const SizedBox(width: 4),
-                          IconButton(
-                            icon: const Icon(Icons.check_circle, color: Colors.white, size: 24),
-                            tooltip: 'Mark Complete',
-                            onPressed: () {
-                              ref
-                                  .read(emergencyProvider.notifier)
-                                  .completeEmergency(activeEmergency.id);
-                            },
+                          const SizedBox(height: 4),
+                          Text(
+                            activeEmergency.isAccepted
+                                ? 'Responder assigned • Help on the way!'
+                                : 'Alerting rescue teams • Waiting...',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: AppTheme.primaryRed,
+                        backgroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      label: const Text('CANCEL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      onPressed: () {
+                        ref
+                            .read(emergencyProvider.notifier)
+                            .cancelEmergency(activeEmergency.id);
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -318,11 +304,11 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                   animation: _sosCtrl,
                   builder: (context, _) {
                     return Container(
-                      width: 50,
+                      width: 50 + (_sosCtrl.value * 100), // Dynamic Island stretch effect
                       height: 50,
                       margin: const EdgeInsets.symmetric(horizontal: 2),
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(25),
                         gradient: const LinearGradient(
                           colors: [
                             Color(0xFFFF5252),
@@ -347,34 +333,20 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                         alignment: Alignment.center,
                         children: [
                           if (_sosCtrl.value > 0)
-                            SizedBox(
-                              width: 46,
-                              height: 46,
-                              child: CircularProgressIndicator(
-                                value: _sosCtrl.value,
-                                strokeWidth: 3.0,
-                                color: Colors.white,
-                                backgroundColor: Colors.white.withValues(alpha: 0.2),
-                              ),
-                            ),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.sos_rounded,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                              Text(
-                                _sosHolding ? 'HOLD...' : 'HOLD 3s',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                  fontSize: 7.5,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.4,
+                            Positioned.fill(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(25),
+                                child: LinearProgressIndicator(
+                                  value: _sosCtrl.value,
+                                  backgroundColor: Colors.transparent,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withValues(alpha: 0.3)),
                                 ),
                               ),
-                            ],
+                            ),
+                          const Icon(
+                            Icons.sos_rounded,
+                            color: Colors.white,
+                            size: 24,
                           ),
                         ],
                       ),

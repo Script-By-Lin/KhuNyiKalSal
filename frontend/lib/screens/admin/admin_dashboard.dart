@@ -267,40 +267,52 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
               ),
               const SizedBox(height: 16),
               _input(nameCtrl, 'Organization Name (e.g. Bago Rescue)'),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: DropdownButtonFormField<String>(
-                  value: selectedCategory,
-                  dropdownColor: Colors.white,
-                  style: const TextStyle(color: Colors.black, fontSize: 15),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppTheme.primaryRed, width: 2),
+              Row(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: DropdownButtonFormField<String>(
+                        value: selectedCategory,
+                        dropdownColor: Colors.white,
+                        style: const TextStyle(color: Colors.black, fontSize: 15),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppTheme.primaryRed, width: 2),
+                          ),
+                        ),
+                        items: categories.map((cat) {
+                          return DropdownMenuItem(value: cat, child: Text(cat));
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setModalState(() => selectedCategory = val);
+                        },
+                      ),
                     ),
                   ),
-                  items: categories.map((cat) {
-                    return DropdownMenuItem(value: cat, child: Text(cat));
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setModalState(() => selectedCategory = val);
-                  },
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(child: _input(phoneCtrl, 'Phone Number')),
+                ],
               ),
-              _input(emailCtrl, 'Login Email', isEmail: true),
-              _input(passCtrl, 'Password', isPass: true),
-              _input(phoneCtrl, 'Phone Number'),
+              Row(
+                children: [
+                  Expanded(child: _input(emailCtrl, 'Login Email', isEmail: true)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _input(passCtrl, 'Password', isPass: true)),
+                ],
+              ),
               Row(
                 children: [
                   Expanded(child: _input(latCtrl, 'Latitude (e.g. 16.86)')),
@@ -316,7 +328,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.pin_drop, color: AppTheme.primaryRed, size: 20),
                     label: const Text('📍 PICK LOCATION ON MAP PIN',
-                        style: TextStyle(color: AppTheme.primaryRed, fontWeight: FontWeight.bold, fontSize: 14)),
+                        style: TextStyle(color: AppTheme.primaryRed, fontWeight: FontWeight.bold, fontSize: 13)),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -325,15 +337,20 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                   ),
                 ),
               ),
-              _input(regionCtrl, 'Operating Region (e.g. Yangon, Bago)'),
-              _input(addressCtrl, 'HQ Address'),
+              Row(
+                children: [
+                  Expanded(child: _input(regionCtrl, 'Region (e.g. Yangon)')),
+                  const SizedBox(width: 10),
+                  Expanded(child: _input(addressCtrl, 'HQ Address')),
+                ],
+              ),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.check, size: 22),
-                  label: const Text('CREATE ORGANIZATION ACCOUNT',
+                  label: const Text('CREATE ORGANIZATION',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryRed,
