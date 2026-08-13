@@ -46,11 +46,12 @@ async def register_user(data: RegisterUserRequest, db: AsyncSession) -> TokenRes
     db.add(profile)
     await db.commit()
 
+    role_val = str(RoleEnum.USER.value).lower()
     token = create_access_token(
-        data={"sub": str(account.id), "role": RoleEnum.USER.value}
+        data={"sub": str(account.id), "role": role_val}
     )
     return TokenResponse(
-        access_token=token, role=RoleEnum.USER.value, user_id=str(account.id)
+        access_token=token, role=role_val, user_id=str(account.id)
     )
 
 
@@ -88,12 +89,13 @@ async def register_organization(
     db.add(org)
     await db.commit()
 
+    role_val = str(RoleEnum.ORGANIZATION.value).lower()
     token = create_access_token(
-        data={"sub": str(account.id), "role": RoleEnum.ORGANIZATION.value}
+        data={"sub": str(account.id), "role": role_val}
     )
     return TokenResponse(
         access_token=token,
-        role=RoleEnum.ORGANIZATION.value,
+        role=role_val,
         user_id=str(account.id),
     )
 
@@ -109,9 +111,10 @@ async def login(data: LoginRequest, db: AsyncSession) -> TokenResponse:
     if not account.is_active:
         raise HTTPException(status_code=403, detail="Account is deactivated")
 
+    role_val = str(account.role.value if hasattr(account.role, 'value') else account.role).lower()
     token = create_access_token(
-        data={"sub": str(account.id), "role": account.role.value}
+        data={"sub": str(account.id), "role": role_val}
     )
     return TokenResponse(
-        access_token=token, role=account.role.value, user_id=str(account.id)
+        access_token=token, role=role_val, user_id=str(account.id)
     )

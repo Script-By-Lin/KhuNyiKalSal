@@ -16,10 +16,10 @@ if TYPE_CHECKING:
 
 
 class RoleEnum(str, enum.Enum):
-    USER = "user"
-    ORGANIZATION = "organization"
-    VOLUNTEER = "volunteer"
-    ADMIN = "admin"
+    USER = "USER"
+    ORGANIZATION = "ORGANIZATION"
+    VOLUNTEER = "VOLUNTEER"
+    ADMIN = "ADMIN"
 
 
 class Account(Base):
@@ -35,7 +35,7 @@ class Account(Base):
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[RoleEnum] = mapped_column(
-        SAEnum(RoleEnum, native_enum=False, values_callable=lambda x: [e.value for e in x]),
+        SAEnum(RoleEnum, name="roleenum"),
         nullable=False,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
