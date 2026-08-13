@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/theme.dart';
 import '../../services/api_service.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/cache_service.dart';
+import 'package:shimmer/shimmer.dart';
 
 class FamilyGroupScreen extends ConsumerStatefulWidget {
   const FamilyGroupScreen({super.key});
@@ -45,7 +47,19 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
   }
 
   Future<void> _loadFamilyGroup() async {
-    setState(() => _loading = true);
+    // 1. Instantly load from cache first
+    final cached = await CacheService.getFamilyGroup();
+    if (cached != null && mounted) {
+      setState(() {
+        _group = cached;
+        _hasGroup = true;
+        _loading = false;
+      });
+    } else {
+      setState(() => _loading = true);
+    }
+
+    // 2. Fetch fresh data from server in background
     try {
       final res = await ApiService().getMyFamilyGroup();
       if (mounted) {
@@ -55,8 +69,10 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
           _loading = false;
         });
       }
+      // Save fresh data to cache
+      await CacheService.saveFamilyGroup(res.data);
     } catch (_) {
-      if (mounted) {
+      if (mounted && cached == null) {
         setState(() {
           _group = null;
           _hasGroup = false;
@@ -236,11 +252,54 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed))
-          : !_hasGroup
+      body: _loading && _group == null
+          ? _buildSkeletonLoader()
+          : !_hasGroup || _group == null
               ? _buildNoGroupView(isMm)
               : _buildGroupDetailsView(isMm),
+    );
+  }
+
+  Widget _buildSkeletonLoader() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Container(
+              width: double.infinity,
+              height: 140,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 3,
+            itemBuilder: (_, __) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Shimmer.fromColors(
+                baseColor: Colors.grey[300]!,
+                highlightColor: Colors.grey[100]!,
+                child: Container(
+                  width: double.infinity,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
+          )
+        ],
+      ),
     );
   }
 

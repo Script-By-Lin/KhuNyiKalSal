@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
     MAX_SOS_PER_DAY: int = 100
     VOLUNTEER_TIMEOUT_SECONDS: int = 300  # 5 minutes per organization
-    REDIS_URL: str = "redis://default:FjJkHWjFHbWJpeVGXNGttEMAZFXMkOwA@redis.railway.internal:6379"
+    REDIS_URL: str = os.getenv("REDIS_URL")
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

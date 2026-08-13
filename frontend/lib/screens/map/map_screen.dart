@@ -16,8 +16,9 @@ import '../../services/location_service.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   final OrganizationModel? previewOrg;
+  final Map<String, double>? targetLocation;
 
-  const MapScreen({super.key, this.previewOrg});
+  const MapScreen({super.key, this.previewOrg, this.targetLocation});
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
@@ -92,6 +93,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
             pos.latitude,
             pos.longitude,
           );
+          
+      // Automatically route to target location if provided (SOS view)
+      if (widget.targetLocation != null) {
+        _fetchRoute(LatLng(widget.targetLocation!['lat']!, widget.targetLocation!['lng']!));
+        _mapCtrl.move(
+          LatLng(widget.targetLocation!['lat']!, widget.targetLocation!['lng']!), 
+          13.0
+        );
+      }
 
       // Stream location updates
       _locationSub = LocationService.getLocationStream().listen((pos) {

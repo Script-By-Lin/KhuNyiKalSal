@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
 import '../../services/api_service.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/cache_service.dart';
+import 'package:shimmer/shimmer.dart';
 
 class FamilyAlertsScreen extends ConsumerStatefulWidget {
   const FamilyAlertsScreen({super.key});
@@ -25,9 +27,18 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _loading = true);
+    // 1. Instantly load from cache first
+    final cached = await CacheService.getFamilyAlerts();
+    if (cached != null && mounted) {
+      setState(() {
+        _alerts = cached;
+        _loading = false;
+      });
+    } else {
+      setState(() => _loading = true);
+    }
 
-    // 1. Check if user belongs to a family group
+    // 2. Fetch fresh data in background
     try {
       await ApiService().getMyFamilyGroup();
       _hasGroup = true;
@@ -35,7 +46,6 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
       _hasGroup = false;
     }
 
-    // 2. Fetch alert messages if user has group
     if (_hasGroup) {
       try {
         final res = await ApiService().getFamilyAlerts();
@@ -45,8 +55,9 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
             _loading = false;
           });
         }
+        await CacheService.saveFamilyAlerts(res.data);
       } catch (_) {
-        if (mounted) {
+        if (mounted && cached == null) {
           setState(() {
             _alerts = [];
             _loading = false;
@@ -54,7 +65,7 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
         }
       }
     } else {
-      if (mounted) {
+      if (mounted && cached == null) {
         setState(() {
           _alerts = [];
           _loading = false;
@@ -77,11 +88,35 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed))
-          : !_hasGroup
+      body: _loading && _alerts.isEmpty
+          ? _buildSkeletonLoader()
+          : !_hasGroup && _alerts.isEmpty
               ? _buildNoGroupAlertView(isMm)
               : _buildAlertsListView(isMm),
+    );
+  }
+
+  Widget _buildSkeletonLoader() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 4,
+      itemBuilder: (context, index) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Container(
+              width: double.infinity,
+              height: 180,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -330,7 +365,10 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
                                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                                 ),
                                 onPressed: () {
-                                  context.go('/map');
+                                  context.go('/map', extra: {
+                                    'lat': lat,
+                                    'lng': lng,
+                                  });
                                 },
                               ),
                             ),

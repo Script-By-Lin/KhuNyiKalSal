@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../config/theme.dart';
 import '../providers/emergency_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/auth_provider.dart';
 import '../services/location_service.dart';
 import 'sos/emergency_type_sheet.dart';
 
@@ -37,6 +38,52 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
           _triggerEmergencyTypeSheet();
         }
       });
+
+    // Listen to global WebSocket events (e.g. Family SOS)
+    final auth = ref.read(authProvider.notifier);
+    auth.ws.events.listen((event) {
+      if (!mounted) return;
+      if (event['event'] == 'FAMILY_SOS_ALERT') {
+        final senderName = event['sender_name'] ?? 'Family Member';
+        final rel = event['relationship'] ?? 'Family';
+        final type = (event['emergency_type'] ?? 'EMERGENCY').toString().toUpperCase();
+        
+        // Show global alert
+        ScaffoldMessenger.of(context).showMaterialBanner(
+          MaterialBanner(
+            padding: const EdgeInsets.all(16),
+            backgroundColor: AppTheme.primaryRed,
+            leading: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 32),
+            content: Text(
+              '🚨 $type SOS from $senderName ($rel)!',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+                  // Navigate directly to map with coordinates
+                  final loc = event['location'];
+                  if (loc != null) {
+                    context.go('/map', extra: {
+                      'lat': (loc['lat'] as num).toDouble(),
+                      'lng': (loc['lng'] as num).toDouble(),
+                    });
+                  } else {
+                    context.go('/family-alerts');
+                  }
+                },
+                child: const Text('VIEW ON MAP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+              TextButton(
+                onPressed: () => ScaffoldMessenger.of(context).hideCurrentMaterialBanner(),
+                child: const Text('DISMISS', style: TextStyle(color: Colors.white54)),
+              ),
+            ],
+          ),
+        );
+      }
+    });
   }
 
   @override

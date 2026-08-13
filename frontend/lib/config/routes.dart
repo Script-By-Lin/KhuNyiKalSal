@@ -45,9 +45,26 @@ final goRouter = GoRouter(
         GoRoute(path: '/family-alerts', builder: (_, _) => const FamilyAlertsScreen()),
         GoRoute(
           path: '/map',
-          builder: (_, state) => MapScreen(
-            previewOrg: state.extra as OrganizationModel?,
-          ),
+          builder: (_, state) {
+            final extra = state.extra;
+            OrganizationModel? previewOrg;
+            Map<String, double>? targetLoc;
+            
+            if (extra is OrganizationModel) {
+              previewOrg = extra;
+            } else if (extra is Map<String, double>) {
+              targetLoc = extra;
+            } else if (extra is Map) {
+              targetLoc = {
+                'lat': extra['lat'] as double,
+                'lng': extra['lng'] as double,
+              };
+            }
+            return MapScreen(
+              previewOrg: previewOrg,
+              targetLocation: targetLoc,
+            );
+          },
         ),
         GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
         GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
