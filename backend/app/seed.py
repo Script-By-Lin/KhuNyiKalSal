@@ -30,10 +30,11 @@ async def seed(drop: bool = False):
             )
             db.add(admin_acc)
             await db.commit()
+            print("    • Created Super Admin: admin@khunyikalsal.com")
+        else:
+            print("    • Super Admin already exists, skipped.")
 
         print("[OK] Clean database schema created successfully!")
-        print("    • All dummy sample data removed.")
-        print("    • Super Admin: admin@khunyikalsal.com")
 
 
 if __name__ == "__main__":
