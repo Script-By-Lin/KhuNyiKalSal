@@ -1,7 +1,7 @@
 """
 Khu Nyi Kal Sal — Mobile Emergency Response API
 
-FastAPI application entry point with CORS, routing, and DB initialisation.
+FastAPI application entry point with CORS, routing, DB initialisation, and Alembic migrations.
 """
 
 import logging
@@ -22,7 +22,13 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create database tables and seed initial data on startup."""
+    """Run Alembic database migrations and seed initial data on startup."""
+    try:
+        from migrate import run_migrations
+        run_migrations()
+    except Exception as e:
+        logging.warning(f"Alembic migration notice: {e}")
+
     await create_tables()
     try:
         from app.seed import seed
