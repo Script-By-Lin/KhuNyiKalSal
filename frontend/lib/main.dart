@@ -7,7 +7,11 @@ import 'config/routes.dart';
 import 'providers/auth_provider.dart';
 import 'providers/settings_provider.dart';
 
-void main() {
+import 'services/notification_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
   runApp(const ProviderScope(child: KhuNyiKalSalApp()));
 }
 

@@ -10,8 +10,8 @@ import 'package:intl/intl.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
-
 import '../../services/location_service.dart';
+import '../../services/notification_service.dart';
 
 class OrgDashboard extends ConsumerStatefulWidget {
   const OrgDashboard({super.key});
@@ -112,6 +112,11 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
       if (eventType == 'SOS_CREATED') {
         _playEmergencyAlertSound();
         _loadAlerts();
+        NotificationService().showEmergencyAlert(
+          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          title: '🚨 NEW SOS ALERT!',
+          body: 'An emergency has been reported in your coverage area.',
+        );
       } else if (eventType == 'EMERGENCY_COMPLETED' || eventType == 'SOS_CANCELLED') {
         _stopSimulation();
         setState(() {

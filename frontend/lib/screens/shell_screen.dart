@@ -8,6 +8,7 @@ import '../providers/emergency_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/location_service.dart';
+import '../services/notification_service.dart';
 import 'sos/emergency_type_sheet.dart';
 
 class ShellScreen extends ConsumerStatefulWidget {
@@ -53,6 +54,13 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
         final rel = event['relationship'] ?? 'Family';
         final type = (event['emergency_type'] ?? 'EMERGENCY').toString().toUpperCase();
         
+        // Trigger system notification
+        NotificationService().showEmergencyAlert(
+          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          title: '🚨 $type SOS from $senderName!',
+          body: 'Your $rel has activated an SOS emergency alert.',
+        );
+
         // Show global alert
         ScaffoldMessenger.of(context).showMaterialBanner(
           MaterialBanner(
@@ -121,12 +129,6 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
 
           if (emergencyId != null) {
             context.go('/map');
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('🚨 SOS Activated! Searching nearest rescue teams...'),
-                backgroundColor: AppTheme.primaryRed,
-              ),
-            );
           } else if (notifier.lastError != null) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
