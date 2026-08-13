@@ -95,6 +95,10 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
             ],
           ),
         );
+      } else if (event['event'] == 'SOS_ASSIGNED') {
+        // Backend has assigned the SOS to a specific organization.
+        // Reload the emergency to get the assigned_org_id.
+        ref.read(emergencyProvider.notifier).loadActive();
       }
     });
   }

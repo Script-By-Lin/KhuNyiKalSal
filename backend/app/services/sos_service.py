@@ -149,6 +149,14 @@ async def process_sos(
                 )
                 await db.commit()
 
+                # Notify the victim that an organization was assigned
+                await manager.send_personal(user_id, {
+                    "event": "SOS_ASSIGNED",
+                    "emergency_id": emergency_id,
+                    "assigned_org_id": str(best_org.account_id),
+                    "org_name": best_org.org_name
+                })
+
                 alert_data = {
                     "event": "SOS_CREATED",
                     "emergency_id": emergency_id,

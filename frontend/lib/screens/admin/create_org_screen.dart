@@ -87,7 +87,7 @@ class _CreateOrgScreenState extends ConsumerState<CreateOrgScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: const BoxDecoration(
-                    color: Colors.black,
+                    color: Colors.white,
                     borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                   ),
                   child: Row(
@@ -95,10 +95,10 @@ class _CreateOrgScreenState extends ConsumerState<CreateOrgScreen> {
                     children: [
                       const Text(
                         'Pick Organization Location',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
+                        icon: const Icon(Icons.close, color: Colors.black54),
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
@@ -145,8 +145,8 @@ class _CreateOrgScreenState extends ConsumerState<CreateOrgScreen> {
                         bottom: 16,
                         right: 16,
                         child: FloatingActionButton(
-                          backgroundColor: Colors.black,
-                          child: const Icon(Icons.my_location, color: Colors.white),
+                          backgroundColor: Colors.white,
+                          child: const Icon(Icons.my_location, color: AppTheme.primaryRed),
                           onPressed: () async {
                             try {
                               final pos = await LocationService.getCurrentLocation();
@@ -155,7 +155,11 @@ class _CreateOrgScreenState extends ConsumerState<CreateOrgScreen> {
                                 pickedPoint = newPos;
                               });
                               mapController.move(newPos, 15.0);
-                            } catch (_) {}
+                            } catch (e) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.primaryRed),
+                              );
+                            }
                           },
                         ),
                       ),
@@ -168,9 +172,12 @@ class _CreateOrgScreenState extends ConsumerState<CreateOrgScreen> {
                   top: false,
                   child: Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))
+                      ],
+                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
                     ),
                     child: SizedBox(
                       width: double.infinity,
