@@ -52,7 +52,7 @@ async def find_nearest_organizations(
         
         # Exact match of category gets top priority (score 0)
         # Others get lower priority (score 1)
-        if org.category.lower() == emergency_type.lower():
+        if org.category and org.category.lower() == emergency_type.lower():
             return 0
             
         # Optional fallback mapping if categories aren't strictly aligned, 
