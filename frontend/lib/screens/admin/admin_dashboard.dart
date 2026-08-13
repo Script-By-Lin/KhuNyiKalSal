@@ -272,14 +272,22 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 child: DropdownButtonFormField<String>(
                   value: selectedCategory,
                   dropdownColor: Colors.white,
-                  style: const TextStyle(color: Colors.black),
+                  style: const TextStyle(color: Colors.black, fontSize: 15),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    fillColor: Colors.grey.shade50,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.black12),
+                      borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppTheme.primaryRed, width: 2),
                     ),
                   ),
                   items: categories.map((cat) {
@@ -301,14 +309,14 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 ],
               ),
               Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: 16),
                 child: SizedBox(
                   width: double.infinity,
-                  height: 36,
+                  height: 48,
                   child: OutlinedButton.icon(
-                    icon: const Icon(Icons.pin_drop, color: AppTheme.primaryRed, size: 18),
+                    icon: const Icon(Icons.pin_drop, color: AppTheme.primaryRed, size: 20),
                     label: const Text('📍 PICK LOCATION ON MAP PIN',
-                        style: TextStyle(color: AppTheme.primaryRed, fontWeight: FontWeight.bold, fontSize: 12)),
+                        style: TextStyle(color: AppTheme.primaryRed, fontWeight: FontWeight.bold, fontSize: 14)),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -322,11 +330,11 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
-                height: 36,
+                height: 50,
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.check),
+                  icon: const Icon(Icons.check, size: 22),
                   label: const Text('CREATE ORGANIZATION ACCOUNT',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryRed,
                     foregroundColor: Colors.white,
@@ -420,14 +428,22 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                   child: DropdownButtonFormField<String>(
                     value: categories.contains(selectedCategory) ? selectedCategory : 'Medical',
                     dropdownColor: Colors.white,
-                    style: const TextStyle(color: Colors.black),
+                    style: const TextStyle(color: Colors.black, fontSize: 15),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      fillColor: Colors.grey.shade50,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.black12),
+                        borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppTheme.primaryRed, width: 2),
                       ),
                     ),
                     items: categories.map((cat) {
@@ -447,14 +463,14 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                   ],
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.only(bottom: 16),
                   child: SizedBox(
                     width: double.infinity,
-                    height: 36,
+                    height: 48,
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.pin_drop, color: AppTheme.primaryRed, size: 18),
+                      icon: const Icon(Icons.pin_drop, color: AppTheme.primaryRed, size: 20),
                       label: const Text('📍 RE-PIN LOCATION ON MAP',
-                          style: TextStyle(color: AppTheme.primaryRed, fontWeight: FontWeight.bold, fontSize: 12)),
+                          style: TextStyle(color: AppTheme.primaryRed, fontWeight: FontWeight.bold, fontSize: 14)),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -480,11 +496,11 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
-                  height: 36,
+                  height: 50,
                   child: ElevatedButton.icon(
-                    icon: const Icon(Icons.save),
+                    icon: const Icon(Icons.save, size: 22),
                     label: const Text('SAVE CHANGES',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryRed,
                       foregroundColor: Colors.white,
@@ -557,21 +573,29 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
   Widget _input(TextEditingController ctrl, String hint,
       {bool isEmail = false, bool isPass = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 16),
       child: TextField(
         controller: ctrl,
         obscureText: isPass,
         keyboardType: isEmail ? TextInputType.emailAddress : TextInputType.text,
-        style: const TextStyle(color: Colors.black),
+        style: const TextStyle(color: Colors.black, fontSize: 15),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
+          hintStyle: const TextStyle(color: Colors.black45, fontSize: 14),
           filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          fillColor: Colors.grey.shade50,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.black12),
+            borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppTheme.primaryRed, width: 2),
           ),
         ),
       ),
@@ -658,14 +682,22 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                     style: const TextStyle(color: Colors.black),
                     decoration: InputDecoration(
                       hintText: 'Search organization by name or region...',
-                      hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
-                      prefixIcon: const Icon(Icons.search, color: Colors.black38),
+                      hintStyle: const TextStyle(color: Colors.black45, fontSize: 13),
+                      prefixIcon: const Icon(Icons.search, color: Colors.black45),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Colors.grey.shade50,
                       contentPadding: const EdgeInsets.symmetric(vertical: 0),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: Colors.black12),
+                        borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppTheme.primaryRed, width: 2),
                       ),
                     ),
                   ),
@@ -677,7 +709,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryRed,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),

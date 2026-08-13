@@ -39,22 +39,22 @@ class Emergency(Base):
         PG_UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False
     )
     type: Mapped[EmergencyType] = mapped_column(
-        SAEnum(EmergencyType, name="emergency_type_enum"), nullable=False
+        SAEnum(EmergencyType, name="emergency_type_enum"), nullable=False, index=True
     )
     status: Mapped[EmergencyStatus] = mapped_column(
         SAEnum(EmergencyStatus, name="emergency_status_enum"),
-        default=EmergencyStatus.PENDING,
+        default=EmergencyStatus.PENDING, index=True
     )
     assigned_org_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("organizations.account_id"), nullable=True
+        PG_UUID(as_uuid=True), ForeignKey("organizations.account_id"), nullable=True, index=True
     )
     assigned_volunteer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("volunteers.account_id"), nullable=True
+        PG_UUID(as_uuid=True), ForeignKey("volunteers.account_id"), nullable=True, index=True
     )
-    location_lat: Mapped[float] = mapped_column(Float, nullable=False)
-    location_lng: Mapped[float] = mapped_column(Float, nullable=False)
+    location_lat: Mapped[float] = mapped_column(Float, nullable=False, index=True)
+    location_lng: Mapped[float] = mapped_column(Float, nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
     )
     updated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),

@@ -62,28 +62,14 @@ async def find_nearest_organizations(
     all_sorted: List[Tuple[Organization, float]] = []
 
     for org in orgs:
-        # 1. Fast linear distance in degrees
-        linear_deg = math.hypot(lat - org.geo_lat, lng - org.geo_lng)
-        
-        # 2. Fast filter: discard organizations outside an approximate 200km radius (~1.8 degrees)
-        # Note: We can adjust this threshold, but for safety we'll use 5.0 degrees (~550km)
-        if linear_deg > 5.0:
-            continue
-            
-        # 3. Approximate linear distance in km (1 degree ~ 111km)
-        linear_km = linear_deg * 111.0
-        
-        # 4. Precise Haversine distance
+        # Precise Haversine distance is actually very fast to calculate for a pre-filtered list
         haversine_km = haversine(lat, lng, org.geo_lat, org.geo_lng)
         
-        # 5. Combined Score: Average of linear and haversine for "linear + haversine" metric
-        combined_distance = (linear_km + haversine_km) / 2.0
-        
-        # 6. Coverage Check: Ensure the emergency is within the organization's coverage radius
-        if combined_distance > org.coverage_radius_km:
+        # Coverage Check: Ensure the emergency is within the organization's coverage radius
+        if haversine_km > org.coverage_radius_km:
             continue
         
-        all_sorted.append((org, combined_distance))
+        all_sorted.append((org, haversine_km))
 
     all_sorted.sort(key=lambda item: (_type_score(item[0]), item[1]))
 

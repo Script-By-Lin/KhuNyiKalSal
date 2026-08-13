@@ -223,19 +223,25 @@ async def get_family_alerts(
     )
     rel_map = {m.account_id: m.relationship for m in members_res.scalars().all()}
 
+    # Bulk fetch profiles and accounts for all alert senders to prevent N+1 queries
+    sender_ids = list({a.sender_id for a in alerts})
+    
+    profiles_map = {}
+    if sender_ids:
+        profiles_res = await db.execute(select(UserProfile).where(UserProfile.account_id.in_(sender_ids)))
+        profiles_map = {p.account_id: p for p in profiles_res.scalars().all()}
+        
+    accounts_map = {}
+    if sender_ids:
+        accounts_res = await db.execute(select(Account).where(Account.id.in_(sender_ids)))
+        accounts_map = {acc.id: acc for acc in accounts_res.scalars().all()}
+
     output = []
     for a in alerts:
-        prof_res = await db.execute(
-            select(UserProfile).where(UserProfile.account_id == a.sender_id)
-        )
-        sender_prof = prof_res.scalar_one_or_none()
-
-        acc_res = await db.execute(
-            select(Account).where(Account.id == a.sender_id)
-        )
-        sender_acc = acc_res.scalar_one_or_none()
+        sender_prof = profiles_map.get(a.sender_id)
+        sender_acc = accounts_map.get(a.sender_id)
+        
         sender_email = sender_acc.email if sender_acc else ""
-
         sender_name = sender_prof.full_name if sender_prof else (sender_email or "Family Member")
 
         output.append(
@@ -272,19 +278,26 @@ async def _build_group_response(
     )
     members = members_res.scalars().all()
 
+    # Bulk fetch profiles and accounts for all members to prevent N+1 queries
+    member_ids = [m.account_id for m in members]
+    
+    profiles_map = {}
+    if member_ids:
+        profiles_res = await db.execute(select(UserProfile).where(UserProfile.account_id.in_(member_ids)))
+        profiles_map = {p.account_id: p for p in profiles_res.scalars().all()}
+        
+    accounts_map = {}
+    if member_ids:
+        accounts_res = await db.execute(select(Account).where(Account.id.in_(member_ids)))
+        accounts_map = {acc.id: acc for acc in accounts_res.scalars().all()}
+
     member_responses = []
     for m in members:
-        prof_res = await db.execute(
-            select(UserProfile).where(UserProfile.account_id == m.account_id)
-        )
-        prof = prof_res.scalar_one_or_none()
+        prof = profiles_map.get(m.account_id)
         full_name = prof.full_name if prof else "Family Member"
         phone = prof.get_decrypted_phone() if prof else ""
 
-        acc_res = await db.execute(
-            select(Account).where(Account.id == m.account_id)
-        )
-        acc = acc_res.scalar_one_or_none()
+        acc = accounts_map.get(m.account_id)
         email = acc.email if acc else ""
 
         member_responses.append(

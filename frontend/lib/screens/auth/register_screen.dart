@@ -188,7 +188,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               controller: _phoneCtrl,
               decoration: const InputDecoration(
                 labelText: 'Phone Number (+959... or 09...)',
-                hintText: 'e.g. 0912345678 or +95912345678',
+                hintText: 'e.g. 09123456789 or +959123456789',
                 helperText: 'Must start with +959 or 09 followed by 9 or 10 digits',
                 prefixIcon: Icon(Icons.phone_outlined),
               ),

@@ -26,15 +26,15 @@ class Organization(Base):
     phone_number: Mapped[str] = mapped_column(String(500), nullable=False)
     phone_salt: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-    geo_lat: Mapped[float] = mapped_column(Float, nullable=False)
-    geo_lng: Mapped[float] = mapped_column(Float, nullable=False)
+    geo_lat: Mapped[float] = mapped_column(Float, nullable=False, index=True)
+    geo_lng: Mapped[float] = mapped_column(Float, nullable=False, index=True)
     registration_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     headquarters_address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     operating_regions: Mapped[Optional[str]] = mapped_column(String(255), default="Yangon")
-    category: Mapped[str] = mapped_column(String(50), default="Medical")
+    category: Mapped[str] = mapped_column(String(50), default="Medical", index=True)
     status: Mapped[str] = mapped_column(String(50), default="Active")
     coverage_radius_km: Mapped[float] = mapped_column(Float, default=50.0)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
 
     account: Mapped["Account"] = relationship(back_populates="organization")
     volunteers: Mapped[list["Volunteer"]] = relationship(
