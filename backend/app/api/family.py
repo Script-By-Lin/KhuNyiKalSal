@@ -256,6 +256,7 @@ async def get_family_alerts(
                 location_lat=a.location_lat,
                 location_lng=a.location_lng,
                 message=a.message,
+                is_resolved=a.is_resolved,
                 created_at=a.created_at,
             )
         )

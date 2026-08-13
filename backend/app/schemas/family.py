@@ -70,4 +70,5 @@ class FamilyAlertResponse(BaseModel):
     location_lat: float
     location_lng: float
     message: str
+    is_resolved: bool
     created_at: datetime

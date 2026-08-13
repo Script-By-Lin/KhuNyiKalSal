@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.account import Account
 from app.models.emergency import Emergency, EmergencyType, EmergencyStatus
+from app.models.family import FamilyAlert
 from app.core.security import get_current_user
 from app.core.permissions import require_role
 from app.core.abuse import check_sos_limit
@@ -173,6 +174,14 @@ async def complete_emergency(
         raise HTTPException(status_code=404, detail="No active emergency found to complete")
 
     emergency.status = EmergencyStatus.COMPLETED
+    
+    # Mark associated family alerts as resolved
+    await db.execute(
+        update(FamilyAlert)
+        .where(FamilyAlert.emergency_id == emergency.id)
+        .values(is_resolved=True)
+    )
+    
     await db.commit()
 
     # Instantly purge real-time tracking cache for fast & secure data removal
@@ -224,6 +233,14 @@ async def cancel_emergency_by_id(
         raise HTTPException(status_code=404, detail="No active emergency found to cancel")
 
     emergency.status = EmergencyStatus.CANCELLED
+    
+    # Mark associated family alerts as resolved
+    await db.execute(
+        update(FamilyAlert)
+        .where(FamilyAlert.emergency_id == emergency.id)
+        .values(is_resolved=True)
+    )
+    
     await db.commit()
 
     # Instantly purge real-time tracking cache

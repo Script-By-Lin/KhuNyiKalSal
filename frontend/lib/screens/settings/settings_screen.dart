@@ -117,8 +117,8 @@ class SettingsScreen extends ConsumerWidget {
                         title: Text(isMm ? 'အကောင့်မှထွက်မည်' : 'Log Out'),
                         content: Text(
                           isMm
-                              ? 'ထွက်လျှင် လက်ရှိ SOS အချက်ပေးခြင်းများ ပယ်ဖျက်ပြီး မှတ်တမ်းများ သိမ်းဆည်းပါမည်။'
-                              : 'Logging out will cancel any active pending SOS alerts and save your emergency history.',
+                              ? 'အကောင့်မှထွက်မည် သေချာပါသလား။'
+                              : 'Are you sure you want to log out?',
                         ),
                         actions: [
                           TextButton(

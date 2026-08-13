@@ -39,6 +39,11 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
         }
       });
 
+    // Load active emergencies when the shell screen initializes (e.g., after login)
+    Future.microtask(() {
+      ref.read(emergencyProvider.notifier).loadActive();
+    });
+
     // Listen to global WebSocket events (e.g. Family SOS)
     final auth = ref.read(authProvider.notifier);
     auth.ws.events.listen((event) {

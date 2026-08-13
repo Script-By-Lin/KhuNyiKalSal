@@ -222,6 +222,7 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
                 final relationship = alert['relationship'] ?? 'Family';
                 final type = (alert['emergency_type'] ?? 'emergency').toString().toUpperCase();
                 final message = alert['message'] ?? 'Emergency SOS triggered!';
+                final isResolved = alert['is_resolved'] == true;
                 final createdAt = alert['created_at']?.toString().replaceFirst('T', ' ').split('.').first ?? '';
                 final double lat = (alert['location_lat'] as num?)?.toDouble() ?? 16.8661;
                 final double lng = (alert['location_lng'] as num?)?.toDouble() ?? 96.1951;
@@ -306,11 +307,11 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: typeColor,
+                                color: isResolved ? AppTheme.secondaryGreen : typeColor,
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
-                                type,
+                                isResolved ? 'RESOLVED' : type,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -354,17 +355,17 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
                               height: 48,
                               child: ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: typeColor,
+                                  backgroundColor: isResolved ? Colors.grey.shade400 : typeColor,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
                                 icon: const Icon(Icons.map_outlined, color: Colors.white),
-                                label: const Text(
-                                  'VIEW LIVE LOCATION ON MAP',
-                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                label: Text(
+                                  isResolved ? 'EMERGENCY RESOLVED' : 'VIEW LIVE LOCATION ON MAP',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                                 ),
-                                onPressed: () {
+                                onPressed: isResolved ? null : () {
                                   context.go('/map', extra: {
                                     'lat': lat,
                                     'lng': lng,
