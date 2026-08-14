@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/theme.dart';
+import '../../providers/settings_provider.dart';
 
-class EmergencyTypeSheet extends StatelessWidget {
+class EmergencyTypeSheet extends ConsumerWidget {
   final void Function(String type) onTypeSelected;
 
   const EmergencyTypeSheet({super.key, required this.onTypeSelected});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
+
     return SafeArea(
       top: false,
       child: Container(
@@ -15,7 +19,7 @@ class EmergencyTypeSheet extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24), // Reduced bottom padding since SafeArea handles it
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -30,13 +34,17 @@ class EmergencyTypeSheet extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              'Select Emergency Type',
+              isMm ? 'အရေးပေါ် အမျိုးအစား ရွေးချယ်ပါ' : 'Select Emergency Type',
               style: Theme.of(context).textTheme.headlineMedium,
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Choose the type of emergency you are experiencing',
-              style: TextStyle(color: AppTheme.subtleGrey, fontSize: 13),
+              isMm
+                  ? 'သင်ကြုံတွေ့နေရသော အရေးပေါ် အခြေအနေကို ရွေးချယ်ပေးပါ'
+                  : 'Choose the type of emergency you are experiencing',
+              style: const TextStyle(color: AppTheme.subtleGrey, fontSize: 13),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 28),
             Row(
@@ -44,7 +52,7 @@ class EmergencyTypeSheet extends StatelessWidget {
                 Expanded(
                   child: _TypeButton(
                     icon: Icons.local_fire_department,
-                    label: 'Fire',
+                    label: isMm ? 'မီးဘေး' : 'Fire',
                     color: const Color(0xFFFF6B35),
                     onTap: () => onTypeSelected('fire'),
                   ),
@@ -53,7 +61,7 @@ class EmergencyTypeSheet extends StatelessWidget {
                 Expanded(
                   child: _TypeButton(
                     icon: Icons.medical_services,
-                    label: 'Medical',
+                    label: isMm ? 'ဆေးဘက်' : 'Medical',
                     color: AppTheme.primaryRed,
                     onTap: () => onTypeSelected('medical'),
                   ),
@@ -62,7 +70,7 @@ class EmergencyTypeSheet extends StatelessWidget {
                 Expanded(
                   child: _TypeButton(
                     icon: Icons.shield,
-                    label: 'Crime',
+                    label: isMm ? 'ရာဇဝတ်' : 'Crime',
                     color: const Color(0xFF5C6BC0),
                     onTap: () => onTypeSelected('crime'),
                   ),

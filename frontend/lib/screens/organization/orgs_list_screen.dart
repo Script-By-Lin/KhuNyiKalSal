@@ -118,8 +118,8 @@ class _OrgsListScreenState extends ConsumerState<OrgsListScreen> {
                         const SizedBox(height: 16),
                         Text(
                           _query.isEmpty
-                              ? 'No rescue organizations available'
-                              : 'No matching organizations for "$_query"',
+                              ? (isMm ? 'ကယ်ဆယ်ရေးအဖွဲ့များ မရှိသေးပါ' : 'No rescue organizations available')
+                              : (isMm ? '"$_query" နှင့် ကိုက်ညီသော အဖွဲ့ မတွေ့ပါ' : 'No matching organizations for "$_query"'),
                           style: const TextStyle(color: AppTheme.subtleGrey, fontSize: 15),
                         ),
                       ],
@@ -135,7 +135,7 @@ class _OrgsListScreenState extends ConsumerState<OrgsListScreen> {
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final org = filtered[index];
-                      return _OrgCard(org: org);
+                      return _OrgCard(org: org, isMm: isMm);
                     },
                   ),
                 );
@@ -150,8 +150,9 @@ class _OrgsListScreenState extends ConsumerState<OrgsListScreen> {
 
 class _OrgCard extends StatelessWidget {
   final OrganizationModel org;
+  final bool isMm;
 
-  const _OrgCard({required this.org});
+  const _OrgCard({required this.org, this.isMm = false});
 
   Future<void> _makeCall(String phoneNumber) async {
     final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
@@ -223,7 +224,7 @@ class _OrgCard extends StatelessWidget {
               ),
               IconButton.filledTonal(
                 icon: const Icon(Icons.map_outlined, color: Colors.blue),
-                tooltip: 'View on Map',
+                tooltip: isMm ? 'မြေပုံပေါ်တွင် ကြည့်မည်' : 'View on Map',
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.blue.withValues(alpha: 0.12),
                 ),
@@ -232,6 +233,7 @@ class _OrgCard extends StatelessWidget {
               const SizedBox(width: 8),
               IconButton.filledTonal(
                 icon: const Icon(Icons.call, color: AppTheme.secondaryGreen),
+                tooltip: isMm ? 'ဖုန်းခေါ်မည်' : 'Call',
                 style: IconButton.styleFrom(
                   backgroundColor: AppTheme.secondaryGreen.withValues(alpha: 0.12),
                 ),
@@ -250,7 +252,9 @@ class _OrgCard extends StatelessWidget {
                   const Icon(Icons.radar, size: 15, color: AppTheme.primaryRed),
                   const SizedBox(width: 4),
                   Text(
-                    'Coverage: ${org.coverageRadiusKm.toStringAsFixed(0)} km',
+                    isMm
+                        ? 'လွှမ်းခြုံဧရိယာ: ${org.coverageRadiusKm.toStringAsFixed(0)} km'
+                        : 'Coverage: ${org.coverageRadiusKm.toStringAsFixed(0)} km',
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                   ),
                 ],
@@ -261,7 +265,9 @@ class _OrgCard extends StatelessWidget {
                     const Icon(Icons.near_me, size: 15, color: Colors.blue),
                     const SizedBox(width: 4),
                     Text(
-                      '${org.distanceKm!.toStringAsFixed(1)} km away',
+                      isMm
+                          ? '${org.distanceKm!.toStringAsFixed(1)} km အကွာ'
+                          : '${org.distanceKm!.toStringAsFixed(1)} km away',
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue),
                     ),
                   ],

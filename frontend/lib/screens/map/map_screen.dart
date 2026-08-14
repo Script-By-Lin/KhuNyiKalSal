@@ -13,6 +13,7 @@ import '../../models/organization.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/emergency_provider.dart';
 import '../../providers/organization_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/location_service.dart';
 
@@ -1198,32 +1199,47 @@ class _MapScreenState extends ConsumerState<MapScreen>
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('📍 Coverage: ${org.coverageRadiusKm} km'),
-                if (org.distanceKm != null)
-                  Text(
-                    '🏃 ${org.distanceKm!.toStringAsFixed(1)} km away',
-                    style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.blue),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.alt_route),
-                label: const Text('Preview Route on Map'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                ),
-                onPressed: () {
-                  Navigator.of(sheetContext).pop();
-                  _previewRouteTo(org);
-                },
-              ),
+            Builder(
+              builder: (ctx) {
+                final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
+                return Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isMm
+                              ? '📍 လွှမ်းခြုံဧရိယာ: ${org.coverageRadiusKm} km'
+                              : '📍 Coverage: ${org.coverageRadiusKm} km',
+                        ),
+                        if (org.distanceKm != null)
+                          Text(
+                            isMm
+                                ? '🏃 ${org.distanceKm!.toStringAsFixed(1)} km အကွာ'
+                                : '🏃 ${org.distanceKm!.toStringAsFixed(1)} km away',
+                            style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.blue),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.alt_route),
+                        label: Text(isMm ? 'မြေပုံပေါ်တွင် လမ်းကြောင်းကြည့်မည်' : 'Preview Route on Map'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                        ),
+                        onPressed: () {
+                          Navigator.of(sheetContext).pop();
+                          _previewRouteTo(org);
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),

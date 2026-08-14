@@ -300,7 +300,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         const Icon(Icons.radar, size: 14, color: AppTheme.primaryRed),
                                         const SizedBox(width: 4),
                                         Text(
-                                          'Coverage: ${(_selectedOrg!['coverage_radius_km'] ?? 50.0).toString()} km',
+                                          isMm
+                                              ? 'လွှမ်းခြုံဧရိယာ: ${(_selectedOrg!['coverage_radius_km'] ?? 50.0).toString()} km'
+                                              : 'Coverage: ${(_selectedOrg!['coverage_radius_km'] ?? 50.0).toString()} km',
                                           style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                                         ),
                                       ],
