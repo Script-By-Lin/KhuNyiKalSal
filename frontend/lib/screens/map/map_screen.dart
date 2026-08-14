@@ -136,7 +136,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Future<void> _initLocation() async {
-    // 1. Immediately use last known location if available to avoid any loading hang
+    // If target location is present (Mission mode), immediately center on target location
+    if (_targetLocation != null) {
+      _safeMove(LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!), 14.5);
+    }
+
     try {
       final lastPos = await LocationService.getLastKnownLocation();
       if (lastPos != null && mounted) {
@@ -144,7 +148,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
           _userLocation = LatLng(lastPos.latitude, lastPos.longitude);
           _locationLoading = false;
         });
-        if (_targetLocation == null) {
+        if (_targetLocation != null) {
+          _lastRouteKey = null;
+          _fetchRealRoadRoute(
+            _userLocation!,
+            LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!),
+          );
+        } else {
           _safeMove(_userLocation!, AppConstants.defaultZoom);
         }
       }
@@ -157,7 +167,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
           _userLocation = LatLng(pos.latitude, pos.longitude);
           _locationLoading = false;
         });
-        if (_targetLocation == null) {
+        if (_targetLocation != null) {
+          _lastRouteKey = null;
+          _fetchRealRoadRoute(
+            _userLocation!,
+            LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!),
+          );
+          _safeFitBounds([_userLocation!, LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!)]);
+        } else {
           _safeMove(_userLocation!, AppConstants.defaultZoom);
         }
       }
@@ -170,26 +187,31 @@ class _MapScreenState extends ConsumerState<MapScreen>
             pos.latitude,
             pos.longitude,
           );
-          
-      // Automatically route to target location if provided (SOS view / Mission View)
-      if (_targetLocation != null && _userLocation != null) {
-        _fetchRealRoadRoute(
-          _userLocation!,
-          LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!)
-        );
-      }
 
       // Stream location updates
       _locationSub = LocationService.getLocationStream().listen((pos) {
         if (mounted) {
-          setState(() => _userLocation = LatLng(pos.latitude, pos.longitude));
+          final newLoc = LatLng(pos.latitude, pos.longitude);
+          final oldLoc = _userLocation;
+          setState(() => _userLocation = newLoc);
           ApiService().updateUserLocation(pos.latitude, pos.longitude);
+
+          // Update route if user moved significantly (> 20 meters)
+          if (_targetLocation != null && oldLoc != null) {
+            final moved = (newLoc.latitude - oldLoc.latitude).abs() > 0.0002 ||
+                (newLoc.longitude - oldLoc.longitude).abs() > 0.0002;
+            if (moved) {
+              _fetchRealRoadRoute(
+                newLoc,
+                LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!),
+              );
+            }
+          }
         }
       });
     } catch (e) {
       if (mounted) {
         setState(() {
-          _userLocation ??= LatLng(AppConstants.defaultLat, AppConstants.defaultLng);
           _locationLoading = false;
         });
       }
@@ -297,17 +319,25 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Future<void> _reloadCurrentRoute() async {
+    setState(() {
+      _lastRouteKey = null;
+      _isFetchingRoute = false;
+    });
+
+    if (_targetLocation != null && _userLocation != null) {
+      final start = _userLocation!;
+      final end = LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!);
+      await _fetchRealRoadRoute(start, end);
+      _safeFitBounds([start, end]);
+      return;
+    }
+
     final orgs = ref.read(organizationProvider).value ?? [];
     final activeEmergencies = ref.read(emergencyProvider).value ?? [];
     final active = activeEmergencies.isNotEmpty ? activeEmergencies.first : null;
     final isSosPending = active != null && (active.isPending || active.isAccepted);
     final sosOrg = _findSosTargetOrg(orgs);
     final targetOrg = isSosPending ? sosOrg : _previewOrg;
-
-    setState(() {
-      _lastRouteKey = null;
-      _isFetchingRoute = false;
-    });
 
     if (targetOrg != null) {
       final start = _responderLocation ?? LatLng(targetOrg.geoLat, targetOrg.geoLng);
@@ -486,15 +516,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     if (_targetLocation != null) {
       // Direct navigation to Family SOS / Target victim location
-      routeStartPoint = _userLocation ?? LatLng(AppConstants.defaultLat, AppConstants.defaultLng);
+      routeStartPoint = _userLocation;
       routeEndPoint = LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!);
     } else if (isSosPending) {
       // SOS active: route FROM Org base / Responder TO user emergency location
       routeStartPoint = _responderLocation ??
           (activeTargetOrg != null
               ? LatLng(activeTargetOrg.geoLat, activeTargetOrg.geoLng)
-              : LatLng((_userLocation?.latitude ?? AppConstants.defaultLat) - 0.02,
-                  (_userLocation?.longitude ?? AppConstants.defaultLng) - 0.015));
+              : null);
       routeEndPoint = _userLocation ?? LatLng(AppConstants.defaultLat, AppConstants.defaultLng);
     } else if (_previewOrg != null) {
       // Preview: show user TO org
@@ -640,38 +669,37 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       ),
                     ),
 
-                  // User location marker + SOS Wave Animation
+                  // User location marker
                   if (_userLocation != null)
                     Marker(
                       point: _userLocation!,
-                      width: isSosPending ? 80 : 36,
-                      height: isSosPending ? 80 : 36,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-
-                          Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: isSosPending ? AppTheme.primaryRed : Colors.blue,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 3),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (isSosPending ? AppTheme.primaryRed : Colors.blue)
-                                      .withValues(alpha: 0.4),
-                                  blurRadius: 10,
-                                  spreadRadius: 3,
-                                ),
-                              ],
+                      width: 44,
+                      height: 44,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: (_targetLocation != null || widget.isMissionMode)
+                              ? const Color(0xFF0284C7)
+                              : (isSosPending ? AppTheme.primaryRed : Colors.blue),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: ((_targetLocation != null || widget.isMissionMode)
+                                      ? const Color(0xFF0284C7)
+                                      : (isSosPending ? AppTheme.primaryRed : Colors.blue))
+                                  .withValues(alpha: 0.5),
+                              blurRadius: 10,
+                              spreadRadius: 2,
                             ),
-                            child: isSosPending
-                                ? const Icon(Icons.wifi_tethering,
-                                    color: Colors.white, size: 16)
-                                : null,
-                          ),
-                        ],
+                          ],
+                        ),
+                        child: Icon(
+                          (_targetLocation != null || widget.isMissionMode)
+                              ? Icons.navigation_rounded
+                              : (isSosPending ? Icons.wifi_tethering : Icons.person_pin_circle_rounded),
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
 

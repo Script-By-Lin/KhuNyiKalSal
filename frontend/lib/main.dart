@@ -30,8 +30,8 @@ void main() async {
           }
         } catch (_) {}
       }
-      // Default to home/dashboard if we can't parse it
-      goRouter.go('/login');
+      // Default to family alerts or map
+      goRouter.go('/family-alerts');
     },
   );
   runApp(const ProviderScope(child: KhuNyiKalSalApp()));
