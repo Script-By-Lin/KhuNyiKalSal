@@ -9,6 +9,9 @@ import '../providers/settings_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
+import '../services/offline_service.dart';
+import '../widgets/offline_banner.dart';
+import '../widgets/offline_sos_dialog.dart';
 import 'sos/emergency_type_sheet.dart';
 
 class ShellScreen extends ConsumerStatefulWidget {
@@ -126,6 +129,20 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
             lng = pos.longitude;
           } catch (_) {}
 
+          final isOnline = await OfflineService().checkInternet();
+          if (!isOnline) {
+            if (!mounted) return;
+            showDialog(
+              context: context,
+              builder: (ctx) => OfflineSOSDialog(
+                emergencyType: type,
+                lat: lat,
+                lng: lng,
+              ),
+            );
+            return;
+          }
+
           final notifier = ref.read(emergencyProvider.notifier);
           final emergencyId = await notifier.createSOS(type, lat, lng);
 
@@ -133,11 +150,14 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
 
           if (emergencyId != null) {
             context.go('/map');
-          } else if (notifier.lastError != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('⚠️ ${notifier.lastError}'),
-                backgroundColor: Colors.orange,
+          } else {
+            // Failed due to timeout or network -> Offer Offline fallback
+            showDialog(
+              context: context,
+              builder: (ctx) => OfflineSOSDialog(
+                emergencyType: type,
+                lat: lat,
+                lng: lng,
               ),
             );
           }
@@ -158,7 +178,12 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
       extendBody: true,
       body: Stack(
         children: [
-          widget.child,
+          Column(
+            children: [
+              const OfflineBanner(),
+              Expanded(child: widget.child),
+            ],
+          ),
 
           if (activeEmergency != null || _sosHolding)
             Positioned(

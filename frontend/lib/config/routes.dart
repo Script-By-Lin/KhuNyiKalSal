@@ -9,6 +9,7 @@ import '../screens/auth/legal_agreement_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/home/how_to_use_screen.dart';
 import '../screens/home/rules_laws_screen.dart';
+import '../screens/home/offline_first_aid_screen.dart';
 import '../screens/map/map_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/family/family_group_screen.dart';
@@ -75,6 +76,7 @@ final goRouter = GoRouter(
     ),
 
     // ── Sub-pages ────────────────────────────────────────────────────────
+    GoRoute(path: '/first-aid', builder: (_, _) => const OfflineFirstAidScreen()),
     GoRoute(path: '/how-to-use', builder: (_, _) => const HowToUseScreen()),
     GoRoute(path: '/rules-laws', builder: (_, _) => const RulesLawsScreen()),
 

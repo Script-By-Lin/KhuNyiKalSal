@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,11 +6,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../config/theme.dart';
-import '../../providers/auth_provider.dart';
-
-import 'dart:async';
 import '../../services/location_service.dart';
 import '../../services/api_service.dart';
+import '../../services/offline_service.dart';
 import '../../providers/settings_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/organization.dart';
@@ -64,12 +63,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         lng: _userPos?.longitude,
       );
       if (mounted) {
+        final list = List<Map<String, dynamic>>.from(res.data);
         setState(() {
           _orgs.clear();
-          _orgs.addAll(List<Map<String, dynamic>>.from(res.data));
+          _orgs.addAll(list);
+        });
+        await OfflineService().cacheOrganizations(list);
+      }
+    } catch (_) {
+      final cached = await OfflineService().getCachedOrganizations();
+      if (mounted && cached.isNotEmpty) {
+        setState(() {
+          _orgs.clear();
+          _orgs.addAll(cached);
         });
       }
-    } catch (_) {}
+    }
   }
 
   @override
@@ -391,6 +400,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 14),
+              _InfoTile(
+                icon: Icons.medical_services_outlined,
+                title: isMm ? 'အော့ဖ်လိုင်း ရှေးဦးပြုစုနည်းများ' : 'Offline First-Aid Guides',
+                subtitle: isMm ? '၁၀၀% အင်တာနက်မလိုဘဲ ဖတ်ရှုနိုင်သော နည်းလမ်းများ' : '100% offline emergency survival protocols',
+                onTap: () => context.push('/first-aid'),
+              ),
+              const SizedBox(height: 10),
               _InfoTile(
                 icon: Icons.help_outline,
                 title: isMm ? 'အသုံးပြုပုံ' : 'How to Use',
