@@ -6,8 +6,16 @@ Wakes up devices even when the app is completely closed or locked.
 import json
 import uuid
 import logging
+import asyncio
 from typing import List, Dict, Any, Optional
-import httpx
+import urllib.request
+import urllib.error
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +40,25 @@ async def get_user_device_tokens(user_ids: List[uuid.UUID], db: AsyncSession) ->
     )
     tokens = [t for t in result.scalars().all() if t and t.strip()]
     return list(set(tokens))
+
+
+def _send_fcm_urllib(token: str, payload: dict, server_key: str) -> None:
+    """Synchronous fallback to deliver FCM push via standard library urllib."""
+    try:
+        data_bytes = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            "https://fcm.googleapis.com/fcm/send",
+            data=data_bytes,
+            headers={
+                "Authorization": f"key={server_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=8) as response:
+            logger.info(f"FCM Push (urllib) for {token[:8]}...: {response.status}")
+    except Exception as e:
+        logger.error(f"FCM urllib push error: {e}")
 
 
 async def send_emergency_push(
@@ -59,38 +86,42 @@ async def send_emergency_push(
     # If FCM Server Key is configured, dispatch HTTP POST to FCM v1 / legacy endpoint
     if settings.FCM_SERVER_KEY:
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                for token in tokens:
-                    payload = {
-                        "to": token,
+            for token in tokens:
+                payload = {
+                    "to": token,
+                    "priority": "high",
+                    "notification": {
+                        "title": title,
+                        "body": body,
+                        "sound": sound_name,
+                        "android_channel_id": channel_id,
+                    },
+                    "android": {
                         "priority": "high",
                         "notification": {
-                            "title": title,
-                            "body": body,
+                            "channel_id": channel_id,
                             "sound": sound_name,
-                            "android_channel_id": channel_id,
-                        },
-                        "android": {
                             "priority": "high",
-                            "notification": {
-                                "channel_id": channel_id,
-                                "sound": sound_name,
-                                "priority": "high",
-                                "visibility": "public",
-                            },
+                            "visibility": "public",
                         },
-                        "data": serialized_data,
-                    }
-                    headers = {
-                        "Authorization": f"key={settings.FCM_SERVER_KEY}",
-                        "Content-Type": "application/json",
-                    }
-                    res = await client.post(
-                        "https://fcm.googleapis.com/fcm/send",
-                        json=payload,
-                        headers=headers,
-                    )
-                    logger.info(f"FCM Push response for {token[:8]}...: {res.status_code}")
+                    },
+                    "data": serialized_data,
+                }
+                
+                if httpx is not None:
+                    async with httpx.AsyncClient(timeout=8.0) as client:
+                        headers = {
+                            "Authorization": f"key={settings.FCM_SERVER_KEY}",
+                            "Content-Type": "application/json",
+                        }
+                        res = await client.post(
+                            "https://fcm.googleapis.com/fcm/send",
+                            json=payload,
+                            headers=headers,
+                        )
+                        logger.info(f"FCM Push for {token[:8]}...: {res.status_code}")
+                else:
+                    await asyncio.to_thread(_send_fcm_urllib, token, payload, settings.FCM_SERVER_KEY)
         except Exception as e:
             logger.error(f"Failed to dispatch FCM push notification: {e}")
 
