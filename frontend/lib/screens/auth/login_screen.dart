@@ -55,14 +55,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     if (success && mounted) {
       final role = ref.read(authProvider).role;
-      if (role == 'admin' || role == 'superadmin') {
-        context.go('/admin-dashboard');
-      } else if (role == 'volunteer') {
-        context.go('/volunteer-dashboard');
-      } else if (role == 'organization') {
-        context.go('/org-dashboard');
-      } else {
-        context.go('/home');
+      if (role != null) {
+        final lowerRole = role.toLowerCase();
+        if (lowerRole == 'admin' || lowerRole == 'superadmin') {
+          context.go('/admin-dashboard');
+        } else if (lowerRole == 'volunteer') {
+          context.go('/volunteer-dashboard');
+        } else if (lowerRole == 'organization') {
+          context.go('/org-dashboard');
+        } else {
+          context.go('/home');
+        }
       }
     }
   }

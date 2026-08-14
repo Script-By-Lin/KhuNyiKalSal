@@ -1,17 +1,90 @@
 """
-Database Migration Runner for Alembic
-Runs 'alembic upgrade head'. If tables already exist without alembic_version, stamps head.
+Database Migration & Auto-Schema Sync Runner for Railway / Docker
+-----------------------------------------------------------------
+Executes every time the backend container starts (e.g. after git push to GitHub).
+1. Ensures critical schema tables and columns exist idempotently via direct SQL.
+2. Runs 'alembic upgrade head' to apply any pending Alembic revisions.
 """
+
 import os
 import sys
 import subprocess
+import asyncio
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+from app.config import settings
 
 
-def run_migrations():
-    print("Executing Alembic database migrations...")
+async def ensure_idempotent_schema():
+    """Apply critical DDL statements directly to ensure schema completeness."""
+    db_url = settings.async_database_url
+    if not db_url or "sqlite" in db_url:
+        return
+
+    print("⏳ Auto-Syncing PostgreSQL schema on Railway...")
+    try:
+        engine = create_async_engine(db_url, echo=False)
+        sql_statements = [
+            # Ensure UUID extension
+            """CREATE EXTENSION IF NOT EXISTS "uuid-ossp";""",
+
+            # Ensure sessions table exists for device and push token management
+            """
+            CREATE TABLE IF NOT EXISTS sessions (
+                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                user_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                device_id VARCHAR(255),
+                device_name VARCHAR(255),
+                refresh_token_hash VARCHAR(255) NOT NULL,
+                ip_address VARCHAR(100),
+                user_agent VARCHAR(500),
+                fcm_token VARCHAR(500),
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                last_used_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            """,
+
+            # Add fcm_token if sessions table already existed without it
+            """
+            ALTER TABLE sessions 
+            ADD COLUMN IF NOT EXISTS fcm_token VARCHAR(500);
+            """,
+
+            # Indexes for sessions table
+            """CREATE INDEX IF NOT EXISTS ix_sessions_user_id ON sessions (user_id);""",
+            """CREATE INDEX IF NOT EXISTS ix_sessions_device_id ON sessions (device_id);""",
+            """CREATE INDEX IF NOT EXISTS ix_sessions_refresh_token_hash ON sessions (refresh_token_hash);""",
+            """CREATE INDEX IF NOT EXISTS ix_sessions_fcm_token ON sessions (fcm_token);""",
+            """CREATE INDEX IF NOT EXISTS ix_sessions_is_active ON sessions (is_active);""",
+
+            # Ensure assigned_volunteer_id for First-Responder SOS dispatch
+            """
+            ALTER TABLE emergencies 
+            ADD COLUMN IF NOT EXISTS assigned_volunteer_id UUID REFERENCES volunteers(account_id) ON DELETE SET NULL;
+            """,
+            """CREATE INDEX IF NOT EXISTS ix_emergencies_assigned_volunteer_id ON emergencies (assigned_volunteer_id);"""
+        ]
+
+        async with engine.begin() as conn:
+            for stmt in sql_statements:
+                try:
+                    await conn.execute(text(stmt))
+                except Exception as e:
+                    print(f"  [Notice] Schema check: {e}")
+
+        await engine.dispose()
+        print("✅ Direct PostgreSQL schema verification completed.")
+    except Exception as e:
+        print(f"⚠️ Direct schema verification notice: {e}")
+
+
+def run_alembic_upgrade():
+    """Run alembic upgrade head using subprocess."""
+    print("⏳ Executing Alembic migrations...")
     env = os.environ.copy()
     
-    # 1. Try upgrading to head
+    # Run alembic upgrade head
     res = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
         capture_output=True,
@@ -20,11 +93,11 @@ def run_migrations():
     )
 
     if res.returncode == 0:
-        print("[OK] Alembic database migrations applied successfully!")
+        print("✅ Alembic database migrations applied successfully!")
         if res.stdout.strip():
-            print(res.stdout)
+            print(res.stdout.strip())
     else:
-        # If tables exist prior to Alembic tracking, stamp head
+        # If tables already exist before alembic versioning, stamp head
         if "already exists" in res.stderr:
             print("Database tables exist — stamping Alembic version to head...")
             stamp_res = subprocess.run(
@@ -34,11 +107,24 @@ def run_migrations():
                 env=env,
             )
             if stamp_res.returncode == 0:
-                print("[OK] Alembic database stamped to head revision successfully!")
+                print("✅ Alembic database stamped to head revision successfully!")
             else:
                 print(f"Stamp notice: {stamp_res.stderr}")
         else:
-            print(f"Alembic Migration Notice: {res.stderr or res.stdout}")
+            print(f"Alembic Migration Output: {res.stderr or res.stdout}")
+
+
+def run_migrations():
+    """Entry point for running all migrations during startup."""
+    try:
+        asyncio.run(ensure_idempotent_schema())
+    except Exception as e:
+        print(f"⚠️ ensure_idempotent_schema error: {e}")
+
+    try:
+        run_alembic_upgrade()
+    except Exception as e:
+        print(f"⚠️ run_alembic_upgrade error: {e}")
 
 
 if __name__ == "__main__":

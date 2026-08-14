@@ -283,6 +283,7 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
                           itemCount: _alerts.length,
                           itemBuilder: (_, i) => _AlertCard(
                             alert: _alerts[i],
+                            currentUserId: ref.read(authProvider).userId ?? '',
                             onAccept: () =>
                                 _respond(_alerts[i]['emergency_id'], 'accept'),
                             onReject: () =>
@@ -301,12 +302,14 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
 
 class _AlertCard extends StatelessWidget {
   final Map<String, dynamic> alert;
+  final String currentUserId;
   final VoidCallback onAccept;
   final VoidCallback onReject;
   final VoidCallback onComplete;
 
   const _AlertCard({
     required this.alert,
+    required this.currentUserId,
     required this.onAccept,
     required this.onReject,
     required this.onComplete,
@@ -507,37 +510,57 @@ class _AlertCard extends StatelessWidget {
                         ),
                       ),
                     if (isAccepted)
-                      Expanded(
-                        child: SizedBox(
-                          height: 44,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryRed,
-                              foregroundColor: Colors.white,
-                              elevation: 2,
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            onPressed: onComplete,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.check_circle, size: 18),
-                                SizedBox(width: 6),
-                                Flexible(
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      'MISSION COMPLETE',
-                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+                      if (alert['assigned_volunteer_id'] == currentUserId)
+                        Expanded(
+                          child: SizedBox(
+                            height: 44,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primaryRed,
+                                foregroundColor: Colors.white,
+                                elevation: 2,
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: onComplete,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.check_circle, size: 18),
+                                  SizedBox(width: 6),
+                                  Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        'MISSION COMPLETE',
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      )
+                        )
+                      else
+                        Expanded(
+                          child: Container(
+                            alignment: Alignment.center,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'ACCEPTED BY ${alert['assigned_volunteer_name']?.toUpperCase() ?? 'OTHER VOLUNTEER'}',
+                              style: const TextStyle(
+                                color: AppTheme.primaryRed,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        )
                     else ...[
                       Expanded(
                         child: SizedBox(

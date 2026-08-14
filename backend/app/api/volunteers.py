@@ -133,12 +133,23 @@ async def get_active_alerts(
             if org_obj:
                 org_loc = {"lat": org_obj.geo_lat, "lng": org_obj.geo_lng}
 
+        vol_name = None
+        vol_loc = None
+        if e.assigned_volunteer_id and e.assigned_volunteer:
+            v_account = e.assigned_volunteer.account
+            if v_account and v_account.user_profile:
+                vol_name = v_account.user_profile.full_name
+            vol_loc = {"lat": e.assigned_volunteer.geo_lat, "lng": e.assigned_volunteer.geo_lng}
+
         alerts.append({
             "event": "SOS_CREATED",
             "emergency_id": e_id,
             "type": e.type.value,
             "location": {"lat": e.location_lat, "lng": e.location_lng},
             "org_location": org_loc,
+            "assigned_volunteer_id": str(e.assigned_volunteer_id) if e.assigned_volunteer_id else None,
+            "assigned_volunteer_name": vol_name,
+            "assigned_volunteer_location": vol_loc,
             "user_info": {
                 "full_name": profile.full_name if profile else "Unknown User",
                 "phone_number": profile.get_decrypted_phone() if profile else "",
@@ -440,97 +451,3 @@ async def update_volunteer_location(
 
     return {"message": "Live responder location updated in cache"}
 
-
-@router.post("/assign")
-async def assign_volunteer_to_emergency(
-    data: AssignVolunteerRequest,
-    current_user: Account = Depends(require_role("organization")),
-    db: AsyncSession = Depends(get_db),
-):
-    """Organization assigns a specific emergency to one of its registered active volunteers."""
-    # 1. Fetch emergency
-    result = await db.execute(
-        select(Emergency).where(
-            Emergency.id == uuid_module.UUID(data.emergency_id)
-        )
-    )
-    emergency = result.scalar_one_or_none()
-    if not emergency:
-        raise HTTPException(status_code=404, detail="Emergency not found")
-    if emergency.status in (EmergencyStatus.COMPLETED, EmergencyStatus.CANCELLED):
-        raise HTTPException(status_code=400, detail="Cannot assign a closed emergency")
-
-    # 2. Fetch volunteer & verify ownership
-    v_res = await db.execute(
-        select(Volunteer).where(
-            Volunteer.account_id == uuid_module.UUID(data.volunteer_id),
-            Volunteer.org_id == current_user.id,
-        )
-    )
-    volunteer = v_res.scalar_one_or_none()
-    if not volunteer:
-        raise HTTPException(status_code=404, detail="Volunteer not found in your organization")
-
-    # 3. Fetch Organization profile
-    o_res = await db.execute(
-        select(Organization).where(Organization.account_id == current_user.id)
-    )
-    org = o_res.scalar_one_or_none()
-    org_name = org.org_name if org else "Rescue Organization"
-
-    # 4. Update emergency assignment
-    emergency.assigned_org_id = current_user.id
-    emergency.assigned_volunteer_id = volunteer.account_id
-    emergency.status = EmergencyStatus.ACCEPTED
-    await db.commit()
-
-    # 5. Build alert coordinates
-    responder_lat = volunteer.current_lat or (org.geo_lat if org else emergency.location_lat - 0.015)
-    responder_lng = volunteer.current_lng or (org.geo_lng if org else emergency.location_lng - 0.010)
-
-    # 6. Notify assigned volunteer via WebSocket & Push Siren
-    vol_alert = {
-        "event": "SOS_ASSIGNED_TO_YOU",
-        "emergency_id": data.emergency_id,
-        "type": emergency.type.value,
-        "location": {"lat": emergency.location_lat, "lng": emergency.location_lng},
-        "organization": org_name,
-        "message": f"🚨 Your organization has assigned you to a {emergency.type.value.upper()} rescue mission!",
-    }
-    await manager.send_personal(str(volunteer.account_id), vol_alert)
-
-    from app.services.push_service import get_user_device_tokens, send_emergency_push
-    tokens = await get_user_device_tokens([volunteer.account_id], db)
-    if tokens:
-        await send_emergency_push(
-            tokens=tokens,
-            title=f"🚨 MISSION DIRECTLY ASSIGNED: {emergency.type.value.upper()}",
-            body=f"Assigned by {org_name}. Tap to view route & navigate.",
-            data=vol_alert,
-            is_siren_alarm=True,
-        )
-
-    # 7. Notify victim user with volunteer identity and phone
-    accept_payload = {
-        "event": "VOLUNTEER_ACCEPTED",
-        "emergency_id": data.emergency_id,
-        "status": "accepted",
-        "assigned_org_id": str(current_user.id),
-        "volunteer_id": str(volunteer.account_id),
-        "responder_name": volunteer.full_name,
-        "responder_phone": volunteer.get_decrypted_phone(),
-        "responder_role": "Volunteer",
-        "responder_location": {"lat": responder_lat, "lng": responder_lng},
-        "message": f"🚨 {volunteer.full_name} ({org_name}) has been dispatched and is en route!",
-    }
-    await manager.send_personal(str(emergency.user_id), accept_payload)
-    
-    accept_payload_generic = dict(accept_payload)
-    accept_payload_generic["event"] = "EMERGENCY_ACCEPTED"
-    await manager.send_personal(str(emergency.user_id), accept_payload_generic)
-
-    return {
-        "message": f"Successfully assigned emergency to volunteer {volunteer.full_name}",
-        "volunteer_name": volunteer.full_name,
-        "emergency_id": data.emergency_id,
-    }

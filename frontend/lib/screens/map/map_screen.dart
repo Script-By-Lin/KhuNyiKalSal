@@ -63,9 +63,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   bool _isFetchingRoute = false;
   Timer? _pollTimer;
 
-  // Pulse animation for radar ring on vehicle marker
-  late AnimationController _pulseCtrl;
-  late Animation<double> _pulseAnim;
+
 
   @override
   void initState() {
@@ -73,11 +71,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _previewOrg = widget.previewOrg;
     _targetLocation = widget.targetLocation;
     _targetTitle = widget.targetTitle;
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1600),
-    )..repeat();
-    _pulseAnim = Tween<double>(begin: 0.0, end: 1.0).animate(_pulseCtrl);
 
     _initLocation();
     _listenToWsEvents();
@@ -336,7 +329,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
   @override
   void dispose() {
     _pollTimer?.cancel();
-    _pulseCtrl.dispose();
     _locationSub?.cancel();
     super.dispose();
   }
@@ -588,26 +580,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          // Animated Green Radar Rings
-                          AnimatedBuilder(
-                            animation: _pulseAnim,
-                            builder: (context, _) => Container(
-                              width: 36 + (_pulseAnim.value * 40),
-                              height: 36 + (_pulseAnim.value * 40),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFF00E676).withValues(
-                                  alpha: 0.45 * (1.0 - _pulseAnim.value),
-                                ),
-                                border: Border.all(
-                                  color: const Color(0xFF00E676).withValues(
-                                    alpha: 1.0 - _pulseAnim.value,
-                                  ),
-                                  width: 2.5,
-                                ),
-                              ),
-                            ),
-                          ),
+
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
@@ -637,27 +610,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          AnimatedBuilder(
-                            animation: _pulseAnim,
-                            builder: (context, _) {
-                              return Container(
-                                width: 32 + (_pulseAnim.value * 48),
-                                height: 32 + (_pulseAnim.value * 48),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppTheme.primaryRed.withValues(
-                                    alpha: 0.6 * (1.0 - _pulseAnim.value),
-                                  ),
-                                  border: Border.all(
-                                    color: AppTheme.primaryRed.withValues(
-                                      alpha: 1.0 - _pulseAnim.value,
-                                    ),
-                                    width: 2.5,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+
                           Container(
                             width: 38,
                             height: 38,
@@ -688,28 +641,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          if (isSosPending)
-                            AnimatedBuilder(
-                              animation: _pulseAnim,
-                              builder: (context, _) {
-                                return Container(
-                                  width: 30 + (_pulseAnim.value * 50),
-                                  height: 30 + (_pulseAnim.value * 50),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: AppTheme.primaryRed.withValues(
-                                      alpha: 0.5 * (1.0 - _pulseAnim.value),
-                                    ),
-                                    border: Border.all(
-                                      color: AppTheme.primaryRed.withValues(
-                                        alpha: 1.0 - _pulseAnim.value,
-                                      ),
-                                      width: 2,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+
                           Container(
                             width: 32,
                             height: 32,

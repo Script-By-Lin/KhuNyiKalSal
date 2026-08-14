@@ -179,243 +179,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
-  Future<void> _showAssignVolunteerModal(
-      BuildContext context, String emergencyId, String victimName) async {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.75,
-        ),
-        decoration: const BoxDecoration(
-          color: Color(0xFF0F172A),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.person_add_alt_1_rounded,
-                      color: Color(0xFF818CF8), size: 22),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Assign Rescue Mission',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        'Select a volunteer to dispatch for $victimName',
-                        style: TextStyle(
-                          color: Colors.grey.shade400,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white70),
-                  onPressed: () => Navigator.of(ctx).pop(),
-                ),
-              ],
-            ),
-            const Divider(color: Colors.white12, height: 24),
-            Expanded(
-              child: FutureBuilder(
-                future: ApiService().listVolunteers(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: Color(0xFF6366F1)),
-                    );
-                  }
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Text(
-                        'Failed to load volunteers: ${snapshot.error}',
-                        style: const TextStyle(color: Colors.redAccent),
-                      ),
-                    );
-                  }
-                  final vols = (snapshot.data?.data as List? ?? [])
-                      .map((v) => Map<String, dynamic>.from(v as Map))
-                      .toList();
 
-                  if (vols.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.group_off_rounded,
-                              color: Colors.white38, size: 48),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'No registered volunteers found.',
-                            style: TextStyle(color: Colors.white70, fontSize: 14),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF6366F1),
-                              foregroundColor: Colors.white,
-                            ),
-                            icon: const Icon(Icons.person_add, size: 16),
-                            label: const Text('Add Volunteers'),
-                            onPressed: () {
-                              Navigator.of(ctx).pop();
-                              context.push('/manage-volunteers');
-                            },
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.separated(
-                    itemCount: vols.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, idx) {
-                      final vol = vols[idx];
-                      final name = vol['full_name'] ?? 'Volunteer';
-                      final phone = vol['phone_number'] ?? '';
-                      final isActive = vol['is_active'] == true;
-                      final volId = vol['account_id']?.toString() ?? '';
-
-                      return Material(
-                        color: const Color(0xFF1E293B),
-                        borderRadius: BorderRadius.circular(14),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () async {
-                            Navigator.of(ctx).pop();
-                            try {
-                              await ApiService().assignEmergencyToVolunteer(
-                                  emergencyId, volId);
-                              _snack(
-                                  '✅ Mission assigned to $name! Volunteer alerted.',
-                                  const Color(0xFF00E676));
-                              _loadAlerts();
-                            } catch (e) {
-                              _snack('Failed to assign volunteer', Colors.red);
-                            }
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 12),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundColor: isActive
-                                      ? const Color(0xFF00E676).withValues(alpha: 0.2)
-                                      : Colors.white10,
-                                  child: Icon(
-                                    Icons.person_rounded,
-                                    color: isActive
-                                        ? const Color(0xFF00E676)
-                                        : Colors.white38,
-                                    size: 22,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        name,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        phone.isNotEmpty
-                                            ? phone
-                                            : 'No phone number',
-                                        style: TextStyle(
-                                          color: Colors.grey.shade400,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: isActive
-                                        ? const Color(0xFF00E676).withValues(alpha: 0.15)
-                                        : Colors.white10,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: isActive
-                                          ? const Color(0xFF00E676)
-                                          : Colors.white24,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    isActive ? 'ACTIVE' : 'OFFLINE',
-                                    style: TextStyle(
-                                      color: isActive
-                                          ? const Color(0xFF00E676)
-                                          : Colors.white38,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Icon(Icons.arrow_forward_ios_rounded,
-                                    color: Color(0xFF818CF8), size: 16),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
 
 
@@ -767,6 +531,37 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                   ),
                 ],
 
+                if (isAccepted) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person_pin_circle_rounded, color: Color(0xFF818CF8), size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            e['assigned_volunteer_name'] != null 
+                                ? 'Assigned to: ${e['assigned_volunteer_name']}'
+                                : 'Assigned to Volunteer',
+                            style: const TextStyle(
+                              color: Color(0xFFC7D2FE),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+
                 // ── Map Navigation Button ─────────────────────────────
                 Container(
                   margin: const EdgeInsets.only(bottom: 10),
@@ -814,31 +609,6 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                     ),
                   ),
                 ),
-
-                // ── Assign to Volunteer Button ───────────────────────
-                if (!isAccepted)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 42,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF6366F1),
-                          side: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                        ),
-                        icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
-                        label: const Text(
-                          'ASSIGN TO VOLUNTEER (စေတနာ့ဝန်ထမ်း လွှဲအပ်မည်)',
-                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
-                        ),
-                        onPressed: () => _showAssignVolunteerModal(
-                            context, eid, info['full_name'] ?? 'Victim'),
-                      ),
-                    ),
-                  ),
 
                 // ── Primary Action Buttons ────────────────────────────
                 Row(

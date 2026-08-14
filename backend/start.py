@@ -4,6 +4,14 @@ import multiprocessing
 import subprocess
 
 if __name__ == "__main__":
+    # Auto-run database migrations on every deployment / git push
+    try:
+        from migrate import run_migrations
+        print("🔄 Running automated database migrations before server start...")
+        run_migrations()
+    except Exception as e:
+        print(f"⚠️ Startup migration notice: {e}")
+
     port_env = os.environ.get("PORT", "8000")
     try:
         port = int(port_env)

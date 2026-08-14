@@ -64,3 +64,4 @@ class Emergency(Base):
 
     user: Mapped["Account"] = relationship(foreign_keys=[user_id], lazy="selectin")
     assigned_org: Mapped[Optional["Organization"]] = relationship(foreign_keys=[assigned_org_id], lazy="selectin")
+    assigned_volunteer: Mapped[Optional["Volunteer"]] = relationship(foreign_keys=[assigned_volunteer_id], lazy="selectin")

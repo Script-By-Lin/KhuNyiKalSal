@@ -21,7 +21,7 @@ void main() async {
           final lat = (loc['lat'] as num?)?.toDouble();
           final lng = (loc['lng'] as num?)?.toDouble();
           if (lat != null && lng != null) {
-            goRouter.go('/map', extra: {
+            goRouter.push('/mission-map', extra: {
               'lat': lat,
               'lng': lng,
               'title': data['title'] ?? data['message'] ?? '🚨 Emergency SOS Target',
@@ -30,8 +30,8 @@ void main() async {
           }
         } catch (_) {}
       }
-      // Default to family alerts or map
-      goRouter.go('/family-alerts');
+      // Default to home/dashboard if we can't parse it
+      goRouter.go('/login');
     },
   );
   runApp(const ProviderScope(child: KhuNyiKalSalApp()));
@@ -52,11 +52,12 @@ class _KhuNyiKalSalAppState extends ConsumerState<KhuNyiKalSalApp> {
     Future.microtask(() async {
       final role = await ref.read(authProvider.notifier).tryAutoLogin();
       if (role != null) {
-        if (role == 'volunteer') {
+        final lowerRole = role.toLowerCase();
+        if (lowerRole == 'volunteer') {
           goRouter.go('/volunteer-dashboard');
-        } else if (role == 'organization') {
+        } else if (lowerRole == 'organization') {
           goRouter.go('/org-dashboard');
-        } else if (role == 'admin' || role == 'superadmin') {
+        } else if (lowerRole == 'admin' || lowerRole == 'superadmin') {
           goRouter.go('/admin-dashboard');
         } else {
           goRouter.go('/home');
