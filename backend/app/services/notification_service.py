@@ -79,12 +79,26 @@ async def notify_family(
             "message": alert_msg,
         }
 
-        # Broadcast alert to all connected family members (except sender)
+        # Broadcast WebSocket alert to all connected family members (except sender)
+        target_account_ids = []
         for m in all_members:
             m_uid = str(m.account_id)
             if m_uid != user_id:
                 await manager.send_personal(m_uid, alert_payload)
+                target_account_ids.append(m.account_id)
                 notified_count += 1
+
+        # Dispatch FCM High-Priority Siren Push to closed/locked devices
+        from app.services.push_service import get_user_device_tokens, send_emergency_push
+        family_tokens = await get_user_device_tokens(target_account_ids, db)
+        if family_tokens:
+            await send_emergency_push(
+                tokens=family_tokens,
+                title=f"🚨 {emergency_type.upper()} SOS: {sender_name} ({relationship})",
+                body=f"Emergency SOS triggered! Tap to view live location on map.",
+                data=alert_payload,
+                is_siren_alarm=True,
+            )
 
         logger.info(f"Pushed Family Emergency Alert to {notified_count} family members for group {family_id}")
 

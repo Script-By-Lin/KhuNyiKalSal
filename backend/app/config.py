@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     MAX_SOS_PER_DAY: int = 100
     VOLUNTEER_TIMEOUT_SECONDS: int = 300  # 5 minutes per organization
     REDIS_URL: Optional[str] = os.getenv("REDIS_URL", "redis://localhost:6379")
+    FCM_SERVER_KEY: Optional[str] = os.getenv("FCM_SERVER_KEY", None)
+    FIREBASE_CREDENTIALS_JSON: Optional[str] = os.getenv("FIREBASE_CREDENTIALS_JSON", None)
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

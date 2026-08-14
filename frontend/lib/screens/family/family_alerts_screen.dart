@@ -369,6 +369,7 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
                                   context.go('/map', extra: {
                                     'lat': lat,
                                     'lng': lng,
+                                    'title': '$senderName ($relationship) • $type',
                                   });
                                 },
                               ),

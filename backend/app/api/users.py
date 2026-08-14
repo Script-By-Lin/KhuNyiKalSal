@@ -13,6 +13,7 @@ from app.schemas.user import (
     UserProfileResponse,
     UpdateProfileRequest,
     UpdateLocationRequest,
+    DeviceTokenRequest,
 )
 from app.services.cache_service import location_cache
 
@@ -122,4 +123,38 @@ async def get_user_sessions_alias(
     """User sessions endpoint alias."""
     from app.services.session_service import list_user_sessions
     return await list_user_sessions(current_user.id, current_session_id, db)
+
+
+@router.post("/device-token")
+async def register_device_token(
+    data: DeviceTokenRequest,
+    current_user: Account = Depends(get_current_user),
+    current_session_id: Optional[uuid.UUID] = Depends(get_current_session_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Register or update device FCM token on active session for high-priority emergency push notifications."""
+    from app.models.session import UserSession
+    from sqlalchemy import update
+
+    if current_session_id:
+        await db.execute(
+            update(UserSession)
+            .where(UserSession.id == current_session_id)
+            .values(fcm_token=data.fcm_token)
+        )
+        await db.commit()
+    else:
+        # Update latest active session for this user
+        subq = (
+            select(UserSession)
+            .where(UserSession.user_id == current_user.id, UserSession.is_active == True)  # noqa: E712
+            .order_by(UserSession.last_used_at.desc())
+            .limit(1)
+        )
+        sess = (await db.execute(subq)).scalar_one_or_none()
+        if sess:
+            sess.fcm_token = data.fcm_token
+            await db.commit()
+
+    return {"message": "Device push token registered successfully", "status": "ok"}
 

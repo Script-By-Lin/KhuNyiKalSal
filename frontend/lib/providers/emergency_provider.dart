@@ -2,11 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/emergency.dart';
 import '../services/api_service.dart';
+import '../services/offline_service.dart';
 
 class EmergencyNotifier extends StateNotifier<AsyncValue<List<EmergencyModel>>> {
   final ApiService _api = ApiService();
 
-  EmergencyNotifier() : super(const AsyncValue.loading());
+  EmergencyNotifier() : super(const AsyncValue.loading()) {
+    OfflineService().onSOSQueueSynced.listen((count) {
+      if (count > 0) {
+        loadActive();
+      }
+    });
+  }
 
   Future<void> loadActive({bool showLoading = false}) async {
     if (showLoading || !state.hasValue) {

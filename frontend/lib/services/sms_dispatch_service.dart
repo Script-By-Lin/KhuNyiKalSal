@@ -10,11 +10,16 @@ class SMSDispatchService {
 
   static Future<bool> makePhoneCall(String phoneNumber) async {
     final cleaned = phoneNumber.replaceAll(RegExp(r'[\s-]'), '');
+    if (cleaned.isEmpty) return false;
     final uri = Uri(scheme: 'tel', path: cleaned);
-    if (await canLaunchUrl(uri)) {
-      return await launchUrl(uri);
+    try {
+      if (await canLaunchUrl(uri)) {
+        return await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
     }
-    return false;
   }
 
   static String buildEmergencySMSBody({
@@ -59,37 +64,97 @@ class SMSDispatchService {
     );
 
     final cleanedPhone = phoneNumber.replaceAll(RegExp(r'[\s-]'), '');
-    final uri = Uri(
-      scheme: 'sms',
-      path: cleanedPhone,
-      queryParameters: <String, String>{'body': body},
-    );
+    if (cleanedPhone.isEmpty) return false;
 
-    if (await canLaunchUrl(uri)) {
-      return await launchUrl(uri);
+    // Primary: Standard sms URI with query parameter
+    try {
+      final uri = Uri(
+        scheme: 'sms',
+        path: cleanedPhone,
+        queryParameters: <String, String>{'body': body},
+      );
+      if (await canLaunchUrl(uri)) {
+        final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (ok) return true;
+      }
+    } catch (_) {}
+
+    // Fallback 1: Direct encoded sms: URI
+    try {
+      final encodedBody = Uri.encodeComponent(body);
+      final fallbackUri = Uri.parse('sms:$cleanedPhone?body=$encodedBody');
+      final ok = await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
+      if (ok) return true;
+    } catch (_) {}
+
+    // Fallback 2: smsto: scheme (widely supported on Samsung/Xiaomi/Oppo devices)
+    try {
+      final encodedBody = Uri.encodeComponent(body);
+      final smstoUri = Uri.parse('smsto:$cleanedPhone?body=$encodedBody');
+      final ok = await launchUrl(smstoUri, mode: LaunchMode.externalApplication);
+      if (ok) return true;
+    } catch (_) {}
+
+    // Fallback 3: Launch SMS app with just the number if body is too long for intent
+    try {
+      final plainSmsUri = Uri(scheme: 'sms', path: cleanedPhone);
+      return await launchUrl(plainSmsUri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
     }
-    return false;
   }
 
   static Future<bool> dispatchBroadcastSMS({
     required String emergencyType,
     required double lat,
     required double lng,
+    String? targetPhoneNumber,
   }) async {
     final profile = await OfflineService().getCachedUserProfile();
+    final cachedOrgs = await OfflineService().getCachedOrganizations();
     final contacts = await OfflineService().getCachedEmergencyContacts();
 
     final victimName = profile?['full_name'] as String?;
     final bloodType = profile?['blood_type'] as String?;
     final medicalConditions = profile?['medical_conditions'] as String?;
 
-    // Determine target recipient (first contact or hotline)
-    String targetPhone = hotlineAmbulance;
-    if (contacts.isNotEmpty) {
-      final firstPhone = contacts.first['phone_number'] ?? contacts.first['phone'];
-      if (firstPhone != null && firstPhone.toString().isNotEmpty) {
-        targetPhone = firstPhone.toString();
+    String targetPhone = '';
+
+    // 1. If explicit phone provided, use it
+    if (targetPhoneNumber != null && targetPhoneNumber.trim().isNotEmpty) {
+      targetPhone = targetPhoneNumber.trim();
+    } 
+    // 2. Use nearest/matching cached local organization
+    else if (cachedOrgs.isNotEmpty) {
+      // Try to find matching category first
+      final matching = cachedOrgs.firstWhere(
+        (o) {
+          final cat = (o['category'] ?? '').toString().toLowerCase();
+          final name = (o['org_name'] ?? '').toString().toLowerCase();
+          if (emergencyType == 'fire') return cat.contains('fire') || name.contains('fire') || name.contains('မီးသတ်');
+          if (emergencyType == 'medical') return cat.contains('medical') || name.contains('medical') || name.contains('ဆေး') || name.contains('hospital');
+          if (emergencyType == 'crime') return cat.contains('safety') || cat.contains('police') || name.contains('police') || name.contains('ရဲ');
+          return true;
+        },
+        orElse: () => cachedOrgs.first,
+      );
+
+      final orgPhone = matching['phone_number'] ?? matching['phone'] ?? '';
+      if (orgPhone.toString().trim().isNotEmpty) {
+        targetPhone = orgPhone.toString().trim();
       }
+    }
+
+    // 3. If still empty, check cached emergency contacts
+    if (targetPhone.isEmpty && contacts.isNotEmpty) {
+      final firstContactPhone = contacts.first['phone_number'] ?? contacts.first['phone'] ?? '';
+      if (firstContactPhone.toString().trim().isNotEmpty) {
+        targetPhone = firstContactPhone.toString().trim();
+      }
+    }
+
+    if (targetPhone.isEmpty) {
+      return false;
     }
 
     return await sendEmergencySMS(

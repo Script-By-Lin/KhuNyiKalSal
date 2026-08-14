@@ -20,10 +20,13 @@ class OfflineService {
   final Connectivity _connectivity = Connectivity();
   final StreamController<bool> _onlineStreamController =
       StreamController<bool>.broadcast();
+  final StreamController<int> _sosSyncedController =
+      StreamController<int>.broadcast();
 
   bool _isOnline = true;
   bool get isOnline => _isOnline;
   Stream<bool> get onConnectivityChanged => _onlineStreamController.stream;
+  Stream<int> get onSOSQueueSynced => _sosSyncedController.stream;
 
   void _initConnectivityListener() {
     _connectivity.onConnectivityChanged.listen((results) {
@@ -179,6 +182,9 @@ class OfflineService {
         // Stop on network failure to avoid spamming
         break;
       }
+    }
+    if (syncedCount > 0) {
+      _sosSyncedController.add(syncedCount);
     }
     return syncedCount;
   }

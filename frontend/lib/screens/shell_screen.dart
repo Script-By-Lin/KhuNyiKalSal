@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -57,11 +58,12 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
         final rel = event['relationship'] ?? 'Family';
         final type = (event['emergency_type'] ?? 'EMERGENCY').toString().toUpperCase();
         
-        // Trigger system notification
+        // Trigger system notification with loud emergency siren and payload
         NotificationService().showEmergencyAlert(
           id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
           title: '🚨 $type SOS from $senderName!',
           body: 'Your $rel has activated an SOS emergency alert.',
+          payload: json.encode(event),
         );
 
         // Show global alert
@@ -143,12 +145,14 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
           final isOnline = await OfflineService().checkInternet();
           if (!isOnline) {
             if (!mounted) return;
-            showDialog(
-              context: context,
-              builder: (ctx) => OfflineSOSDialog(
-                emergencyType: type,
-                lat: lat,
-                lng: lng,
+            Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                fullscreenDialog: true,
+                builder: (ctx) => OfflineSOSDialog(
+                  emergencyType: type,
+                  lat: lat,
+                  lng: lng,
+                ),
               ),
             );
             return;
@@ -163,12 +167,14 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
             context.go('/map');
           } else {
             // Failed due to timeout or network -> Offer Offline fallback
-            showDialog(
-              context: context,
-              builder: (ctx) => OfflineSOSDialog(
-                emergencyType: type,
-                lat: lat,
-                lng: lng,
+            Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                fullscreenDialog: true,
+                builder: (ctx) => OfflineSOSDialog(
+                  emergencyType: type,
+                  lat: lat,
+                  lng: lng,
+                ),
               ),
             );
           }

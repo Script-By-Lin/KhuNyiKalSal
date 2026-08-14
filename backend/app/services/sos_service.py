@@ -179,13 +179,28 @@ async def process_sos(
                         Volunteer.is_active == True,  # noqa: E712
                     )
                 )
+                target_account_uuids = [best_org.account_id]
                 for v in vol_result.scalars().all():
                     vid = str(v.account_id)
                     await manager.send_personal(vid, alert_data)
                     notified_uids.add(vid)
+                    target_account_uuids.append(v.account_id)
+
+                # Dispatch FCM Push with Siren Alarm to Organization and Volunteer devices
+                from app.services.push_service import get_user_device_tokens, send_emergency_push
+                org_and_vol_tokens = await get_user_device_tokens(target_account_uuids, db)
+                if org_and_vol_tokens:
+                    victim_name = user_info.get("full_name", "Citizen")
+                    await send_emergency_push(
+                        tokens=org_and_vol_tokens,
+                        title=f"🚨 EMERGENCY ASSIGNED: {emergency_type.upper()} SOS",
+                        body=f"Patient: {victim_name} at ({lat:.4f}, {lng:.4f}). Tap to dispatch / view route.",
+                        data=alert_data,
+                        is_siren_alarm=True,
+                    )
 
                 logger.info(
-                    f"Emergency {emergency_id} assigned strictly to {best_org.org_name} ({len(notified_uids)} recipients)"
+                    f"Emergency {emergency_id} assigned strictly to {best_org.org_name} ({len(notified_uids)} WS recipients, {len(org_and_vol_tokens)} Push tokens)"
                 )
             else:
                 logger.warning(f"No active organizations found for emergency {emergency_id}")

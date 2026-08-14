@@ -52,20 +52,26 @@ final goRouter = GoRouter(
             final extra = state.extra;
             OrganizationModel? previewOrg;
             Map<String, double>? targetLoc;
+            String? targetTitle;
             
             if (extra is OrganizationModel) {
               previewOrg = extra;
             } else if (extra is Map<String, double>) {
               targetLoc = extra;
             } else if (extra is Map) {
-              targetLoc = {
-                'lat': extra['lat'] as double,
-                'lng': extra['lng'] as double,
-              };
+              final lat = (extra['lat'] as num?)?.toDouble();
+              final lng = (extra['lng'] as num?)?.toDouble();
+              if (lat != null && lng != null) {
+                targetLoc = {'lat': lat, 'lng': lng};
+              }
+              if (extra['title'] != null) {
+                targetTitle = extra['title'].toString();
+              }
             }
             return MapScreen(
               previewOrg: previewOrg,
               targetLocation: targetLoc,
+              targetTitle: targetTitle,
             );
           },
         ),

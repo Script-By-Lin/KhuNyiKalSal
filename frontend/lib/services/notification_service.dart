@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -10,7 +11,12 @@ class NotificationService {
 
   NotificationService._internal();
 
-  Future<void> init() async {
+  static const String sirenChannelId = 'emergency_siren_channel_v4';
+  static const String sirenChannelName = '🚨 Critical Emergency Siren & Alarms';
+  static const String sirenChannelDesc =
+      'High priority siren and vibration alerts for SOS emergencies that wake up the device';
+
+  Future<void> init({Function(String? payload)? onNotificationTap}) async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -22,11 +28,35 @@ class NotificationService {
     await flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Handle notification tap
+        if (onNotificationTap != null) {
+          onNotificationTap(response.payload);
+        }
       },
     );
 
+    await _createNotificationChannels();
     await _requestPermissions();
+  }
+
+  Future<void> _createNotificationChannels() async {
+    final androidPlugin = flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    if (androidPlugin != null) {
+      final sirenChannel = AndroidNotificationChannel(
+        sirenChannelId,
+        sirenChannelName,
+        description: sirenChannelDesc,
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+        vibrationPattern: Int64List.fromList([0, 1000, 500, 1000, 500, 1000]),
+        audioAttributesUsage: AudioAttributesUsage.alarm,
+      );
+
+      await androidPlugin.createNotificationChannel(sirenChannel);
+    }
   }
 
   Future<void> _requestPermissions() async {
@@ -37,20 +67,24 @@ class NotificationService {
     required int id,
     required String title,
     required String body,
+    String? payload,
   }) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+    final AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
-      'emergency_alerts_v3',
-      'Emergency Alerts (Loud)',
-      channelDescription: 'High priority alerts for SOS emergencies',
+      sirenChannelId,
+      sirenChannelName,
+      channelDescription: sirenChannelDesc,
       importance: Importance.max,
       priority: Priority.high,
       playSound: true,
       enableVibration: true,
+      vibrationPattern: Int64List.fromList([0, 1000, 500, 1000, 500, 1000]),
       category: AndroidNotificationCategory.alarm,
-      fullScreenIntent: true, // Wake up screen and show alert
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      fullScreenIntent: true, // Wake up locked screen
+      visibility: NotificationVisibility.public,
     );
-    const NotificationDetails platformChannelSpecifics =
+    final NotificationDetails platformChannelSpecifics =
         NotificationDetails(android: androidPlatformChannelSpecifics);
 
     await flutterLocalNotificationsPlugin.show(
@@ -58,6 +92,7 @@ class NotificationService {
       title: title,
       body: body,
       notificationDetails: platformChannelSpecifics,
+      payload: payload,
     );
   }
 }

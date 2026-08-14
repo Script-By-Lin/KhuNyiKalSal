@@ -7,11 +7,33 @@ import 'config/routes.dart';
 import 'providers/auth_provider.dart';
 import 'providers/settings_provider.dart';
 
+import 'dart:convert';
 import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService().init();
+  await NotificationService().init(
+    onNotificationTap: (payload) {
+      if (payload != null && payload.isNotEmpty) {
+        try {
+          final data = json.decode(payload);
+          final loc = data['location'] ?? data;
+          final lat = (loc['lat'] as num?)?.toDouble();
+          final lng = (loc['lng'] as num?)?.toDouble();
+          if (lat != null && lng != null) {
+            goRouter.go('/map', extra: {
+              'lat': lat,
+              'lng': lng,
+              'title': data['title'] ?? data['message'] ?? '🚨 Emergency SOS Target',
+            });
+            return;
+          }
+        } catch (_) {}
+      }
+      // Default to family alerts or map
+      goRouter.go('/family-alerts');
+    },
+  );
   runApp(const ProviderScope(child: KhuNyiKalSalApp()));
 }
 

@@ -202,6 +202,16 @@ class ApiService {
   Future<Response> updateUserLocation(double lat, double lng) =>
       dio.put('/users/location', data: {'lat': lat, 'lng': lng});
 
+  Future<Response> registerDeviceToken(String fcmToken) async {
+    final deviceId = await getDeviceId();
+    final deviceName = getDeviceName();
+    return dio.post('/users/device-token', data: {
+      'fcm_token': fcmToken,
+      'device_id': deviceId,
+      'device_name': deviceName,
+    });
+  }
+
   // ── Organizations ─────────────────────────────────────────────────────
   Future<Response> getNearbyOrgs(double lat, double lng) =>
       dio.get('/organizations/nearby', queryParameters: {'lat': lat, 'lng': lng});

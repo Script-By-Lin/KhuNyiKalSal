@@ -17,8 +17,14 @@ import '../../services/location_service.dart';
 class MapScreen extends ConsumerStatefulWidget {
   final OrganizationModel? previewOrg;
   final Map<String, double>? targetLocation;
+  final String? targetTitle;
 
-  const MapScreen({super.key, this.previewOrg, this.targetLocation});
+  const MapScreen({
+    super.key,
+    this.previewOrg,
+    this.targetLocation,
+    this.targetTitle,
+  });
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
@@ -35,6 +41,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
   // Active preview target org (selected by user)
   OrganizationModel? _previewOrg;
 
+  // Active target location (e.g. from Family SOS Alert)
+  Map<String, double>? _targetLocation;
+  String? _targetTitle;
+
   // Real road routing points from OSRM
   List<LatLng> _roadRoutePoints = [];
   String? _lastRouteKey;
@@ -49,6 +59,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
   void initState() {
     super.initState();
     _previewOrg = widget.previewOrg;
+    _targetLocation = widget.targetLocation;
+    _targetTitle = widget.targetTitle;
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1600),
@@ -81,9 +93,38 @@ class _MapScreenState extends ConsumerState<MapScreen>
         );
       }
     }
+
+    if (widget.targetLocation != null &&
+        (oldWidget.targetLocation == null ||
+            widget.targetLocation!['lat'] != oldWidget.targetLocation!['lat'] ||
+            widget.targetLocation!['lng'] != oldWidget.targetLocation!['lng'])) {
+      setState(() {
+        _targetLocation = widget.targetLocation;
+        _targetTitle = widget.targetTitle;
+        _lastRouteKey = null;
+        _roadRoutePoints = [];
+      });
+      final targetLatLng = LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!);
+      if (_userLocation != null) {
+        _fetchRealRoadRoute(_userLocation!, targetLatLng);
+      }
+      _mapCtrl.move(targetLatLng, 14.0);
+    }
   }
 
   Future<void> _initLocation() async {
+    // 1. Immediately use last known location if available to avoid any loading hang
+    try {
+      final lastPos = await LocationService.getLastKnownLocation();
+      if (lastPos != null && mounted) {
+        setState(() {
+          _userLocation = LatLng(lastPos.latitude, lastPos.longitude);
+          _locationLoading = false;
+        });
+        _mapCtrl.move(_userLocation!, AppConstants.defaultZoom);
+      }
+    } catch (_) {}
+
     try {
       final pos = await LocationService.getCurrentLocation();
       if (mounted) {
@@ -104,14 +145,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
           );
           
       // Automatically route to target location if provided (SOS view)
-      if (widget.targetLocation != null && _userLocation != null) {
+      if (_targetLocation != null && _userLocation != null) {
         _fetchRealRoadRoute(
           _userLocation!,
-          LatLng(widget.targetLocation!['lat']!, widget.targetLocation!['lng']!)
+          LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!)
         );
         _mapCtrl.move(
-          LatLng(widget.targetLocation!['lat']!, widget.targetLocation!['lng']!), 
-          13.0
+          LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!), 
+          14.0
         );
       }
 
@@ -125,7 +166,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     } catch (e) {
       if (mounted) {
         setState(() {
-          _userLocation = LatLng(AppConstants.defaultLat, AppConstants.defaultLng);
+          _userLocation ??= LatLng(AppConstants.defaultLat, AppConstants.defaultLng);
           _locationLoading = false;
         });
       }
@@ -354,10 +395,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     // During SOS: route FROM org/responder TO user's emergency location
     // Preview: route FROM user TO org
+    // Target location (Family SOS alert): route FROM user TO victim target location
     final LatLng? routeStartPoint;
     final LatLng routeEndPoint;
 
-    if (isSosPending && activeTargetOrg != null) {
+    if (_targetLocation != null) {
+      // Direct navigation to Family SOS / Target victim location
+      routeStartPoint = _userLocation ?? LatLng(AppConstants.defaultLat, AppConstants.defaultLng);
+      routeEndPoint = LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!);
+    } else if (isSosPending && activeTargetOrg != null) {
       // SOS active: route FROM Org base station TO user emergency location
       routeStartPoint = LatLng(activeTargetOrg.geoLat, activeTargetOrg.geoLng);
       routeEndPoint = _userLocation ?? LatLng(AppConstants.defaultLat, AppConstants.defaultLng);
@@ -375,7 +421,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ? '${routeStartPoint.latitude.toStringAsFixed(3)},${routeStartPoint.longitude.toStringAsFixed(3)}->${routeEndPoint.latitude.toStringAsFixed(3)},${routeEndPoint.longitude.toStringAsFixed(3)}'
         : null;
 
-    if (routeStartPoint != null && activeTargetOrg != null && _lastRouteKey != expectedRouteKey && !_isFetchingRoute) {
+    final bool shouldFetchRoute = _targetLocation != null ||
+        (routeStartPoint != null && activeTargetOrg != null);
+
+    if (shouldFetchRoute && routeStartPoint != null && _lastRouteKey != expectedRouteKey && !_isFetchingRoute) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _fetchRealRoadRoute(routeStartPoint!, routeEndPoint);
@@ -383,8 +432,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
       });
     }
 
-    // Only display route line when SOS is active OR preview org is selected
-    final bool showRouteLine = (isSosPending || _previewOrg != null) && activeTargetOrg != null;
+    // Display route line when Target Location is active OR SOS is active OR preview org is selected
+    final bool showRouteLine = _targetLocation != null ||
+        ((isSosPending || _previewOrg != null) && activeTargetOrg != null);
 
     final polylinePoints = showRouteLine
         ? (_roadRoutePoints.isNotEmpty
@@ -412,17 +462,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
               // ── ROUTE POLYLINE (ONLY SHOW WHEN SOS OR PREVIEWING) ────
               if (showRouteLine && polylinePoints.isNotEmpty)
                 PolylineLayer(
-                  key: ValueKey('route_${activeEmergency?.status}_${polylinePoints.length}_$_lastRouteKey'),
+                  key: ValueKey('route_${_targetLocation != null ? "target" : activeEmergency?.status}_${polylinePoints.length}_$_lastRouteKey'),
                   polylines: [
                     // Outer outline / glow
                     Polyline(
                       points: polylinePoints.toList(),
                       strokeWidth: 7.0,
-                      color: isSosPending
-                          ? ((activeEmergency.isAccepted || _responderLocation != null)
-                              ? const Color(0xFF00E676) // Vivid Emerald Green
-                              : AppTheme.primaryRed)
-                          : Colors.blue,
+                      color: _targetLocation != null
+                          ? const Color(0xFFFF3B30) // High-visibility Emergency Red
+                          : (isSosPending
+                              ? ((activeEmergency.isAccepted || _responderLocation != null)
+                                  ? const Color(0xFF00E676) // Vivid Emerald Green
+                                  : AppTheme.primaryRed)
+                              : Colors.blue),
                       borderStrokeWidth: 3.0,
                       borderColor: Colors.white,
                     ),
@@ -453,6 +505,57 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           ],
                         ),
                         child: const Icon(Icons.airport_shuttle, color: Colors.white, size: 24),
+                      ),
+                    ),
+
+                  // Family / Victim SOS Target Marker + Pulsing SOS Beacon
+                  if (_targetLocation != null)
+                    Marker(
+                      point: LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!),
+                      width: 80,
+                      height: 80,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          AnimatedBuilder(
+                            animation: _pulseAnim,
+                            builder: (context, _) {
+                              return Container(
+                                width: 32 + (_pulseAnim.value * 48),
+                                height: 32 + (_pulseAnim.value * 48),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppTheme.primaryRed.withValues(
+                                    alpha: 0.6 * (1.0 - _pulseAnim.value),
+                                  ),
+                                  border: Border.all(
+                                    color: AppTheme.primaryRed.withValues(
+                                      alpha: 1.0 - _pulseAnim.value,
+                                    ),
+                                    width: 2.5,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryRed,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primaryRed.withValues(alpha: 0.5),
+                                  blurRadius: 10,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 22),
+                          ),
+                        ],
                       ),
                     ),
 
@@ -520,7 +623,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ),
 
           // ── Loading overlay ──────────────────────────────────────────
-          if (_locationLoading)
+          if (_locationLoading && _userLocation == null)
             Container(
               color: Colors.white70,
               child: const Center(
@@ -573,8 +676,51 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
           ),
 
+          // ── Active Target Location (Family SOS Alert) Banner ─────────
+          if (_targetLocation != null)
+            Positioned(
+              left: 16,
+              bottom: 140,
+              child: Row(
+                children: [
+                  FloatingActionButton.extended(
+                    heroTag: 'target_sos_loc',
+                    backgroundColor: AppTheme.primaryRed,
+                    foregroundColor: Colors.white,
+                    icon: const Icon(Icons.emergency_share),
+                    label: Text(
+                      _targetTitle ?? 'Family SOS Alert Location',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                    ),
+                    onPressed: () {
+                      _mapCtrl.move(
+                        LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!),
+                        14.5,
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  FloatingActionButton.small(
+                    heroTag: 'clear_target_route',
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.grey.shade700,
+                    tooltip: 'Clear SOS View',
+                    onPressed: () {
+                      setState(() {
+                        _targetLocation = null;
+                        _targetTitle = null;
+                        _roadRoutePoints = [];
+                        _lastRouteKey = null;
+                      });
+                    },
+                    child: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+
           // ── Active Route / Live Responder Status Banner ──────────────
-          if (activeTargetOrg != null && (_previewOrg != null || activeEmergency?.isAccepted == true))
+          if (_targetLocation == null && activeTargetOrg != null && (_previewOrg != null || activeEmergency?.isAccepted == true))
             Positioned(
               left: 16,
               bottom: 140,

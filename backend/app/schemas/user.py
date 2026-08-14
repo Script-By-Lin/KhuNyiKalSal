@@ -34,3 +34,9 @@ class UpdateProfileRequest(BaseModel):
 class UpdateLocationRequest(BaseModel):
     lat: float
     lng: float
+
+
+class DeviceTokenRequest(BaseModel):
+    fcm_token: str
+    device_id: Optional[str] = None
+    device_name: Optional[str] = None

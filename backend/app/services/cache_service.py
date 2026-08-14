@@ -46,12 +46,25 @@ class LocationCacheService:
                 logger.warning(f"Redis connection failed ({e}). Falling back to in-memory location cache.")
                 self._redis_client = None
 
+    MAX_CACHE_ENTRIES = 500
+
     def _clean_expired(self):
-        """Internal helper to remove expired local cache entries."""
+        """Internal helper to remove expired local cache entries and enforce max memory bound."""
         now = time.time()
         expired_keys = [k for k, v in self._store.items() if v.get("expires_at", 0) < now]
         for key in expired_keys:
             self._store.pop(key, None)
+        
+        # Enforce memory safety cap
+        if len(self._store) > self.MAX_CACHE_ENTRIES:
+            # Sort by updated_at ascending and remove oldest entries
+            sorted_keys = sorted(
+                self._store.keys(),
+                key=lambda k: self._store[k].get("updated_at", 0)
+            )
+            excess = len(self._store) - self.MAX_CACHE_ENTRIES
+            for k in sorted_keys[:excess]:
+                self._store.pop(k, None)
 
     def set_realtime_location(
         self,
