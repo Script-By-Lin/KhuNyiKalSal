@@ -276,6 +276,12 @@ class ApiService {
   Future<Response> toggleVolunteerStatus(String volunteerId) =>
       dio.put('/volunteers/$volunteerId/toggle-status');
 
+  Future<Response> assignEmergencyToVolunteer(String emergencyId, String volunteerId) =>
+      dio.post('/volunteers/assign', data: {
+        'emergency_id': emergencyId,
+        'volunteer_id': volunteerId,
+      });
+
   Future<Response> getResponderHistory() => dio.get('/volunteers/history');
 
   // ── Admin ─────────────────────────────────────────────────────────────

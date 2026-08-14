@@ -1,6 +1,6 @@
 # Khu Nyi Kal Sal (ကူညီကယ်ဆယ်) — System Architecture & Technical Specification
 
-> **Version**: 1.0.0  
+> **Version**: 2.1.0  
 > **Classification**: Production Emergency Response & Rescue Network  
 > **Platform**: Distributed Mobile (Flutter) & High-Performance Async Backend (FastAPI)  
 > **Target Region**: Myanmar (Offline-resilient, Low-bandwidth Optimized, High-Security)
@@ -12,14 +12,15 @@
 1. [Executive Summary](#1-executive-summary)
 2. [Technology Stack & Ecosystem](#2-technology-stack--ecosystem)
 3. [System Architecture & Component Design](#3-system-architecture--component-design)
-4. [Security Architecture & Algorithms](#4-security-architecture--algorithms)
+4. [Security Architecture & Multi-Device Control](#4-security-architecture--multi-device-control)
 5. [Privacy Architecture & Cryptographic Engine](#5-privacy-architecture--cryptographic-engine)
-6. [Core System Algorithms & Mathematical Formulations](#6-core-system-algorithms--mathematical-formulations)
+6. [Core System Algorithms & Spatial Routing](#6-core-system-algorithms--spatial-routing)
 7. [Operational Flows & Sequence Diagrams](#7-operational-flows--sequence-diagrams)
 8. [Database Schema & Entity Relationship (ERD)](#8-database-schema--entity-relationship-erd)
 9. [API Specification & Real-Time WebSocket Protocols](#9-api-specification--real-time-websocket-protocols)
-10. [Frontend Architecture & State Management](#10-frontend-architecture--state-management)
-11. [Deployment, Scalability & Resilience](#11-deployment-scalability--resilience)
+10. [Push Notification & Emergency Siren Alarm Subsystem](#10-push-notification--emergency-siren-alarm-subsystem)
+11. [Frontend Architecture & Map Navigation Engine](#11-frontend-architecture--map-navigation-engine)
+12. [Deployment, Scalability & Railway 3GB Performance](#12-deployment-scalability--railway-3gb-performance)
 
 ---
 
@@ -29,11 +30,12 @@
 
 ### Core Capabilities
 * **1-Tap Emergency SOS Dispatch**: Instant geo-located distress dispatch with automatic spatial routing to the nearest qualified rescue organizations (Medical, Fire, Crime/Safety).
-* **Distributed Volunteer Mobilization**: Real-time push alerting to nearby verified volunteers with single-session concurrency locks to prevent double-acceptance race conditions.
-* **Family Distress Mesh**: Instant peer-to-peer family emergency notifications with real-time resolved-state synchronization.
+* **Live Responder Tracking & Destination Routing**: When an organization or volunteer accepts an emergency, the user's map renders a **Live Responder En Route Card** showing responder identity, role, direct telephone link, and an emerald-green road route from the responder's live GPS coordinates directly to the user's location.
+* **Dedicated Mission Navigation Console**: Full-screen `/mission-map` routing console for organizations and volunteers with top command headers and direct return-to-dashboard controls.
+* **High-Priority Emergency Siren Push**: Cloud push notification dispatcher with background CPU wake-up, full-screen lockscreen intent, and multi-stage rhythmic vibration patterns.
 * **Military-Grade Data Privacy**: Salted AES-256 Fernet encryption for all sensitive PII (phone numbers, medical conditions, blood types), ensuring zero plaintext leakage.
 * **Zero-Trace Ephemeral Tracking**: Real-time GPS tracking cache with automatic time-to-live (TTL) and instant cryptographic purging upon rescue completion or cancellation.
-* **Multi-Device Session & Security Control**: Role-based device quotas (Users: Max 3 with LRU eviction, Volunteers: Strict 1-device lock, Orgs: Unlimited dispatch consoles), short-lived JWTs, and SHA-256 hashed refresh tokens.
+* **Multi-Device Session & Security Control**: Role-based device quotas (Users: Max 3 with LRU eviction, Volunteers: Strict 1-device lock, Orgs: Multi-workstation consoles), short-lived JWTs, and SHA-256 hashed refresh tokens.
 
 ---
 
@@ -43,10 +45,10 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                            FRONTEND (FLUTTER)                              │
 │  • Dart 3.12+ / Flutter SDK         • Flutter Riverpod (State Management)   │
-│  • GoRouter (Declarative Routing)    • Dio 5.8 (HTTP Interceptors & Queue)   │
-│  • Flutter Secure Storage (KeyStore) • Flutter Map & LatLong2 (OSM)         │
-│  • Geolocator & Permissions          • WebSockets (Bidirectional Streaming) │
-│  • Local Notifications & Shimmer     • Google Fonts & Myanmar Unicode       │
+│  • GoRouter (Root & Mission Routes) • Dio 5.8 (HTTP Interceptors & Queue)   │
+│  • Flutter Secure Storage (KeyStore) • Flutter Map & LatLong2 (OSRM OSM)   │
+│  • Geolocator (Live GPS Streams)    • WebSockets (Bidirectional Streaming) │
+│  • Local Notifications & Alarms     • Google Fonts & Myanmar Unicode       │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │ HTTPS / WSS
 ┌──────────────────────────────────────▼──────────────────────────────────────┐
@@ -54,33 +56,16 @@
 │  • Python 3.12 (Asynchronous I/O)    • FastAPI (High-performance ASGI)      │
 │  • SQLAlchemy 2.0 (Async ORM)        • Pydantic v2 (Data Validation)        │
 │  • Python-Jose & Passlib (JWT+Bcrypt)• Cryptography (Fernet Salted AES-256) │
-│  • Alembic (Automated DB Migrations) • Uvicorn (ASGI Production Server)     │
+│  • Alembic (Automated DB Migrations) • Gunicorn / Uvicorn (4 Concurrency)   │
 └───────────────────┬─────────────────────────────────────┬───────────────────┘
                     │                                     │
 ┌───────────────────▼──────────────────┐ ┌────────────────▼───────────────────┐
 │     DATABASE (POSTGRESQL / SQLITE)   │ │    REAL-TIME CACHE & COORDINATION  │
 │  • PostgreSQL 16 (Railway Cloud)     │ │  • Redis (Pub/Sub & TTL Cache)     │
-│  • Asyncpg Async Driver              │ │  • In-Memory Ephemeral RAM Fallback │
+│  • Asyncpg Async Driver (Pool: 10/20)│ │  • In-Memory Ephemeral RAM Fallback │
 │  • SQLite aiosqlite (Isolated Tests) │ │  • WebSocket Connection Hub        │
 └──────────────────────────────────────┘ └────────────────────────────────────┘
 ```
-
-### Detailed Component Inventory
-
-| Layer | Technology | Version / Tool | Purpose & Justification |
-| :--- | :--- | :--- | :--- |
-| **Mobile Client** | **Flutter / Dart** | SDK ^3.12.2 | Cross-platform (Android, iOS, Web, Windows) native performance with smooth 60fps animations. |
-| **State Management** | **Flutter Riverpod** | ^2.6.1 | Compile-safe, reactive state containers without BuildContext dependencies. |
-| **Networking** | **Dio** | ^5.8.0+1 | Advanced HTTP client with dynamic BaseURL switching, automated 401 refresh interceptors, and request retries. |
-| **Mapping Engine** | **Flutter Map & LatLong2** | ^7.0.2 / ^0.9.1 | OpenStreetMap-based vector rendering with offline tile caching capability, eliminating Google Maps API dependency. |
-| **Secure KeyStore** | **Flutter Secure Storage** | ^9.2.4 | Encrypted hardware Keystore (Android) / Keychain (iOS) storage for JWTs and device UUIDs. |
-| **Backend API** | **FastAPI** | ^0.110+ | Asynchronous Python framework with ASGI concurrency, OpenAPI auto-docs, and Pydantic validation. |
-| **ORM & DB Access** | **SQLAlchemy** | 2.0 (Async) | Declarative asynchronous ORM with `selectin` / `joinedload` eager-loading to prevent $N+1$ query overhead. |
-| **Database Engine** | **PostgreSQL** | 16 (Railway) | ACID-compliant relational persistence with native UUID and JSONB support. |
-| **Migration Pipeline**| **Alembic** | 1.13+ | Version-controlled schema migrations executed automatically at startup without downtime. |
-| **Cryptography** | **Fernet (AES-256-CBC)** | `cryptography` | Authenticated 128-bit CBC encryption with HMAC-SHA256 integrity and per-record dynamic salt. |
-| **Token Authentication**| **JWT + SHA-256** | `python-jose` | Short-lived claims-based authentication with SHA-256 hashed refresh tokens. |
-| **Real-time Engine** | **WebSockets** | Built-in ASGI | Persistent full-duplex socket channels for millisecond-latency emergency dispatch and location streaming. |
 
 ---
 
@@ -98,54 +83,45 @@ graph TD
     end
 
     subgraph Transport & Gateway
-        GW[Reverse Proxy / SSL Termination]
-        WSG[WebSocket Hub / Route Dispatcher]
+        GW[FastAPI Gateway / ASGI Concurrency]
+        WS[WebSocket Manager & Redis Pub/Sub]
+        FCM[High-Priority FCM Siren Push Dispatcher]
     end
 
-    subgraph Application Service Layer
-        AUTH[Auth & Session Service]
-        SOS[SOS Dispatch & Routing Service]
-        LOC[Spatial & Ephemeral Cache Service]
-        VOL[Volunteer Coordination Service]
-        FAM[Family Mesh Service]
-        SEC[Cryptographic Privacy Engine]
+    subgraph Domain & Services Layer
+        SOS[SOS Emergency Service]
+        LOC[Spatial Proximity & OSRM Routing Engine]
+        AUTH[Multi-Device Session & Cryptographic Auth]
+        NOTIF[Family & Responder Notification Engine]
     end
 
-    subgraph Persistence & Storage Layer
-        DB[(PostgreSQL Primary DB)]
-        CACHE[(Redis / Memory Ephemeral Cache)]
+    subgraph Persistence Layer
+        DB[(PostgreSQL 16 Database)]
+        CACHE[(Redis / Volatile TTL Cache)]
     end
 
     A & B & C & D -->|HTTPS REST| GW
-    A & B & C & D <-->|WSS Full-Duplex| WSG
-
-    GW --> AUTH & SOS & LOC & VOL & FAM
-    WSG <--> SOS & VOL & LOC
-
-    AUTH --> SEC
+    A & B & C -->|WSS Sockets| WS
+    GW --> AUTH & SOS & LOC & NOTIF
+    SOS --> WS & FCM & CACHE & DB
+    LOC --> CACHE & DB
     AUTH --> DB
-    SOS --> LOC & VOL & FAM & SEC
-    SOS --> DB
-    LOC --> CACHE
-    VOL --> DB
-    FAM --> DB
+    NOTIF --> WS & FCM
 ```
 
 ---
 
-## 4. Security Architecture & Algorithms
+## 4. Security Architecture & Multi-Device Control
 
-### 4.1. Dual-Token Authentication Lifecycle
-
-The system utilizes a high-security **Short-Lived Access Token + Hashed Long-Lived Refresh Token** architecture.
+### 4.1. Authentication Flow & Session Management
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Client as Flutter App
-    participant Auth as Backend Auth API
-    participant DB as Sessions Table
-    participant Sec as Security Engine
+    actor Client as User Mobile App
+    participant Auth as Auth Service
+    participant Sec as Cryptographic Module
+    participant DB as PostgreSQL Database
 
     Note over Client,Sec: 1. Login & Device Handshake
     Client->>Auth: POST /api/auth/login {email, password, device_id, device_name}
@@ -164,16 +140,6 @@ sequenceDiagram
     Auth->>DB: SELECT session WHERE id = session_id AND is_active = True
     DB-->>Auth: Session active (last_used_at updated)
     Auth-->>Client: 200 OK [Data Payload]
-
-    Note over Client,Sec: 3. Silent Auto-Refresh on 401
-    Client->>Auth: API Call with Expired Access Token
-    Auth-->>Client: 401 Unauthorized
-    Client->>Auth: POST /api/auth/refresh {refresh_token}
-    Auth->>Sec: hash_token(refresh_token)
-    Auth->>DB: SELECT session WHERE refresh_token_hash = hash AND is_active = True
-    Auth->>Sec: Issue new access_token (30 min)
-    Auth-->>Client: 200 OK {access_token, refresh_token}
-    Client->>Client: Update Keystore & Re-execute original request
 ```
 
 ### 4.2. Role-Based Multi-Device Policies
@@ -193,18 +159,9 @@ When a citizen triggers an emergency SOS (`POST /api/emergency/sos`):
    $$\text{UPDATE sessions SET is\_active} = \text{False WHERE user\_id} = U \text{ AND id} \neq S_{\text{current}}$$
 3. **Purpose**: Prevents duplicate SOS spam, ensures state consistency, and eliminates man-in-the-middle device tampering during an active rescue crisis.
 
-### 4.4. Inactivity Expiration & Auto-Revocation
-
-* On every authenticated API request, `last_used_at` is updated to UTC `now()`.
-* If a session has remained inactive for $\Delta t > 24\text{ hours}$:
-  * The session's `is_active` flag is set to `False`.
-  * The request is rejected with `401 Unauthorized: Session expired due to inactivity`.
-
 ---
 
 ## 5. Privacy Architecture & Cryptographic Engine
-
-In high-risk emergency scenarios, personal user data (victim contact details, medical records, blood group, exact home coordinates) must remain strictly private and immune to database breaches or surveillance.
 
 ```mermaid
 flowchart TD
@@ -228,57 +185,18 @@ flowchart TD
     K & D --> F
     F --> ENC
     S --> SALT
-
-    subgraph Ephemeral Real-Time Cache
-        GPS[Real-Time GPS Coordinates]
-        RAM[(Redis / Volatile Memory)]
-        PURGE[Instant Cryptographic Purge on Complete/Cancel]
-    end
-
-    GPS -->|TTL 300s| RAM
-    PURGE -->|DEL Key| RAM
 ```
 
-### 5.1. Salted AES-256 Dynamic Encryption
-
-* **Algorithm**: Authenticated Fernet (AES-128-CBC with 128-bit AES encryption + 128-bit SHA-256 HMAC authentication, derived into 256-bit envelope keys).
-* **Per-Record Dynamic Salting**:
-  * Every profile and organization record generates a distinct 16-byte random salt (`secrets.token_hex(16)`).
-  * The salt is combined with the system master key to derive a record-unique encryption key.
-  * **Result**: Even if two users share the exact same phone number or location, their ciphertexts in the database are completely distinct, preventing frequency analysis and rainbow table matching:
-    $$\text{Ciphertext}_A \neq \text{Ciphertext}_B \quad \text{where } \text{Plaintext}_A = \text{Plaintext}_B$$
-
-### 5.2. Ephemeral Real-Time Tracking & Instant Cache Purge
-
-1. **Volatile In-Memory Tracking**: During an active emergency, live GPS coordinates of victims and responders are stream-stored in volatile memory (Redis / RAM cache) with a strict 300-second TTL.
-2. **Zero Persistent GPS Footprint**: High-precision second-by-second coordinates are **never written to disk or permanent database tables**.
-3. **Instant Cache Purge**: The moment an emergency status transitions to `COMPLETED` or `CANCELLED`, the system executes:
-   ```python
-   location_cache.purge_realtime_tracking(emergency_id)
-   location_cache.purge_user_tracking(user_id)
-   ```
-   All real-time location vectors are immediately erased from memory.
+* **Per-Record Dynamic Salting**: Every profile and organization record generates a distinct 16-byte random salt (`secrets.token_hex(16)`).
+* **Result**: Even if two users share the exact same phone number or location, their ciphertexts in the database are completely distinct, preventing frequency analysis and rainbow table matching:
+  $$\text{Ciphertext}_A \neq \text{Ciphertext}_B \quad \text{where } \text{Plaintext}_A = \text{Plaintext}_B$$
+* **Zero Persistent GPS Footprint**: High-precision second-by-second coordinates are kept in volatile RAM and purged immediately upon completion or cancellation.
 
 ---
 
-## 6. Core System Algorithms & Mathematical Formulations
+## 6. Core System Algorithms & Spatial Routing
 
-### 6.1. Haversine Spatial Proximity Algorithm
-
-To locate the nearest rescue organizations and volunteers without requiring heavy GIS extensions, the system computes spherical distance on the Earth's surface:
-
-$$a = \sin^2\left(\frac{\Delta \phi}{2}\right) + \cos(\phi_1) \cdot \cos(\phi_2) \cdot \sin^2\left(\frac{\Delta \lambda}{2}\right)$$
-
-$$c = 2 \cdot \text{atan2}\left(\sqrt{a}, \sqrt{1-a}\right)$$
-
-$$d = R \cdot c$$
-
-Where:
-* $\phi_1, \phi_2$ = latitudes in radians
-* $\Delta \phi = \phi_2 - \phi_1$
-* $\Delta \lambda = \lambda_2 - \lambda_1$
-* $R = 6371\text{ km}$ (Mean Earth radius)
-* $d$ = Great-circle distance in kilometers
+### 6.1. Haversine Spatial Proximity with Graceful Fallback
 
 ```python
 def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -292,94 +210,58 @@ def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> fl
     return R * c
 ```
 
-### 6.2. Emergency SOS Dispatch & Escalation Workflow
+### 6.2. Multi-Mirror Road Routing Geometry (OpenStreetMap OSRM)
 
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING: User Triggers SOS (/emergency/sos)
-    PENDING --> FAMILY_ALERTED: Notify Family Group via WebSocket & SMS
-    FAMILY_ALERTED --> NEAREST_ORG_ASSIGNED: Calculate Haversine Nearest Org
-    NEAREST_ORG_ASSIGNED --> VOLUNTEERS_BROADCAST: Push WebSocket Alert to Nearby Volunteers
-    
-    state "Awaiting Responder Acceptance (300s Timer)" as TimeoutState {
-        VOLUNTEERS_BROADCAST --> ACCEPTED: Volunteer Clicks 'Accept' (Atomic First-Claim)
-        VOLUNTEERS_BROADCAST --> ESCALATED: 300s Timeout / All Rejected
-    }
-
-    ESCALATED --> REASSIGN_ORG: Escalate to Next Closest Organization
-    REASSIGN_ORG --> VOLUNTEERS_BROADCAST
-
-    ACCEPTED --> IN_PROGRESS: Real-Time Location Tracking Active
-    IN_PROGRESS --> COMPLETED: Rescue Finished (Purge Location Cache)
-    
-    PENDING --> CANCELLED: Victim Cancels SOS
-    ACCEPTED --> CANCELLED: Victim / Org Cancels
-    COMPLETED --> [*]
-    CANCELLED --> [*]
-```
-
-### 6.3. Volunteer Response Race-Condition Locking
-
-To prevent two volunteers from simultaneously accepting the same emergency:
-1. `EmergencyResponseTracker` manages an in-memory `asyncio.Event` and rejected candidate set per emergency ID.
-2. The first incoming `ACCEPT` payload locks the record in the database:
-   ```sql
-   UPDATE emergencies 
-   SET assigned_volunteer_id = :vol_id, status = 'accepted'
-   WHERE id = :em_id AND status = 'pending';
-   ```
-3. If `rowcount == 1`, the volunteer is granted the assignment; subsequent acceptances receive `409 Conflict: Emergency already accepted by another responder`.
+To ensure road route lines follow real drivable street lanes rather than straight lines, the client queries primary and mirror OSRM routing endpoints:
+1. `https://router.project-osrm.org/route/v1/driving/{startLng},{startLat};{endLng},{endLat}?overview=full&geometries=geojson`
+2. `https://routing.openstreetmap.de/routed-car/route/v1/driving/{startLng},{startLat};{endLng},{endLat}?overview=full&geometries=geojson`
+3. Fallback: Interpolated curved spline if completely offline.
 
 ---
 
 ## 7. Operational Flows & Sequence Diagrams
 
-### 7.1. Emergency SOS Full Dispatch & Rescue Lifecycle
+### 7.1. Emergency SOS Dispatch & Live Responder Routing Flow
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Victim as Distressed User
-    participant App as Mobile App
+    participant App as Victim Map App
     participant API as FastAPI Backend
     participant WS as WebSocket Hub
     participant Org as Rescue Org Console
-    participant Vol as Volunteer Responder
-    participant Fam as Family Group
+    participant Vol as Volunteer Handset
 
-    Victim->>App: Press SOS Button (Medical / Fire / Crime)
+    Victim->>App: 1-Tap SOS Trigger (Medical / Fire / Crime)
     App->>API: POST /api/emergency/sos {lat, lng, type}
-    API->>API: Lock Emergency Session (Deactivate other user devices)
-    API->>API: Compute Haversine Nearest Matching Org
+    API->>API: Lock Emergency Session
+    API->>API: Find Nearest Orgs (Haversine + Category match)
     API-->>App: 201 Created {emergency_id}
 
-    par Parallel Broadcast
-        API->>WS: Push EMERGENCY_ALERT to Family Members
-        WS-->>Fam: Real-Time Alert & Map Pin
-    and
-        API->>WS: Push NEW_EMERGENCY to Nearest Org
-        WS-->>Org: Audio Siren & Dispatch Panel Card
-    and
-        API->>WS: Push VOLUNTEER_ALERT to Nearby Volunteers
-        WS-->>Vol: Full-screen Emergency Prompt
+    par Broadcast Emergency Alert
+        API->>WS: Broadcast SOS_CREATED to all Active Orgs & Volunteers
+        WS-->>Org: Audio Siren & Urgent Dashboard Alert
+        WS-->>Vol: Full-screen Emergency Card & Siren Vibration
     end
 
-    Vol->>API: POST /api/volunteers/respond {emergency_id, action: "accept"}
-    API->>API: Atomic Status Update (PENDING -> ACCEPTED)
-    API->>WS: Broadcast EMERGENCY_ACCEPTED
-    WS-->>Victim: "Volunteer Mg Mg is on the way (ETA 4 min)"
-    WS-->>Org: "Volunteer assigned"
+    Org->>API: POST /api/volunteers/respond {emergency_id, action: "accept"}
+    API->>API: Mark ACCEPTED & Query Org GPS/Phone
+    API->>WS: Send VOLUNTEER_ACCEPTED to Victim (with responder details)
+    WS-->>App: {responder_name, responder_phone, responder_role, responder_location}
 
-    loop Real-Time Location Tracking
-        Vol->>API: PUT /api/volunteers/location {lat, lng}
-        API->>WS: Stream Coordinates to Victim Map
+    App->>App: Render Live Responder Card (Emerald Green Route & Call Button)
+    App->>App: Fetch OSRM Road Route from Responder GPS -> Victim GPS
+
+    loop Live GPS Tracking
+        Org->>API: PUT /api/volunteers/location {lat, lng}
+        API->>WS: Send RESPONDER_LOCATION_UPDATED to Victim
+        WS-->>App: Update Ambulance Marker & Recalculate Road Geometry
     end
 
     Org->>API: PUT /api/emergency/{id}/complete
-    API->>API: Mark COMPLETED & Resolve Family Alerts
-    API->>API: Purge Ephemeral GPS Cache
-    API->>WS: Broadcast EMERGENCY_COMPLETED
-    WS-->>Victim: Rescue Complete Notification
+    API->>WS: Send EMERGENCY_COMPLETED to Victim
+    WS-->>App: Rescue Complete Modal & Purge Local Routes
 ```
 
 ---
@@ -414,46 +296,12 @@ erDiagram
         string device_id
         string device_name
         string refresh_token_hash "Indexed SHA-256"
+        string fcm_token "Push Device Token"
         string ip_address
         string user_agent
         boolean is_active
         timestamp created_at
         timestamp last_used_at
-    }
-
-    user_profiles {
-        uuid id PK
-        uuid account_id FK
-        string full_name
-        string phone_number "AES-256 Encrypted"
-        string phone_salt
-        string blood_type
-        string medical_conditions
-        jsonb emergency_contacts
-    }
-
-    organizations {
-        uuid id PK
-        uuid account_id FK
-        string org_name
-        string phone_number "AES-256 Encrypted"
-        string phone_salt
-        float geo_lat
-        float geo_lng
-        float coverage_radius_km
-        string category "Medical | Fire | Safety"
-        string status "Active | Inactive"
-    }
-
-    volunteers {
-        uuid id PK
-        uuid account_id FK
-        uuid organization_id FK
-        string skills
-        float current_lat
-        float current_lng
-        boolean is_available
-        timestamp last_active
     }
 
     emergencies {
@@ -468,132 +316,74 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
-
-    family_groups {
-        uuid id PK
-        string group_name
-        uuid created_by FK
-        timestamp created_at
-    }
-
-    family_members {
-        uuid id PK
-        uuid group_id FK
-        uuid account_id FK
-        string relationship
-        timestamp joined_at
-    }
-
-    family_alerts {
-        uuid id PK
-        uuid group_id FK
-        uuid emergency_id FK
-        uuid user_id FK
-        string alert_type
-        float location_lat
-        float location_lng
-        boolean is_resolved
-        timestamp created_at
-    }
 ```
 
 ---
 
 ## 9. API Specification & Real-Time WebSocket Protocols
 
-### 9.1. REST Endpoints Matrix
+### 9.1. Emergency & Volunteer Endpoints
 
 | Domain | Method | Endpoint | Access Level | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| **Auth** | `POST` | `/api/auth/register/user` | Public | Register citizen account + issue multi-device session. |
-| | `POST` | `/api/auth/register/organization` | Public | Register rescue organization. |
-| | `POST` | `/api/auth/login` | Public | Authenticate credentials & enforce role device quotas. |
-| | `POST` | `/api/auth/refresh` | Public (Token) | Exchange valid refresh token for renewed 30-min JWT. |
-| | `POST` | `/api/auth/logout` | Authenticated | Single-device logout (revokes current session). |
-| | `POST` | `/api/auth/logout-all` | Authenticated | Revoke all active sessions across all devices. |
-| | `GET` | `/api/auth/sessions` | Authenticated | List all active/recent devices with `is_current` tag. |
-| | `DELETE`| `/api/auth/sessions/{session_id}` | Authenticated | Disconnect / terminate a specific remote device. |
-| | `GET` | `/api/auth/me` | Authenticated | Get current account identity & active role. |
 | **Emergency**| `POST` | `/api/emergency/sos` | User Only | Trigger SOS emergency & activate session lock. |
 | | `GET` | `/api/emergency/active` | Authenticated | Fetch active emergency statuses for caller. |
-| | `GET` | `/api/emergency/history` | Authenticated | Fetch past emergency history. |
 | | `PUT` | `/api/emergency/{id}/complete` | Org / Admin | Mark rescue operation completed & purge tracking. |
 | | `PUT` | `/api/emergency/{id}/cancel` | User / Org | Cancel emergency & purge tracking cache. |
-| **Volunteers**| `POST` | `/api/volunteers/respond` | Volunteer | Atomic accept/reject of an emergency dispatch. |
-| | `PUT` | `/api/volunteers/location` | Volunteer | Update volunteer GPS coordinates. |
-| | `PUT` | `/api/volunteers/{id}/toggle-status` | Volunteer | Toggle on-duty / off-duty status. |
-| **Family** | `POST` | `/api/family/create` | User | Create a private family safety group. |
-| | `POST` | `/api/family/add-member` | User | Add family member by registered email. |
-| | `GET` | `/api/family/my-group` | User | Fetch family group members & live statuses. |
-| | `GET` | `/api/family/alerts` | User | Fetch active and historic family emergency alerts. |
-| **Admin** | `GET` | `/api/admin/sessions` | Admin Only | Monitor active sessions system-wide. |
-| | `POST` | `/api/admin/sessions/{id}/terminate` | Admin Only | Forcibly revoke any active session in the network. |
+| **Volunteers**| `POST` | `/api/volunteers/respond` | Volunteer / Org | Accept/reject emergency; pushes enriched responder payload. |
+| | `PUT` | `/api/volunteers/location` | Volunteer / Org | Stream live GPS coordinates to victim and console. |
+| | `GET` | `/api/volunteers/alerts` | Volunteer / Org | Fetch active assigned emergencies for dashboard. |
 
-### 9.2. Real-Time WebSocket Protocol
+### 9.2. Real-Time WebSocket Events
 
-* **Connection URL**: `ws://<host>/ws/{account_id}`
-* **Message Format**: JSON Structured Frames
-
-```json
-// Event: Emergency Alert Broadcast
-{
-  "event": "NEW_EMERGENCY",
-  "emergency_id": "854589af-02c0-4617-9ed7-fb555823c9cf",
-  "type": "medical",
-  "location_lat": 16.8661,
-  "location_lng": 96.1951,
-  "victim_name": "Ko Aung",
-  "victim_phone": "09123456789",
-  "blood_type": "O+",
-  "medical_conditions": "Diabetic",
-  "timestamp": "2026-08-14T12:00:00Z"
-}
-```
+* **`SOS_CREATED`**: Broadcast to all active rescue organizations and volunteers when a citizen calls for help.
+* **`VOLUNTEER_ACCEPTED` / `EMERGENCY_ACCEPTED`**: Sent to the victim containing:
+  ```json
+  {
+    "event": "VOLUNTEER_ACCEPTED",
+    "emergency_id": "434669e9-716b-4a3a-88e3-c07247fe39f9",
+    "status": "accepted",
+    "responder_name": "Yangon Central Emergency Rescue",
+    "responder_phone": "09123456789",
+    "responder_role": "Organization",
+    "responder_location": {"lat": 16.8520, "lng": 96.1820},
+    "message": "🚨 Help is on the way!"
+  }
+  ```
+* **`RESPONDER_LOCATION_UPDATED`**: Streams live coordinates `{"lat": 16.8531, "lng": 96.1835}` to move the ambulance marker in real time.
 
 ---
 
-## 10. Frontend Architecture & State Management
+## 10. Push Notification & Emergency Siren Alarm Subsystem
 
-```
-frontend/lib/
-├── config/
-│   ├── constants.dart         # API Base URLs, Timeouts & Constants
-│   ├── routes.dart            # GoRouter Navigation Declarations
-│   └── theme.dart             # Modern High-Contrast Emergency UI Tokens
-├── models/                    # Typed Pydantic-compatible Dart Models
-│   ├── account.dart
-│   ├── emergency.dart
-│   ├── organization.dart
-│   └── family.dart
-├── providers/                 # Riverpod Reactive State Notifiers
-│   ├── auth_provider.dart     # Auto-login, Session Store & Token Lifecycles
-│   ├── emergency_provider.dart# Active SOS State, Timers & Map Stream
-│   └── settings_provider.dart # Dual Locale (English / မြန်မာ)
-├── screens/                   # View Layer Components
-│   ├── auth/                  # Login, Register & Legal Screens
-│   ├── home/                  # Quick Action SOS Launchpad
-│   ├── map/                   # Live OpenStreetMap Tracking View
-│   ├── settings/              # Language & Device Management Screen
-│   ├── volunteer/             # Responder Dashboard & Alerts
-│   └── admin/                 # Admin Command Console
-└── services/                  # Infrastructure Connectors
-    ├── api_service.dart       # Dio with Auto-401 Refresh Interceptor
-    ├── websocket_service.dart # Reconnecting Socket Channel
-    └── location_service.dart  # High-Precision Geolocator Wrapper
-```
+* **Android Notification Channel**: `emergency_siren_channel_v5`
+  * `importance: Importance.max`
+  * `priority: Priority.high`
+  * `audioAttributesUsage: AudioAttributesUsage.alarm`
+  * `vibrationPattern: [0, 1000, 300, 1000, 300, 1000, 300, 1000]`
+  * `fullScreenIntent: true` (Wakes locked screen on arrival)
+* **Foreground Alert Pulse**: Rhythmic `triggerUrgentHapticAlarm()` heavy impacts on responder devices.
 
 ---
 
-## 11. Deployment, Scalability & Resilience
+## 11. Frontend Architecture & Map Navigation Engine
 
-### 11.1. Automated Cloud Migration (Railway)
-* Continuous integration and deployment via Railway Container Build (`Dockerfile`, `railway.json`).
-* Startup sequence runs `python migrate.py` (`alembic upgrade head`) automatically before launching `uvicorn`, guaranteeing zero manual database intervention.
+* **Dedicated `/mission-map` Route**:
+  * Pushed with `parentNavigatorKey: _rootNavigatorKey` outside `ShellRoute`.
+  * Features a Top Command Mission Header with emergency type, victim name, and one-tap return to Org / Volunteer Dashboard.
+* **Safe Map Controller Guard**:
+  * All map controller calls are wrapped in `_safeMove()` and `_safeFitBounds()` guarded by `_isMapReady` to prevent unattached controller crashes.
+  * `initialCenter` directly targets victim location upon launch, eliminating blank screen delays.
+* **Live En Route Rescue Card**:
+  * Displays responder identity, role tag, destination summary (`Heading to your location`), direct telephone call launcher, and camera focus button.
 
-### 11.2. Offline & Low-Bandwidth Resilience
-* **OpenStreetMap Tile Caching**: Vector map tiles are cached locally on client devices.
-* **Auto-Reconnecting WebSocket**: Exponential backoff reconnect logic ensures responders in low-connectivity rural zones re-establish communication instantly when cellular signals return.
-* **Graceful In-Memory Fallback**: If Redis is temporarily unreachable, backend location caching dynamically falls back to internal memory TTL stores without dropping a single emergency alert.
+---
+
+## 12. Deployment, Scalability & Railway 3GB Performance
+
+* **Concurrency Scaling**: `WEB_CONCURRENCY=4` with Uvicorn async workers.
+* **Database Connection Pool**: `pool_size=10, max_overflow=20, pool_pre_ping=True, pool_recycle=300`.
+* **Memory Optimization**: In-memory ephemeral location caches with deterministic garbage collection to operate within $\le 3\text{GB}$ RAM limits.
 
 ---
 

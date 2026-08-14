@@ -34,6 +34,13 @@ class VolunteerRespondRequest(BaseModel):
     action: str  # "accept" or "reject"
 
 
+class AssignVolunteerRequest(BaseModel):
+    """Organization assigns emergency to a specific volunteer."""
+    emergency_id: str
+    volunteer_id: str
+
+
 class UpdateVolunteerLocationRequest(BaseModel):
     lat: float
     lng: float
+
