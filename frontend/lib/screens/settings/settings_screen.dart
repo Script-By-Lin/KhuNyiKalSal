@@ -112,6 +112,37 @@ class SettingsScreen extends ConsumerWidget {
 
               const Spacer(),
 
+              // ── App Brand Footer ─────────────────────────────────
+              Center(
+                child: Column(
+                  children: [
+                    Image.asset(
+                      'assets/images/logo_symbol_transparent.png',
+                      height: 48,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Khu Nyi Kal Sal',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey.shade700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      'v1.0.0 • Myanmar Emergency Response',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
               // ── Logout Button ────────────────────────────────────
               Container(
                 width: double.infinity,

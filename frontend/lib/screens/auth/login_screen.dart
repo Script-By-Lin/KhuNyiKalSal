@@ -85,33 +85,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // ── Logo / Title ──────────────────────────────────────
-                  Container(
-                    width: 90,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.health_and_safety,
-                      size: 48,
-                      color: AppTheme.primaryRed,
-                    ),
+                  Image.asset(
+                    'assets/images/logo_transparent.png',
+                    height: 130,
+                    fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Khu Nyi Kal Sal',
-                    style: Theme.of(context).textTheme.headlineLarge,
-                  ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Text(
                     'Emergency Response System',
                     style: Theme.of(context)
                         .textTheme
                         .bodyMedium
-                        ?.copyWith(color: AppTheme.subtleGrey),
+                        ?.copyWith(
+                          color: AppTheme.subtleGrey,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 36),
 
                   // ── Email ─────────────────────────────────────────────
                   TextField(

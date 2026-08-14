@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Khu Nyi Kal Sal — Visual Architecture & Flowcharts</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <!-- Mermaid.js for zero-install instant diagram rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+  <!-- Panzoom for smooth zooming and panning -->
+  <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
+  <style>
+    :root {
+      --primary: #E53935;
+      --primary-dark: #C62828;
+      --primary-light: #FFEBEE;
+      --light-bg: #F8FAFC;
+      --light-card: #FFFFFF;
+      --light-border: #E2E8F0;
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--light-bg);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Top Navigation Header */
+    header {
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--light-border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+      z-index: 100;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo-badge {
+      width: 40px;
+      height: 40px;
+      background: var(--primary-light);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .brand-titles h1 {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      color: #0F172A;
+    }
+
+    .brand-titles p {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--light-border);
+      background: #FFFFFF;
+      color: #334155;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background: #F1F5F9;
+      border-color: #CBD5E1;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border: none;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    /* Main Content Layout */
+    .app-body {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 65px);
+      overflow: hidden;
+    }
+
+    /* Sidebar with Diagram Tabs */
+    .sidebar {
+      width: 330px;
+      background: #FFFFFF;
+      border-right: 1px solid var(--light-border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .sidebar-header {
+      padding: 16px 20px 10px;
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+    }
+
+    .nav-tabs {
+      list-style: none;
+      padding: 0 10px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-item {
+      padding: 12px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+    }
+
+    .nav-item:hover {
+      background: #F8FAFC;
+    }
+
+    .nav-item.active {
+      background: var(--primary-light);
+      border-color: rgba(229, 57, 53, 0.2);
+    }
+
+    .nav-icon {
+      font-size: 18px;
+      margin-top: 2px;
+    }
+
+    .nav-meta h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1E293B;
+      margin-bottom: 2px;
+    }
+
+    .nav-item.active .nav-meta h3 {
+      color: var(--primary-dark);
+    }
+
+    .nav-meta p {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+
+    /* Diagram Canvas Area */
+    .canvas-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #F8FAFC;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .canvas-header {
+      padding: 12px 24px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--light-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+    }
+
+    .canvas-title h2 {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0F172A;
+    }
+
+    .canvas-title span {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .canvas-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .zoom-btn {
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: 1px solid var(--light-border);
+      background: #FFFFFF;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .zoom-btn:hover {
+      background: #F1F5F9;
+    }
+
+    .viewport {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: grab;
+    }
+
+    .viewport:active {
+      cursor: grabbing;
+    }
+
+    .panzoom-content {
+      padding: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 100%;
+      min-height: 100%;
+    }
+
+    .diagram-card {
+      background: #FFFFFF;
+      padding: 36px 40px;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+      border: 1px solid var(--light-border);
+      display: inline-block;
+      min-width: 600px;
+    }
+
+    #mermaidContainer svg {
+      max-width: none !important;
+      height: auto !important;
+    }
+
+    /* Print / Export Styles */
+    @media print {
+      header, .sidebar, .canvas-header {
+        display: none !important;
+      }
+      .app-body {
+        height: auto;
+      }
+      .canvas-container {
+        background: white;
+      }
+      .diagram-card {
+        box-shadow: none;
+        border: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="brand-section">
+      <div class="brand-logo-badge">➕</div>
+      <div class="brand-titles">
+        <h1>Khu Nyi Kal Sal — Visual Architecture & Flowcharts</h1>
+        <p>Interactive UML & System Model Viewer (Browser Native)</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn" onclick="resetZoom()">🔄 Reset Zoom</button>
+      <button class="btn" onclick="window.print()">🖨️ Print / PDF</button>
+      <a href="https://staruml.io/download" target="_blank" class="btn btn-primary">⬇️ Download StarUML (Optional)</a>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">System Flowcharts & Models</div>
+      <ul class="nav-tabs">
+        <li class="nav-item active" onclick="switchDiagram(0)">
+          <span class="nav-icon">🚨</span>
+          <div class="nav-meta">
+            <h3>1. Emergency SOS Flowchart</h3>
+            <p>1-Tap activation, spatial dispatch & live road routing</p>
+          </div>
+        </li>
+        <li class="nav-item" onclick="switchDiagram(1)">
+          <span class="nav-icon">🔐</span>
+          <div class="nav-meta">
+            <h3>2. Multi-Device Auth Flowchart</h3>
+            <p>LRU 3-device quota & strict 1-device responder lock</p>
+          </div>
+        </li>
+        <li class="nav-item" onclick="switchDiagram(2)">
+          <span class="nav-icon">🛡️</span>
+          <div class="nav-meta">
+            <h3>3. Salted Fernet AES-256</h3>
+            <p>16-byte random salt per record & PBKDF2 KDF engine</p>
+          </div>
+        </li>
+        <li class="nav-item" onclick="switchDiagram(3)">
+          <span class="nav-icon">👨‍👩‍👧</span>
+          <div class="nav-meta">
+            <h3>4. Family Circle SOS Alert</h3>
+            <p>Immediate siren broadcast & coordinate push</p>
+          </div>
+        </li>
+        <li class="nav-item" onclick="switchDiagram(4)">
+          <span class="nav-icon">📶</span>
+          <div class="nav-meta">
+            <h3>5. Offline Resilience & SMS</h3>
+            <p>Offline guides & GSM cellular fallback dispatch</p>
+          </div>
+        </li>
+        <li class="nav-item" onclick="switchDiagram(5)">
+          <span class="nav-icon">🏛️</span>
+          <div class="nav-meta">
+            <h3>6. Layered Clean Architecture</h3>
+            <p>Flutter client, FastAPI ASGI, Redis, PostgreSQL</p>
+          </div>
+        </li>
+        <li class="nav-item" onclick="switchDiagram(6)">
+          <span class="nav-icon">⏱️</span>
+          <div class="nav-meta">
+            <h3>7. Real-Time Sequence Diagram</h3>
+            <p>End-to-end WebSocket events & responder handshake</p>
+          </div>
+        </li>
+      </ul>
+    </aside>
+
+    <!-- Interactive Diagram Viewport -->
+    <main class="canvas-container">
+      <div class="canvas-header">
+        <div class="canvas-title">
+          <h2 id="currentTitle">1. Emergency SOS & Real-Time Road Routing Flowchart</h2>
+          <span id="currentDesc">End-to-end activity model from citizen SOS hold to OSRM road geometry</span>
+        </div>
+        <div class="canvas-controls">
+          <button class="zoom-btn" onclick="zoomIn()" title="Zoom In">➕</button>
+          <button class="zoom-btn" onclick="zoomOut()" title="Zoom Out">➖</button>
+          <button class="zoom-btn" onclick="resetZoom()" title="Reset View">⟲</button>
+        </div>
+      </div>
+
+      <div class="viewport" id="viewport">
+        <div class="panzoom-content" id="panzoomElement">
+          <div class="diagram-card">
+            <div id="mermaidContainer"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      securityLevel: 'loose',
+      flowchart: {
+        curve: 'basis',
+        useMaxWidth: false,
+        htmlLabels: true
+      },
+      sequence: {
+        useMaxWidth: false
+      }
+    });
+
+    const diagrams = [
+      {
+        title: "1. Emergency SOS & Real-Time Road Routing Flowchart",
+        desc: "End-to-end activity flowchart from citizen SOS hold to OSRM road geometry tracking",
+        code: `flowchart TD
+    Start(["🚨 Citizen Distress Event"]) --> Trigger["Victim Holds SOS Button for 3s"]
+    Trigger --> CheckNet{"Internet Available?"}
+    
+    CheckNet -- "No (Offline)" --> OfflineSMS["Generate Structured SMS Payload<br/>[EMERGENCY SOS - KHU NYI KAL SAL]<br/>Send to 09-Emergency Gateway"]
+    OfflineSMS --> EndOffline(["Emergency Dispatched via GSM/SMS"])
+
+    CheckNet -- "Yes (Online)" --> PostSOS["POST /api/emergency/sos<br/>Payload: Lat, Lng, Type, Bearer JWT"]
+    PostSOS --> LockSess["Backend Locks Victim Emergency Handset<br/>Revoke non-active victim sessions"]
+    LockSess --> SpatSearch["Haversine Spatial Proximity Query<br/>Filter verified orgs by category"]
+    
+    SpatSearch --> ForkDisp{"Broadcast Concurrent Alerts"}
+    ForkDisp --> AlertOrgs["WebSocket SOS_CREATED<br/>to Rescue Org Consoles"]
+    ForkDisp --> AlertVols["FCM Siren Push + Audio<br/>to Volunteer Responders"]
+    ForkDisp --> AlertFam["Family Siren Broadcast<br/>Push Geo-location link"]
+
+    AlertOrgs --> AwaitResp["Responders Review Urgent Alert Card"]
+    AlertVols --> AwaitResp
+    AlertFam --> AwaitResp
+
+    AwaitResp --> Accept["First Responder Taps ACCEPT<br/>POST /api/volunteers/respond"]
+    
+    Accept --> NotifyVictim["WebSocket VOLUNTEER_ACCEPTED<br/>Pushes Responder Name, Phone, Role, GPS"]
+    NotifyVictim --> RenderUI["Victim App Renders Live En Route Card<br/>Queries OSRM Real Road Lane Geometry"]
+    
+    RenderUI --> TrackingLoop["Live GPS Stream: PUT /location<br/>Smoothly Move Ambulance Marker on Map Radar"]
+    TrackingLoop --> StatusCheck{"Operation Status"}
+    
+    StatusCheck -- "En Route" --> TrackingLoop
+    StatusCheck -- "Cancelled" --> Purge1["Purge Ephemeral GPS Cache"]
+    StatusCheck -- "Resolved" --> Complete["Mark Emergency COMPLETED<br/>Purge Ephemeral Coordinates from Memory"]
+    
+    Purge1 --> EndSuccess(["Mission Finished"])
+    Complete --> EndSuccess`
+      },
+      {
+        title: "2. Multi-Device Authentication & Quota Enforcement Flowchart",
+        desc: "Role-based device limits (User 3-device LRU vs Volunteer 1-device lock) with SHA-256 token hashing",
+        code: `flowchart TD
+    LoginStart(["Client Login Attempt"]) --> Submit["POST /api/auth/login<br/>(email, password, device_id, device_name)"]
+    Submit --> VerifyPwd{"Bcrypt Password Match?"}
+    
+    VerifyPwd -- "Invalid" --> Err401["Return 401 Unauthorized"]
+    VerifyPwd -- "Valid" --> CheckRole{"Account Role Policy"}
+    
+    CheckRole -- "USER" --> QuotaUser{"Active Sessions >= 3?"}
+    QuotaUser -- "Yes" --> EvictLRU["LRU Eviction:<br/>Mark oldest session is_active=False"]
+    QuotaUser -- "No" --> GenToken["Generate 256-bit Cryptographic Refresh Token<br/>Compute SHA-256 Hash Digest"]
+    EvictLRU --> GenToken
+    
+    CheckRole -- "VOLUNTEER" --> LockVol["Strict 1-Device Lock:<br/>Revoke ALL previous sessions immediately"]
+    LockVol --> GenToken
+    
+    CheckRole -- "ORG / ADMIN" --> MultiWork["Allow concurrent multi-operator dispatch consoles"]
+    MultiWork --> GenToken
+    
+    GenToken --> SaveDB["Insert Session Record with SHA-256 Hash<br/>Sign Short-Lived JWT Access Token (30 min exp)"]
+    SaveDB --> KeyStore["Return HTTP 200<br/>Client persists tokens to FlutterSecureStorage"]
+    KeyStore --> LoginSuccess(["Authenticated Session Active"])`
+      },
+      {
+        title: "3. Privacy Architecture & Salted Fernet AES-256 Flowchart",
+        desc: "Per-record 16-byte cryptographic salt generation + PBKDF2 KDF + Fernet AES-256 encryption",
+        code: `flowchart TD
+    subgraph Data_Ingestion ["Data Ingestion Layer"]
+        P["Plaintext PII: Phone Number / Medical Records / Blood Group"]
+        S["Cryptographic Salt Generator: secrets.token_hex 16 bytes"]
+    end
+
+    subgraph Cryptographic_Core ["Cryptographic Engine"]
+        K["Server Master Secret Key"]
+        D["PBKDF2-HMAC-SHA256 Key Derivation Engine<br/>100,000 Iterations"]
+        F["Fernet Symmetric AES-256-CBC Encryption<br/>+ HMAC-SHA256 Integrity Verification"]
+    end
+
+    subgraph Database_Storage ["Secure Database Storage"]
+        ENC[("Encrypted Ciphertext Column: gAAAAABq...")]
+        SALT[("Stored Per-Record Salt Column: f5b4b69e...")]
+    end
+
+    P --> D
+    S --> D
+    K --> F
+    D --> F
+    F --> ENC
+    S --> SALT`
+      },
+      {
+        title: "4. Family Circle Emergency Siren Cascade Flowchart",
+        desc: "Instant family group SOS broadcast, background siren push, and coordinate dispatch",
+        code: `flowchart TD
+    FamStart(["Family SOS Trigger"]) --> FamTrigger["User Activates SOS in Family Circle<br/>POST /api/family/sos (group_id, lat, lng)"]
+    FamTrigger --> FamLookup["Backend Looks Up Active Family Members<br/>Retrieves Registered Device FCM Tokens"]
+    FamLookup --> FamWS["WebSocket FAMILY_SOS_ALERT Event<br/>Broadcast to all Connected Family Handsets"]
+    FamWS --> FamSiren["FCM Loud Siren Notification<br/>Wakes Background Screens & Plays Audio Alarm"]
+    FamSiren --> FamMap["Family Members Tap Notification<br/>Direct Navigation to Emergency GPS Target"]
+    FamMap --> FamEnd(["Family Informed & Coordinated"])`
+      },
+      {
+        title: "5. Offline Resilience & SMS Fallback Architecture",
+        desc: "Local storage caching and automated GSM cellular SMS rescue payload generation",
+        code: `flowchart TD
+    OfflineStart(["Network Drop Detected"]) --> OfflineBanner["Display Top Offline Warning Banner"]
+    OfflineBanner --> CacheAction["Load Cached Organizations & First-Aid Guides from Local Storage"]
+    
+    OfflineStart --> SOSClick["User Triggers Emergency SOS Offline"]
+    SOSClick --> FormatSMS["Format Emergency SMS Payload:<br/>[EMERGENCY SOS - KHU NYI KAL SAL]<br/>Type: MEDICAL / FIRE / CRIME<br/>GPS: Lat, Lng"]
+    FormatSMS --> LaunchDialer["Launch Native SMS Intent to 09-Emergency Gateway"]
+    LaunchDialer --> SMSDispatched(["SMS Sent Directly over GSM Cellular"])`
+      },
+      {
+        title: "6. Layered Clean System Architecture",
+        desc: "Client Flutter Presentation, FastAPI Gateway, WebSocket Hub, Redis Cache, PostgreSQL",
+        code: `graph TD
+    subgraph Client_Layer ["Client Layer (Flutter Cross-Platform)"]
+        A["Mobile Citizen App"]
+        B["Volunteer Responder App"]
+        C["Organization HQ Console"]
+        D["Admin Web Portal"]
+    end
+
+    subgraph Transport_Gateway ["Transport & Gateway"]
+        GW["FastAPI Gateway / ASGI Concurrency"]
+        WS["WebSocket Manager Hub"]
+        FCM["High-Priority Siren Push Dispatcher"]
+        SMS["SMS Fallback Dispatch Service"]
+    end
+
+    subgraph Core_Services ["Core Domain Services"]
+        SOS["SOS Emergency Service"]
+        LOC["Spatial Proximity & OSRM Routing Engine"]
+        AUTH["Multi-Device Session & Cryptographic Auth"]
+        FAM["Family Network Coordination Engine"]
+        PRIV["Salted Fernet AES-256 Privacy Engine"]
+    end
+
+    subgraph Persistence_Layer ["Persistence & Infrastructure Layer"]
+        DB[("PostgreSQL 16 Database")]
+        CACHE[("Redis / Volatile Ephemeral RAM Cache")]
+        OSRM["OpenStreetMap OSRM Routing Mirror"]
+    end
+
+    A --> GW
+    B --> GW
+    C --> GW
+    D --> GW
+    A --> WS
+    B --> WS
+    C --> WS
+    A -.-> SMS
+    GW --> AUTH
+    GW --> SOS
+    GW --> LOC
+    GW --> FAM
+    SOS --> WS
+    SOS --> FCM
+    SOS --> CACHE
+    SOS --> DB
+    LOC --> OSRM
+    LOC --> CACHE
+    AUTH --> PRIV
+    AUTH --> DB
+    FAM --> WS
+    FAM --> FCM
+    FAM --> DB`
+      },
+      {
+        title: "7. Real-Time Emergency SOS & Road Navigation Sequence",
+        desc: "Step-by-step event sequence between Victim, API Gateway, WebSocket Hub, and Responder",
+        code: `sequenceDiagram
+    autonumber
+    actor Victim as Distressed User
+    participant App as Victim Map App
+    participant API as FastAPI Backend
+    participant WS as WebSocket Hub
+    participant Org as Rescue Org Console
+    participant Vol as Volunteer Handset
+
+    Victim->>App: 1-Tap SOS Trigger (Medical / Fire / Crime)
+    App->>API: POST /api/emergency/sos {lat, lng, type}
+    API->>API: Lock Emergency Session
+    API->>API: Find Nearest Orgs (Haversine + Category match)
+    API-->>App: 201 Created {emergency_id}
+
+    par Broadcast Emergency Alert
+        API->>WS: Broadcast SOS_CREATED to all Active Orgs & Volunteers
+        WS-->>Org: Audio Siren & Urgent Dashboard Alert
+        WS-->>Vol: Full-screen Emergency Card & Siren Vibration
+    end
+
+    Org->>API: POST /api/volunteers/respond {emergency_id, action: "accept"}
+    API->>API: Mark ACCEPTED & Query Org GPS/Phone
+    API->>WS: Send VOLUNTEER_ACCEPTED to Victim (with responder details)
+    WS-->>App: {responder_name, responder_phone, responder_role, responder_location}
+
+    App->>App: Render Live Responder Card (Emerald Green Route & Call Button)
+    App->>App: Fetch OSRM Road Route from Responder GPS -> Victim GPS
+
+    loop Live GPS Tracking
+        Org->>API: PUT /api/volunteers/location {lat, lng}
+        API->>WS: Send RESPONDER_LOCATION_UPDATED to Victim
+        WS-->>App: Update Ambulance Marker & Recalculate Road Geometry
+    end
+
+    Org->>API: PUT /api/emergency/{id}/complete
+    API->>WS: Send EMERGENCY_COMPLETED to Victim
+    WS-->>App: Rescue Complete Modal & Purge Local Routes`
+      }
+    ];
+
+    let pz;
+    const elem = document.getElementById('panzoomElement');
+
+    function initPanzoom() {
+      if (pz) pz.destroy();
+      pz = Panzoom(elem, {
+        maxScale: 4,
+        minScale: 0.4,
+        contain: 'outside'
+      });
+      elem.parentElement.addEventListener('wheel', pz.zoomWithWheel);
+    }
+
+    function zoomIn() { if (pz) pz.zoomIn(); }
+    function zoomOut() { if (pz) pz.zoomOut(); }
+    function resetZoom() { if (pz) pz.reset(); }
+
+    let renderCounter = 0;
+
+    async function switchDiagram(idx) {
+      document.querySelectorAll('.nav-item').forEach((el, i) => {
+        el.classList.toggle('active', i === idx);
+      });
+
+      const d = diagrams[idx];
+      document.getElementById('currentTitle').innerText = d.title;
+      document.getElementById('currentDesc').innerText = d.desc;
+
+      const container = document.getElementById('mermaidContainer');
+      renderCounter++;
+      const uniqueId = 'mermaid_diagram_' + renderCounter;
+
+      try {
+        const { svg } = await mermaid.render(uniqueId, d.code);
+        container.innerHTML = svg;
+      } catch (err) {
+        console.error('Mermaid render error:', err);
+        container.innerHTML = '<div style="color: #E53935; padding: 20px; font-weight: bold;">Error rendering diagram: ' + err.message + '</div>';
+      }
+
+      resetZoom();
+    }
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', () => {
+      initPanzoom();
+      switchDiagram(0);
+    });
+  </script>
+</body>
+</html>
