@@ -4,6 +4,7 @@ from app.models.organization import Organization
 from app.models.volunteer import Volunteer
 from app.models.emergency import Emergency, EmergencyType, EmergencyStatus
 from app.models.family import FamilyGroup, FamilyMember, FamilyAlert
+from app.models.session import UserSession
 
 __all__ = [
     "Account", "RoleEnum",
@@ -12,4 +13,5 @@ __all__ = [
     "Volunteer",
     "Emergency", "EmergencyType", "EmergencyStatus",
     "FamilyGroup", "FamilyMember", "FamilyAlert",
+    "UserSession",
 ]

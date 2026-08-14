@@ -1,3 +1,4 @@
+from datetime import datetime
 import re
 from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
@@ -23,6 +24,8 @@ class RegisterUserRequest(BaseModel):
     blood_type: Optional[str] = None
     medical_conditions: Optional[str] = None
     emergency_contacts: Optional[list[dict]] = None
+    device_id: Optional[str] = None
+    device_name: Optional[str] = None
 
     @field_validator("phone_number")
     @classmethod
@@ -53,6 +56,8 @@ class RegisterOrgRequest(BaseModel):
     geo_lat: float
     geo_lng: float
     coverage_radius_km: float = 50.0
+    device_id: Optional[str] = None
+    device_name: Optional[str] = None
 
     @field_validator("phone_number")
     @classmethod
@@ -70,13 +75,21 @@ class RegisterOrgRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+    device_id: Optional[str] = None
+    device_name: Optional[str] = None
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
     role: str
     user_id: str
+    session_id: str
 
 
 class AccountResponse(BaseModel):
@@ -86,3 +99,30 @@ class AccountResponse(BaseModel):
     is_active: bool
 
     model_config = {"from_attributes": True}
+
+
+class SessionItemResponse(BaseModel):
+    session_id: str
+    device_id: Optional[str] = None
+    device_name: Optional[str] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    last_used_at: datetime
+    is_current: bool = False
+
+
+class AdminSessionResponse(BaseModel):
+    session_id: str
+    user_id: str
+    email: str
+    role: str
+    device_id: Optional[str] = None
+    device_name: Optional[str] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    last_used_at: datetime
+

@@ -3,11 +3,13 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
 
+engine_kwargs = {"echo": False}
+if not settings.async_database_url.startswith("sqlite"):
+    engine_kwargs.update({"pool_size": 20, "max_overflow": 50})
+
 engine = create_async_engine(
     settings.async_database_url, 
-    echo=False,
-    pool_size=20,
-    max_overflow=50,
+    **engine_kwargs,
 )
 async_session_maker = async_sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
@@ -33,7 +35,7 @@ async def create_tables(drop: bool = False):
     async with engine.begin() as conn:
         from app.models import (  # noqa: F401
             Account, UserProfile, Organization, Volunteer, Emergency,
-            FamilyGroup, FamilyMember, FamilyAlert,
+            FamilyGroup, FamilyMember, FamilyAlert, UserSession,
         )
         if drop:
             await conn.run_sync(Base.metadata.drop_all)

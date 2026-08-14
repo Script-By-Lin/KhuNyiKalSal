@@ -51,10 +51,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   WebSocketService get ws => _ws;
 
-  /// Try to restore session from stored token
+  /// Try to restore session from stored token or refresh token
   Future<String?> tryAutoLogin() async {
     final token = await _api.getToken();
-    if (token == null) return null;
+    final refreshToken = await _api.getRefreshToken();
+    if (token == null && refreshToken == null) return null;
 
     state = state.copyWith(isLoading: true);
     try {
@@ -70,7 +71,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
       _ws.connect(data['id']);
       return role;
     } catch (_) {
-      await _api.clearToken();
+      // If access token failed, attempt refresh token
+      if (refreshToken != null) {
+        try {
+          final refreshRes = await _api.refreshToken(refreshToken);
+          final rData = refreshRes.data;
+          await _api.setTokens(
+            accessToken: rData['access_token'],
+            refreshToken: rData['refresh_token'],
+            sessionId: rData['session_id'],
+          );
+
+          final meRes = await _api.getMe();
+          final meData = meRes.data;
+          final role = meData['role'] as String?;
+          state = AuthState(
+            isAuthenticated: true,
+            userId: meData['id'],
+            role: role,
+            email: meData['email'],
+          );
+          _ws.connect(meData['id']);
+          return role;
+        } catch (_) {}
+      }
+
+      await _api.clearTokens();
       state = const AuthState(isLoading: false);
       return null;
     }
@@ -81,7 +107,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final res = await _api.login(email, password);
       final data = res.data;
-      await _api.setToken(data['access_token']);
+      await _api.setTokens(
+        accessToken: data['access_token'],
+        refreshToken: data['refresh_token'],
+        sessionId: data['session_id'],
+      );
       state = AuthState(
         isAuthenticated: true,
         userId: data['user_id'],
@@ -104,7 +134,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final res = await _api.registerUser(data);
       final body = res.data;
-      await _api.setToken(body['access_token']);
+      await _api.setTokens(
+        accessToken: body['access_token'],
+        refreshToken: body['refresh_token'],
+        sessionId: body['session_id'],
+      );
       state = AuthState(
         isAuthenticated: true,
         userId: body['user_id'],
@@ -124,7 +158,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final res = await _api.registerOrganization(data);
       final body = res.data;
-      await _api.setToken(body['access_token']);
+      await _api.setTokens(
+        accessToken: body['access_token'],
+        refreshToken: body['refresh_token'],
+        sessionId: body['session_id'],
+      );
       state = AuthState(
         isAuthenticated: true,
         userId: body['user_id'],
@@ -140,9 +178,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
-    // Keep active emergencies open during logout so Org and Volunteer panels can be tested
+    try {
+      await _api.logout();
+    } catch (_) {}
     _ws.disconnect();
-    await _api.clearToken();
+    await _api.clearTokens();
+    state = const AuthState();
+  }
+
+  Future<void> logoutAllDevices() async {
+    try {
+      await _api.logoutAll();
+    } catch (_) {}
+    _ws.disconnect();
+    await _api.clearTokens();
     state = const AuthState();
   }
 

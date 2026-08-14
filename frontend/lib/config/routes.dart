@@ -19,6 +19,7 @@ import '../screens/organization/manage_volunteers_screen.dart';
 import '../screens/organization/orgs_list_screen.dart';
 import '../screens/shell_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/settings/device_management_screen.dart';
 
 import '../screens/admin/admin_dashboard.dart';
 import '../screens/admin/create_org_screen.dart';
@@ -69,6 +70,7 @@ final goRouter = GoRouter(
         ),
         GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
         GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
+        GoRoute(path: '/settings/devices', builder: (_, _) => const DeviceManagementScreen()),
       ],
     ),
 

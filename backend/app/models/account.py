@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from app.models.user_profile import UserProfile
     from app.models.organization import Organization
     from app.models.volunteer import Volunteer
+    from app.models.session import UserSession
 
 
 class RoleEnum(str, enum.Enum):
@@ -52,4 +53,7 @@ class Account(Base):
     )
     volunteer: Mapped[Optional["Volunteer"]] = relationship(
         back_populates="account", uselist=False, lazy="selectin", cascade="all, delete-orphan", passive_deletes=True
+    )
+    sessions: Mapped[list["UserSession"]] = relationship(
+        back_populates="account", lazy="selectin", cascade="all, delete-orphan", passive_deletes=True
     )

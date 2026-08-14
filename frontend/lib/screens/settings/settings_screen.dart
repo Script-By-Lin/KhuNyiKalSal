@@ -43,16 +43,32 @@ class SettingsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(16),
                   side: BorderSide(color: Colors.grey.shade300),
                 ),
-                child: ListTile(
-                  leading: const Icon(Icons.person, color: AppTheme.primaryRed),
-                  title: Text(
-                    isMm ? 'ကိုယ်ရေးအချက်အလက် ပြင်ဆင်ရန်' : 'Update Profile',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    context.push('/profile');
-                  },
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.person, color: AppTheme.primaryRed),
+                      title: Text(
+                        isMm ? 'ကိုယ်ရေးအချက်အလက် ပြင်ဆင်ရန်' : 'Update Profile',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        context.push('/profile');
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.devices, color: AppTheme.primaryRed),
+                      title: Text(
+                        isMm ? 'ချိတ်ဆက်ထားသော စက်များ' : 'Connected Devices',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        context.push('/settings/devices');
+                      },
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 32),

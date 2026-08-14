@@ -11,11 +11,12 @@ from app.database import get_db
 from app.models.account import Account
 from app.models.emergency import Emergency, EmergencyType, EmergencyStatus
 from app.models.family import FamilyAlert
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_current_session_id
 from app.core.permissions import require_role
 from app.core.abuse import check_sos_limit
 from app.schemas.emergency import SOSRequest, EmergencyResponse, SOSCreatedResponse
 from app.services.sos_service import process_sos
+from app.services.session_service import lock_emergency_session
 from app.services.cache_service import location_cache
 from app.websocket.manager import manager
 
@@ -26,11 +27,13 @@ router = APIRouter()
 async def create_sos(
     data: SOSRequest,
     current_user: Account = Depends(require_role("user")),
+    current_session_id: Optional[uuid_module.UUID] = Depends(get_current_session_id),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Trigger an SOS alert. Creates an emergency record and launches
     background processing (nearest-org search → volunteer alerting → rerouting).
+    Locks the user to the current device session and deactivates other sessions.
     """
     await check_sos_limit(current_user.id, db)
 
@@ -52,6 +55,9 @@ async def create_sos(
     db.add(emergency)
     await db.commit()
     await db.refresh(emergency)
+
+    # Lock user to current session, deactivating other active sessions
+    await lock_emergency_session(current_user.id, current_session_id, db)
 
     # Launch the SOS flow as a background coroutine
     asyncio.create_task(

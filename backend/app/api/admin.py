@@ -223,3 +223,73 @@ async def list_emergencies(
             )
         )
     return records
+
+
+# ── Session Monitoring & Control ──────────────────────────────────────────
+
+@router.get("/sessions")
+async def list_admin_sessions(
+    current_user: Account = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin endpoint to monitor all active and recent user device sessions."""
+    from app.services.session_service import admin_list_sessions
+    return await admin_list_sessions(db=db, limit=200)
+
+
+@router.get("/sessions/user/{user_id}")
+async def list_user_sessions_admin(
+    user_id: str,
+    current_user: Account = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin endpoint to inspect sessions of a specific user account."""
+    from app.services.session_service import admin_list_sessions
+    try:
+        u_uuid = uuid_module.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+    return await admin_list_sessions(db=db, user_id=u_uuid, limit=100)
+
+
+@router.post("/sessions/{session_id}/terminate")
+async def terminate_session_admin(
+    session_id: str,
+    current_user: Account = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin endpoint to forcibly revoke/terminate any active session."""
+    from app.models.session import UserSession
+    from sqlalchemy import update
+    try:
+        s_uuid = uuid_module.UUID(session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid session ID format")
+
+    result = await db.execute(
+        update(UserSession)
+        .where(UserSession.id == s_uuid)
+        .values(is_active=False)
+    )
+    await db.commit()
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"message": "Session terminated successfully"}
+
+
+@router.post("/sessions/user/{user_id}/terminate-all")
+async def terminate_all_user_sessions_admin(
+    user_id: str,
+    current_user: Account = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin endpoint to forcibly revoke/terminate all active sessions for a user."""
+    from app.services.session_service import logout_all_user_sessions
+    try:
+        u_uuid = uuid_module.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+
+    count = await logout_all_user_sessions(u_uuid, db)
+    return {"message": f"Successfully terminated {count} session(s) for user"}
+

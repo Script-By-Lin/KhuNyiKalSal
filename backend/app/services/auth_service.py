@@ -1,5 +1,6 @@
-"""Authentication service — registration and login logic."""
+"""Authentication service — registration and login logic with multi-device session handling."""
 
+from typing import Optional
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
@@ -7,15 +8,21 @@ from fastapi import HTTPException
 from app.models.account import Account, RoleEnum
 from app.models.user_profile import UserProfile
 from app.models.organization import Organization
-from app.core.security import hash_password, verify_password, create_access_token
+from app.core.security import hash_password, verify_password
 from app.core.privacy import encrypt_field
 from app.schemas.auth import (
     RegisterUserRequest, RegisterOrgRequest, LoginRequest, TokenResponse,
 )
+from app.services.session_service import create_user_session
 
 
-async def register_user(data: RegisterUserRequest, db: AsyncSession) -> TokenResponse:
-    """Register a new user account with profile."""
+async def register_user(
+    data: RegisterUserRequest,
+    db: AsyncSession,
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None,
+) -> TokenResponse:
+    """Register a new user account with profile and initial device session."""
     clean_email = data.email.lower().strip()
     result = await db.execute(select(Account).where(func.lower(Account.email) == clean_email))
     if result.scalar_one_or_none():
@@ -44,21 +51,26 @@ async def register_user(data: RegisterUserRequest, db: AsyncSession) -> TokenRes
         emergency_contacts=data.emergency_contacts,
     )
     db.add(profile)
-    await db.commit()
+    await db.flush()
 
-    role_val = str(RoleEnum.USER.value).lower()
-    token = create_access_token(
-        data={"sub": str(account.id), "role": role_val}
+    session_data = await create_user_session(
+        account=account,
+        db=db,
+        device_id=data.device_id,
+        device_name=data.device_name,
+        ip_address=ip_address,
+        user_agent=user_agent,
     )
-    return TokenResponse(
-        access_token=token, role=role_val, user_id=str(account.id)
-    )
+    return TokenResponse(**session_data)
 
 
 async def register_organization(
-    data: RegisterOrgRequest, db: AsyncSession
+    data: RegisterOrgRequest,
+    db: AsyncSession,
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None,
 ) -> TokenResponse:
-    """Register a new organization account."""
+    """Register a new organization account and initial device session."""
     clean_email = data.email.lower().strip()
     result = await db.execute(select(Account).where(func.lower(Account.email) == clean_email))
     if result.scalar_one_or_none():
@@ -87,21 +99,26 @@ async def register_organization(
         coverage_radius_km=data.coverage_radius_km,
     )
     db.add(org)
-    await db.commit()
+    await db.flush()
 
-    role_val = str(RoleEnum.ORGANIZATION.value).lower()
-    token = create_access_token(
-        data={"sub": str(account.id), "role": role_val}
+    session_data = await create_user_session(
+        account=account,
+        db=db,
+        device_id=data.device_id,
+        device_name=data.device_name,
+        ip_address=ip_address,
+        user_agent=user_agent,
     )
-    return TokenResponse(
-        access_token=token,
-        role=role_val,
-        user_id=str(account.id),
-    )
+    return TokenResponse(**session_data)
 
 
-async def login(data: LoginRequest, db: AsyncSession) -> TokenResponse:
-    """Authenticate and return a JWT token."""
+async def login(
+    data: LoginRequest,
+    db: AsyncSession,
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None,
+) -> TokenResponse:
+    """Authenticate, enforce device limits, and return a new session with JWT and refresh token."""
     clean_email = data.email.lower().strip()
     result = await db.execute(select(Account).where(func.lower(Account.email) == clean_email))
     account = result.scalar_one_or_none()
@@ -111,10 +128,13 @@ async def login(data: LoginRequest, db: AsyncSession) -> TokenResponse:
     if not account.is_active:
         raise HTTPException(status_code=403, detail="Account is deactivated")
 
-    role_val = str(account.role.value if hasattr(account.role, 'value') else account.role).lower()
-    token = create_access_token(
-        data={"sub": str(account.id), "role": role_val}
+    session_data = await create_user_session(
+        account=account,
+        db=db,
+        device_id=data.device_id,
+        device_name=data.device_name,
+        ip_address=ip_address,
+        user_agent=user_agent,
     )
-    return TokenResponse(
-        access_token=token, role=role_val, user_id=str(account.id)
-    )
+    return TokenResponse(**session_data)
+

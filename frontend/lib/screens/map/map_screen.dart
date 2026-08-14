@@ -130,6 +130,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final eventType = event['event'];
       switch (eventType) {
         case 'VOLUNTEER_ACCEPTED':
+          // Force a state refresh immediately so the map route turns green
+          if (mounted) {
+            setState(() {});
+          }
           ref.read(emergencyProvider.notifier).loadActive();
           _showSnackBar('✅ Help is on the way! Tracking rescue team...', AppTheme.secondaryGreen);
           break;
@@ -213,23 +217,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (active.assignedOrgId != null) {
         final match =
             orgs.where((o) => o.accountId == active.assignedOrgId).firstOrNull;
-        if (match != null) return match;
+        return match;
       }
-      final type = active.type.toLowerCase();
-      if (type == 'fire') {
-        final fireOrg = orgs.where((o) {
-          final n = o.orgName.toLowerCase();
-          return n.contains('fire') || n.contains('station') || n.contains('brigade');
-        }).firstOrNull;
-        if (fireOrg != null) return fireOrg;
-      } else if (type == 'medical') {
-        final medOrg = orgs.where((o) {
-          final n = o.orgName.toLowerCase();
-          return n.contains('hospital') || n.contains('medical') || n.contains('rescue') || n.contains('red cross');
-        }).firstOrNull;
-        if (medOrg != null) return medOrg;
-      }
-      return orgs.isNotEmpty ? orgs.first : null;
     }
     return null;
   }
@@ -382,7 +371,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 PolylineLayer(
                   polylines: [
                     Polyline(
-                      points: polylinePoints,
+                      points: polylinePoints.toList(), // Force new reference to guarantee color repaint
                       strokeWidth: 5.5,
                       color: isSosPending
                           ? ((activeEmergency.isAccepted || _responderLocation != null)
