@@ -72,8 +72,8 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
       if (!mounted) return;
       final eventType = event['event'];
       if (eventType == 'SOS_CREATED') {
-        HapticFeedback.heavyImpact();
         _loadAlerts();
+        NotificationService().triggerUrgentHapticAlarm();
         NotificationService().showEmergencyAlert(
           id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
           title: '🚨 CRITICAL SOS DISPATCH',

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -90,25 +91,21 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
     }
   }
 
-  void _playEmergencyAlertSound() {
-    try {
-      HapticFeedback.heavyImpact();
-      SystemSound.play(SystemSoundType.alert);
-    } catch (_) {}
-  }
-
   void _listenForEvents() {
     final auth = ref.read(authProvider.notifier);
     _wsSub = auth.ws.events.listen((event) {
       if (!mounted) return;
       final eventType = event['event'];
       if (eventType == 'SOS_CREATED') {
-        _playEmergencyAlertSound();
         _loadAlerts();
+        NotificationService().triggerUrgentHapticAlarm();
+        final typeStr = (event['type'] ?? 'EMERGENCY').toString().toUpperCase();
+        final victimName = (event['user_info']?['full_name'] ?? 'Citizen').toString();
         NotificationService().showEmergencyAlert(
           id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          title: '🚨 NEW SOS ALERT!',
-          body: 'An emergency has been reported in your coverage area.',
+          title: '🚨 CRITICAL $typeStr SOS ALERT!',
+          body: 'Patient: $victimName. Tap to view road route & dispatch rescue.',
+          payload: json.encode(event),
         );
       } else if (eventType == 'EMERGENCY_COMPLETED' || eventType == 'SOS_CANCELLED') {
         setState(() {

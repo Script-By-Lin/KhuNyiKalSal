@@ -35,7 +35,8 @@ async def find_nearest_organizations(
 ) -> List[Tuple[Organization, float]]:
     """
     Return active organizations sorted by type relevance and distance from (lat, lng).
-    Prioritizes fire stations for fire emergencies, hospitals for medical, etc.
+    Prioritizes matching categories (e.g., Medical -> Hospitals, Fire -> Fire Station).
+    Always returns organizations if any active ones exist in the system.
     """
     result = await db.execute(
         select(Organization).where(
@@ -44,33 +45,36 @@ async def find_nearest_organizations(
             Organization.geo_lng.between(lng - 5.0, lng + 5.0)
         )
     )
-    orgs = result.scalars().all()
+    orgs = list(result.scalars().all())
+
+    # Fallback to all active organizations if none within ±5 degrees bounding box
+    if not orgs:
+        fallback_res = await db.execute(
+            select(Organization).where(Organization.is_active == True)  # noqa: E712
+        )
+        orgs = list(fallback_res.scalars().all())
 
     def _type_score(org: Organization) -> int:
         if not emergency_type:
             return 0
-        
-        # Exact match of category gets top priority (score 0)
-        # Others get lower priority (score 1)
         if org.category and org.category.lower() == emergency_type.lower():
             return 0
-            
-        # Optional fallback mapping if categories aren't strictly aligned, 
-        # but for now we expect them to be identical (e.g., 'Fire' -> 'fire')
         return 1
 
     all_sorted: List[Tuple[Organization, float]] = []
+    fallback_sorted: List[Tuple[Organization, float]] = []
 
     for org in orgs:
-        # Precise Haversine distance is actually very fast to calculate for a pre-filtered list
         haversine_km = haversine(lat, lng, org.geo_lat, org.geo_lng)
-        
-        # Coverage Check: Ensure the emergency is within the organization's coverage radius
-        if haversine_km > org.coverage_radius_km:
-            continue
-        
-        all_sorted.append((org, haversine_km))
+        fallback_sorted.append((org, haversine_km))
 
-    all_sorted.sort(key=lambda item: (_type_score(item[0]), item[1]))
+        # Check coverage radius if defined
+        radius = org.coverage_radius_km if org.coverage_radius_km and org.coverage_radius_km > 0 else 50.0
+        if haversine_km <= radius:
+            all_sorted.append((org, haversine_km))
 
-    return all_sorted
+    # If no organizations within strict coverage radius, fallback to all nearest active orgs
+    candidates = all_sorted if all_sorted else fallback_sorted
+    candidates.sort(key=lambda item: (_type_score(item[0]), item[1]))
+
+    return candidates

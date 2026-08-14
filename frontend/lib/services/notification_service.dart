@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -11,7 +12,7 @@ class NotificationService {
 
   NotificationService._internal();
 
-  static const String sirenChannelId = 'emergency_siren_channel_v4';
+  static const String sirenChannelId = 'emergency_siren_channel_v5';
   static const String sirenChannelName = '🚨 Critical Emergency Siren & Alarms';
   static const String sirenChannelDesc =
       'High priority siren and vibration alerts for SOS emergencies that wake up the device';
@@ -51,7 +52,7 @@ class NotificationService {
         importance: Importance.max,
         playSound: true,
         enableVibration: true,
-        vibrationPattern: Int64List.fromList([0, 1000, 500, 1000, 500, 1000]),
+        vibrationPattern: Int64List.fromList([0, 1000, 300, 1000, 300, 1000, 300, 1000]),
         audioAttributesUsage: AudioAttributesUsage.alarm,
       );
 
@@ -61,6 +62,15 @@ class NotificationService {
 
   Future<void> _requestPermissions() async {
     await Permission.notification.request();
+  }
+
+  Future<void> triggerUrgentHapticAlarm() async {
+    try {
+      for (int i = 0; i < 4; i++) {
+        HapticFeedback.heavyImpact();
+        await Future.delayed(const Duration(milliseconds: 350));
+      }
+    } catch (_) {}
   }
 
   Future<void> showEmergencyAlert({
@@ -78,7 +88,7 @@ class NotificationService {
       priority: Priority.high,
       playSound: true,
       enableVibration: true,
-      vibrationPattern: Int64List.fromList([0, 1000, 500, 1000, 500, 1000]),
+      vibrationPattern: Int64List.fromList([0, 1000, 300, 1000, 300, 1000, 300, 1000]),
       category: AndroidNotificationCategory.alarm,
       audioAttributesUsage: AudioAttributesUsage.alarm,
       fullScreenIntent: true, // Wake up locked screen
