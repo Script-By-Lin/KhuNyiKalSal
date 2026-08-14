@@ -6,7 +6,7 @@ import uuid as uuid_module
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from typing import Optional
 from app.database import get_db
 from app.models.account import Account
 from app.models.emergency import Emergency, EmergencyType, EmergencyStatus
