@@ -113,28 +113,55 @@ class SettingsScreen extends ConsumerWidget {
               const Spacer(),
 
               // ── Logout Button ────────────────────────────────────
-              SizedBox(
+              Container(
                 width: double.infinity,
-                height: 52,
+                height: 54,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.logout, color: Colors.white),
-                  label: Text(isMm ? 'အကောင့်မှထွက်မည်' : 'Log Out'),
+                  icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 22),
+                  label: Text(
+                    isMm ? 'အကောင့်မှ ထွက်မည်' : 'Log Out',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.3,
+                      height: 1.3,
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD32F2F),
                     foregroundColor: Colors.white,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   onPressed: () {
                     showDialog(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: Text(isMm ? 'အကောင့်မှထွက်မည်' : 'Log Out'),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        title: Row(
+                          children: [
+                            const Icon(Icons.logout_rounded, color: AppTheme.primaryRed),
+                            const SizedBox(width: 10),
+                            Text(isMm ? 'အကောင့်မှ ထွက်မည်' : 'Log Out'),
+                          ],
+                        ),
                         content: Text(
                           isMm
-                              ? 'အကောင့်မှထွက်မည် သေချာပါသလား။'
+                              ? 'အကောင့်မှ ထွက်ရန် သေချာပါသလား။'
                               : 'Are you sure you want to log out?',
+                          style: const TextStyle(fontSize: 14, height: 1.4),
                         ),
                         actions: [
                           TextButton(
@@ -142,7 +169,10 @@ class SettingsScreen extends ConsumerWidget {
                             child: Text(isMm ? 'မလုပ်တော့ပါ' : 'Cancel'),
                           ),
                           ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryRed),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryRed,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
                             onPressed: () async {
                               Navigator.pop(ctx);
                               await ref.read(authProvider.notifier).logout();
@@ -151,8 +181,8 @@ class SettingsScreen extends ConsumerWidget {
                               }
                             },
                             child: Text(
-                              isMm ? 'အကောင့်မှထွက်မည်' : 'Log Out',
-                              style: const TextStyle(color: Colors.white),
+                              isMm ? 'ထွက်မည်' : 'Log Out',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],

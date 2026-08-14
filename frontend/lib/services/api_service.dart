@@ -12,8 +12,49 @@ class ApiService {
 
   late final Dio dio;
   late final Dio _tokenDio; // Dedicated Dio instance for refresh calls to avoid infinite loops
-  final _storage = const FlutterSecureStorage();
+  static const _androidOptions = AndroidOptions(
+    resetOnError: true,
+  );
+  static const _iosOptions = IOSOptions(
+    accessibility: KeychainAccessibility.first_unlock,
+  );
+  final _storage = const FlutterSecureStorage(
+    aOptions: _androidOptions,
+    iOptions: _iosOptions,
+  );
   bool _isRefreshing = false;
+
+  Future<String?> _safeRead(String key) async {
+    try {
+      return await _storage.read(key: key);
+    } catch (_) {
+      try {
+        await _storage.deleteAll();
+      } catch (_) {}
+      return null;
+    }
+  }
+
+  Future<void> _safeWrite(String key, String value) async {
+    try {
+      await _storage.write(key: key, value: value);
+    } catch (_) {
+      try {
+        await _storage.deleteAll();
+        await _storage.write(key: key, value: value);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _safeDelete(String key) async {
+    try {
+      await _storage.delete(key: key);
+    } catch (_) {
+      try {
+        await _storage.deleteAll();
+      } catch (_) {}
+    }
+  }
 
   ApiService._internal() {
     dio = Dio(BaseOptions(
@@ -34,7 +75,7 @@ class ApiService {
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         options.baseUrl = AppConstants.apiBaseUrl;
-        final token = await _storage.read(key: 'access_token');
+        final token = await _safeRead('access_token');
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }
@@ -49,7 +90,7 @@ class ApiService {
         if (error.response?.statusCode == 401 && !isAuthEndpoint && !_isRefreshing) {
           _isRefreshing = true;
           try {
-            final refreshToken = await _storage.read(key: 'refresh_token');
+            final refreshToken = await _safeRead('refresh_token');
             if (refreshToken != null) {
               final refreshRes = await _tokenDio.post(
                 '/auth/refresh',
@@ -91,31 +132,31 @@ class ApiService {
     String? refreshToken,
     String? sessionId,
   }) async {
-    await _storage.write(key: 'access_token', value: accessToken);
+    await _safeWrite('access_token', accessToken);
     if (refreshToken != null) {
-      await _storage.write(key: 'refresh_token', value: refreshToken);
+      await _safeWrite('refresh_token', refreshToken);
     }
     if (sessionId != null) {
-      await _storage.write(key: 'session_id', value: sessionId);
+      await _safeWrite('session_id', sessionId);
     }
   }
 
   Future<void> setToken(String token) async {
-    await _storage.write(key: 'access_token', value: token);
+    await _safeWrite('access_token', token);
   }
 
   Future<String?> getToken() async {
-    return await _storage.read(key: 'access_token');
+    return await _safeRead('access_token');
   }
 
   Future<String?> getRefreshToken() async {
-    return await _storage.read(key: 'refresh_token');
+    return await _safeRead('refresh_token');
   }
 
   Future<void> clearTokens() async {
-    await _storage.delete(key: 'access_token');
-    await _storage.delete(key: 'refresh_token');
-    await _storage.delete(key: 'session_id');
+    await _safeDelete('access_token');
+    await _safeDelete('refresh_token');
+    await _safeDelete('session_id');
   }
 
   Future<void> clearToken() async {
@@ -123,11 +164,11 @@ class ApiService {
   }
 
   Future<String> getDeviceId() async {
-    var deviceId = await _storage.read(key: 'device_id');
+    var deviceId = await _safeRead('device_id');
     if (deviceId == null) {
       final rand = Random().nextInt(1000000);
       deviceId = 'dev_${DateTime.now().millisecondsSinceEpoch}_$rand';
-      await _storage.write(key: 'device_id', value: deviceId);
+      await _safeWrite('device_id', deviceId);
     }
     return deviceId;
   }
@@ -247,6 +288,15 @@ class ApiService {
       dio.post('/family/create', data: {'group_name': name});
 
   Future<Response> getMyFamilyGroup() => dio.get('/family/my-group');
+
+  Future<Response> updateFamilyGroup(String name) =>
+      dio.put('/family/update', data: {'group_name': name});
+
+  Future<Response> deleteFamilyGroup() =>
+      dio.delete('/family/group');
+
+  Future<Response> leaveFamilyGroup() =>
+      dio.post('/family/leave');
 
   Future<Response> addFamilyMember(String email, String relationship) =>
       dio.post('/family/add-member', data: {'email': email, 'relationship': relationship});

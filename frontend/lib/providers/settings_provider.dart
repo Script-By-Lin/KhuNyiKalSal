@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-const _storage = FlutterSecureStorage();
+const _storage = FlutterSecureStorage(
+  aOptions: AndroidOptions(resetOnError: true),
+  iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+);
 
 class AppSettings {
   final Locale locale;
@@ -29,19 +32,27 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   Future<void> _loadSettings() async {
-    final savedLang = await _storage.read(key: 'locale_lang');
+    try {
+      final savedLang = await _storage.read(key: 'locale_lang');
 
-    Locale loc = const Locale('en');
-    if (savedLang != null && savedLang.isNotEmpty) {
-      loc = Locale(savedLang);
+      Locale loc = const Locale('en');
+      if (savedLang != null && savedLang.isNotEmpty) {
+        loc = Locale(savedLang);
+      }
+
+      state = state.copyWith(locale: loc);
+    } catch (_) {
+      try {
+        await _storage.deleteAll();
+      } catch (_) {}
     }
-
-    state = state.copyWith(locale: loc);
   }
 
   Future<void> setLocale(String langCode) async {
     state = state.copyWith(locale: Locale(langCode));
-    await _storage.write(key: 'locale_lang', value: langCode);
+    try {
+      await _storage.write(key: 'locale_lang', value: langCode);
+    } catch (_) {}
   }
 }
 

@@ -25,6 +25,17 @@ class CreateFamilyGroupRequest(BaseModel):
         return v.strip()
 
 
+class UpdateFamilyGroupRequest(BaseModel):
+    group_name: str
+
+    @field_validator("group_name")
+    @classmethod
+    def check_name(cls, v: str) -> str:
+        if not v or len(v.strip()) < 2:
+            raise ValueError("Group name must be at least 2 characters")
+        return v.strip()
+
+
 class AddFamilyMemberRequest(BaseModel):
     email: EmailStr
     relationship: str

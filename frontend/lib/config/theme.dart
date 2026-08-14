@@ -35,30 +35,36 @@ class AppTheme {
           fontSize: 28,
           fontWeight: FontWeight.w800,
           color: textDark,
+          height: 1.3,
         ),
         headlineMedium: GoogleFonts.inter(
           fontSize: 22,
           fontWeight: FontWeight.w700,
           color: textDark,
+          height: 1.3,
         ),
         titleLarge: GoogleFonts.inter(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: textDark,
+          height: 1.3,
         ),
-        bodyLarge: GoogleFonts.inter(fontSize: 16, color: textDark),
-        bodyMedium: GoogleFonts.inter(fontSize: 14, color: textDark),
+        bodyLarge: GoogleFonts.inter(fontSize: 16, color: textDark, height: 1.35),
+        bodyMedium: GoogleFonts.inter(fontSize: 14, color: textDark, height: 1.35),
         labelLarge: GoogleFonts.inter(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: Colors.white,
+          height: 1.3,
         ),
+      ).apply(
+        fontFamilyFallback: const ['Noto Sans Myanmar', 'Padauk', 'Pyidaungsu', 'sans-serif'],
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryRed,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -66,6 +72,7 @@ class AppTheme {
           textStyle: GoogleFonts.inter(
             fontSize: 16,
             fontWeight: FontWeight.w600,
+            height: 1.3,
           ),
         ),
       ),
@@ -164,12 +171,14 @@ class AppTheme {
       ),
       scaffoldBackgroundColor: darkBackground,
       textTheme: GoogleFonts.interTextTheme(base.textTheme).copyWith(
-        headlineLarge: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.w800, color: darkText),
-        headlineMedium: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700, color: darkText),
-        titleLarge: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600, color: darkText),
-        bodyLarge: GoogleFonts.inter(fontSize: 16, color: darkText),
-        bodyMedium: GoogleFonts.inter(fontSize: 14, color: Colors.white70),
-        labelLarge: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+        headlineLarge: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.w800, color: darkText, height: 1.3),
+        headlineMedium: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700, color: darkText, height: 1.3),
+        titleLarge: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600, color: darkText, height: 1.3),
+        bodyLarge: GoogleFonts.inter(fontSize: 16, color: darkText, height: 1.35),
+        bodyMedium: GoogleFonts.inter(fontSize: 14, color: Colors.white70, height: 1.35),
+        labelLarge: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white, height: 1.3),
+      ).apply(
+        fontFamilyFallback: const ['Noto Sans Myanmar', 'Padauk', 'Pyidaungsu', 'sans-serif'],
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(

@@ -18,6 +18,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   List<dynamic> _history = [];
   bool _loading = true;
   bool _editing = false;
+  final List<String> _bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  String? _selectedBloodType;
 
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
@@ -35,12 +37,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final res = await ApiService().getProfile();
       final histRes = await ApiService().getEmergencyHistory();
       if (mounted) {
+        final bType = res.data['blood_type'] as String?;
         setState(() {
           _profile = res.data;
           _history = histRes.data as List;
           _nameCtrl.text = _profile?['full_name'] ?? '';
           _phoneCtrl.text = _profile?['phone_number'] ?? '';
-          _bloodCtrl.text = _profile?['blood_type'] ?? '';
+          _selectedBloodType = (bType != null && _bloodTypes.contains(bType)) ? bType : null;
+          _bloodCtrl.text = bType ?? '';
           _medicalCtrl.text = _profile?['medical_conditions'] ?? '';
           _loading = false;
         });
@@ -301,7 +305,48 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _field(isMm ? 'နာမည်အပြည့်အစုံ' : 'Full Name', _nameCtrl, Icons.person_outline),
                   _field(isMm ? 'ဖုန်းနံပါတ်' : 'Phone Number', _phoneCtrl, Icons.phone_outlined,
                       helperText: 'Must start with +959 or 09 (9 or 10 digits total)'),
-                  _field(isMm ? 'သွေးအမျိုးအစား' : 'Blood Type', _bloodCtrl, Icons.bloodtype_outlined),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedBloodType,
+                      decoration: InputDecoration(
+                        labelText: isMm ? 'သွေးအမျိုးအစား' : 'Blood Type',
+                        hintText: isMm ? 'သွေးအမျိုးအစား ရွေးချယ်ပါ' : 'Select Blood Type',
+                        prefixIcon: Icon(Icons.bloodtype_outlined,
+                            color: _editing ? AppTheme.primaryRed : AppTheme.subtleGrey),
+                      ),
+                      items: [
+                        DropdownMenuItem<String>(
+                          value: null,
+                          child: Text(isMm ? 'မသိပါ / မသတ်မှတ်ထားပါ' : 'Unknown / Not Specified',
+                              style: const TextStyle(color: AppTheme.subtleGrey)),
+                        ),
+                        ..._bloodTypes.map(
+                          (type) => DropdownMenuItem<String>(
+                            value: type,
+                            child: Row(
+                              children: [
+                                const Icon(Icons.water_drop, color: AppTheme.primaryRed, size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  type,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: _editing
+                          ? (val) {
+                              setState(() {
+                                _selectedBloodType = val;
+                                _bloodCtrl.text = val ?? '';
+                              });
+                            }
+                          : null,
+                    ),
+                  ),
                   _field('Medical Conditions', _medicalCtrl,
                       Icons.medical_information_outlined,
                       maxLines: 3),

@@ -201,6 +201,235 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
     );
   }
 
+  void _showEditGroupNameDialog() {
+    final editCtrl = TextEditingController(text: _group?['group_name'] ?? '');
+    final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.edit, color: AppTheme.primaryRed),
+            const SizedBox(width: 10),
+            Text(
+              isMm ? 'အဖွဲ့ အမည် ပြင်ဆင်ရန်' : 'Edit Group Name',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isMm
+                  ? 'မိသားစု အဖွဲ့ အမည် အသစ်ကို ထည့်သွင်းပါ'
+                  : 'Enter a new name for your family group.',
+              style: const TextStyle(fontSize: 13, color: AppTheme.subtleGrey),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: editCtrl,
+              decoration: InputDecoration(
+                labelText: isMm ? 'အဖွဲ့ အမည်' : 'Family Group Name',
+                prefixIcon: const Icon(Icons.group),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(isMm ? 'မလုပ်တော့ပါ' : 'Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryRed),
+            onPressed: () async {
+              final newName = editCtrl.text.trim();
+              if (newName.length < 2) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(isMm
+                        ? 'အနည်းဆုံး ၂ လုံး ရှိရပါမည်'
+                        : 'Group name must be at least 2 characters'),
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(ctx);
+              try {
+                final res = await ApiService().updateFamilyGroup(newName);
+                if (mounted) {
+                  setState(() {
+                    _group = res.data;
+                  });
+                }
+                await CacheService.saveFamilyGroup(res.data);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(isMm
+                          ? 'မိသားစု အဖွဲ့ အမည် ပြင်ဆင်ပြီးပါပြီ'
+                          : 'Family group updated successfully!'),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  final err = (e as dynamic).response?.data?['detail'] ??
+                      'Failed to update group';
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('⚠️ $err'),
+                      backgroundColor: AppTheme.primaryRed,
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text(isMm ? 'သိမ်းဆည်းမည်' : 'Save',
+                style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteGroup() async {
+    final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.red),
+            const SizedBox(width: 10),
+            Text(
+              isMm ? 'မိသားစု အဖွဲ့ ဖျက်မည်' : 'Delete Family Group',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Text(
+          isMm
+              ? 'ဤမိသားစု အဖွဲ့ကို အပြီးတိုင် ဖျက်သိမ်းရန် သေချာပါသလား? အဖွဲ့ဝင်များအားလုံး ချိတ်ဆက်မှု ပြုတ်သွားပါမည်။'
+              : 'Are you sure you want to delete and disband this family group? All members will be unlinked.',
+          style: const TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(isMm ? 'မလုပ်တော့ပါ' : 'Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(isMm ? 'ဖျက်မည်' : 'Delete Group',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await ApiService().deleteFamilyGroup();
+        await CacheService.clearFamilyGroup();
+        if (mounted) {
+          setState(() {
+            _group = null;
+            _hasGroup = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isMm
+                  ? 'မိသားစု အဖွဲ့ကို ဖျက်သိမ်းပြီးပါပြီ'
+                  : 'Family group deleted successfully'),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          final err = (e as dynamic).response?.data?['detail'] ??
+              'Failed to delete group';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('⚠️ $err'), backgroundColor: AppTheme.primaryRed),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _leaveGroup() async {
+    final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.exit_to_app, color: Colors.red),
+            const SizedBox(width: 10),
+            Text(
+              isMm ? 'အဖွဲ့မှ ထွက်မည်' : 'Leave Family Group',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Text(
+          isMm
+              ? 'ဤမိသားစု အဖွဲ့မှ ထွက်ရန် သေချာပါသလား? အဖွဲ့၏ အရေးပေါ် SOS အချက်ပြမှုများကို လက်ခံရရှိတော့မည် မဟုတ်ပါ။'
+              : 'Are you sure you want to leave this family group? You will no longer receive emergency alerts from this group.',
+          style: const TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(isMm ? 'မလုပ်တော့ပါ' : 'Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(isMm ? 'ထွက်မည်' : 'Leave Group',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await ApiService().leaveFamilyGroup();
+        await CacheService.clearFamilyGroup();
+        if (mounted) {
+          setState(() {
+            _group = null;
+            _hasGroup = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isMm
+                  ? 'မိသားစု အဖွဲ့မှ ထွက်ခွာပြီးပါပြီ'
+                  : 'You have left the family group successfully'),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          final err = (e as dynamic).response?.data?['detail'] ??
+              'Failed to leave group';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('⚠️ $err'), backgroundColor: AppTheme.primaryRed),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _removeMember(String memberId, String memberName) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -444,18 +673,30 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  _group?['group_name'] ?? 'Family Group',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _group?['group_name'] ?? 'Family Group',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    if (isCreator)
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 20),
+                        tooltip: isMm ? 'အဖွဲ့ အမည် ပြင်မည်' : 'Edit Group Name',
+                        onPressed: _showEditGroupNameDialog,
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 Text(
                   isCreator
-                      ? 'You are the Group Admin. You can add and remove family members.'
+                      ? 'You are the Group Admin. You can update, add/remove members, or delete the group.'
                       : 'You are a linked family member in this emergency alert circle.',
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
@@ -611,6 +852,82 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
               ),
             );
           }),
+
+          const SizedBox(height: 24),
+
+          // ── Group Management Options (Leave / Delete) ─────────────────
+          if (isCreator)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.admin_panel_settings, color: Colors.red, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        isMm ? 'အဖွဲ့ စီမံခန့်ခွဲမှု' : 'Danger Zone',
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    isMm
+                        ? 'မိသားစု အဖွဲ့ကို ဖျက်သိမ်းပါက အဖွဲ့ဝင်အားလုံး ချိတ်ဆက်မှု ပျက်ပြယ်သွားပါမည်။'
+                        : 'Disbanding this family group will unlink all members and stop all emergency circle notifications.',
+                    style: TextStyle(color: Colors.red.shade800, fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.delete_forever, size: 20),
+                      label: Text(
+                        isMm ? 'မိသားစု အဖွဲ့ ဖျက်သိမ်းမည်' : 'Delete & Disband Family Group',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: _deleteGroup,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                icon: const Icon(Icons.exit_to_app, color: Colors.red),
+                label: Text(
+                  isMm ? 'မိသားစု အဖွဲ့မှ ထွက်မည်' : 'Leave Family Group',
+                  style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                onPressed: _leaveGroup,
+              ),
+            ),
         ],
       ),
     );

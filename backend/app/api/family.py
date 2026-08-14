@@ -14,6 +14,7 @@ from app.models.family import FamilyGroup, FamilyMember, FamilyAlert
 from app.core.security import get_current_user
 from app.schemas.family import (
     CreateFamilyGroupRequest,
+    UpdateFamilyGroupRequest,
     AddFamilyMemberRequest,
     FamilyGroupResponse,
     FamilyMemberResponse,
@@ -192,6 +193,107 @@ async def remove_family_member(
     await db.commit()
 
     return await _build_group_response(group.id, current_user.id, db)
+
+
+@router.put("/update", response_model=FamilyGroupResponse)
+async def update_family_group(
+    data: UpdateFamilyGroupRequest,
+    current_user: Account = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update family group name (Creator only)."""
+    res = await db.execute(
+        select(FamilyGroup).where(FamilyGroup.creator_id == current_user.id)
+    )
+    group = res.scalar_one_or_none()
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the Family Group Creator can update the group.",
+        )
+
+    group.group_name = data.group_name.strip()
+    await db.commit()
+
+    return await _build_group_response(group.id, current_user.id, db)
+
+
+@router.delete("/group")
+async def delete_family_group(
+    current_user: Account = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete and disband the family group (Creator only)."""
+    res = await db.execute(
+        select(FamilyGroup).where(FamilyGroup.creator_id == current_user.id)
+    )
+    group = res.scalar_one_or_none()
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the Family Group Creator can delete the family group.",
+        )
+
+    # Clear family_id on UserProfile for all members
+    members_res = await db.execute(
+        select(FamilyMember).where(FamilyMember.family_id == group.id)
+    )
+    members = members_res.scalars().all()
+    member_acc_ids = [m.account_id for m in members]
+
+    if member_acc_ids:
+        profiles_res = await db.execute(
+            select(UserProfile).where(UserProfile.account_id.in_(member_acc_ids))
+        )
+        for profile in profiles_res.scalars().all():
+            profile.family_id = None
+
+    await db.delete(group)
+    await db.commit()
+
+    return {"detail": "Family group deleted successfully."}
+
+
+@router.post("/leave")
+async def leave_family_group(
+    current_user: Account = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Leave the family group (Members only)."""
+    res = await db.execute(
+        select(FamilyMember).where(FamilyMember.account_id == current_user.id)
+    )
+    member_entry = res.scalar_one_or_none()
+    if not member_entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="You are not a member of any family group.",
+        )
+
+    # Check if user is the creator
+    group_res = await db.execute(
+        select(FamilyGroup).where(FamilyGroup.id == member_entry.family_id)
+    )
+    group = group_res.scalar_one_or_none()
+    if group and group.creator_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Group creators cannot leave the group. You can delete the group if you wish to disband it.",
+        )
+
+    await db.delete(member_entry)
+
+    # Clear family_id on user profile
+    prof_res = await db.execute(
+        select(UserProfile).where(UserProfile.account_id == current_user.id)
+    )
+    profile = prof_res.scalar_one_or_none()
+    if profile:
+        profile.family_id = None
+
+    await db.commit()
+
+    return {"detail": "You have left the family group successfully."}
 
 
 @router.get("/alerts", response_model=list[FamilyAlertResponse])

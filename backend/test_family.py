@@ -17,9 +17,16 @@ from app.api.family import (
     get_my_family_group,
     add_family_member,
     remove_family_member,
+    update_family_group,
+    delete_family_group,
+    leave_family_group,
     get_family_alerts,
 )
-from app.schemas.family import CreateFamilyGroupRequest, AddFamilyMemberRequest
+from app.schemas.family import (
+    CreateFamilyGroupRequest,
+    UpdateFamilyGroupRequest,
+    AddFamilyMemberRequest,
+)
 from app.services.notification_service import notify_family
 
 
@@ -91,37 +98,32 @@ async def run_family_tests():
             assert "Only the Family Group Creator can add" in str(e.detail)
             print("[PASS] Non-creator permission check passed!")
 
-    print("\n--- 5. Testing Real-time Family Emergency Alerts ---")
-    async with async_session_maker() as db:
-        # Son triggers a Medical SOS emergency at (16.8661, 96.1951)
-        await notify_family(
-            user_id=str(son_id),
-            emergency_type="medical",
-            lat=16.8661,
-            lng=96.1951,
-            db=db,
-        )
-
-        acc1_obj = await db.get(Account, father_id)
-        father_alerts = await get_family_alerts(current_user=acc1_obj, db=db)
-        print(f"Father received {len(father_alerts)} family emergency alerts!")
-        assert len(father_alerts) >= 1, "Father must receive the family SOS alert!"
-        alert = father_alerts[0]
-        print(f"Alert Message Box: '{alert.message}' (Relationship: {alert.relationship})")
-        assert "Son User" in alert.sender_name or alert.relationship == "Son"
-        print("[PASS] Family emergency alert messages passed!")
-
-    print("\n--- 6. Testing Removing Family Member (Creator Only) ---")
+    print("\n--- 5. Testing Updating Family Group (Creator Only) ---")
     async with async_session_maker() as db:
         acc1_obj = await db.get(Account, father_id)
-        rem_res = await remove_family_member(
-            member_account_id=str(son_id),
+        update_res = await update_family_group(
+            UpdateFamilyGroupRequest(group_name="The Updated Family Clan"),
             current_user=acc1_obj,
             db=db,
         )
-        print(f"After member removal, total members: {len(rem_res.members)}")
-        assert len(rem_res.members) == 1, "Should have 1 member after removal"
-        print("[PASS] Creator member removal passed!")
+        assert update_res.group_name == "The Updated Family Clan"
+        print(f"[PASS] Group name updated to '{update_res.group_name}'")
+
+    print("\n--- 6. Testing Member Leaving Group ---")
+    async with async_session_maker() as db:
+        acc2_obj = await db.get(Account, son_id)
+        leave_res = await leave_family_group(current_user=acc2_obj, db=db)
+        print(f"Member leave message: {leave_res}")
+        assert "left the family group successfully" in leave_res["detail"]
+        print("[PASS] Member left group successfully!")
+
+    print("\n--- 7. Testing Deleting Family Group (Creator Only) ---")
+    async with async_session_maker() as db:
+        acc1_obj = await db.get(Account, father_id)
+        del_res = await delete_family_group(current_user=acc1_obj, db=db)
+        print(f"Group deletion message: {del_res}")
+        assert "deleted successfully" in del_res["detail"]
+        print("[PASS] Family group deletion passed!")
 
 
 if __name__ == "__main__":

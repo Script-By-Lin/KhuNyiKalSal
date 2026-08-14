@@ -41,6 +41,11 @@ class CacheService {
     return null;
   }
 
+  static Future<void> clearFamilyGroup() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_familyGroupKey);
+  }
+
   static Future<void> clearCache() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_familyGroupKey);

@@ -17,6 +17,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _pageController = PageController();
   
   bool _agreedToTerms = false;
+  bool _obscurePassword = true;
+  String? _selectedBloodType;
+
+  final List<String> _bloodTypes = [
+    'A+',
+    'A-',
+    'B+',
+    'B-',
+    'AB+',
+    'AB-',
+    'O+',
+    'O-',
+  ];
   
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -24,6 +37,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _phoneCtrl = TextEditingController();
   final _bloodCtrl = TextEditingController();
   final _medicalCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordCtrl.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   void dispose() {
@@ -36,6 +57,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _medicalCtrl.dispose();
     super.dispose();
   }
+
+  bool get _hasMinLength => _passwordCtrl.text.length >= 6;
+  bool get _hasUppercase => _passwordCtrl.text.contains(RegExp(r'[A-Z]'));
+  bool get _hasLowercase => _passwordCtrl.text.contains(RegExp(r'[a-z]'));
+  bool get _hasNumber => _passwordCtrl.text.contains(RegExp(r'[0-9]'));
+  bool get _isPasswordValid =>
+      _hasMinLength && _hasUppercase && _hasLowercase && _hasNumber;
 
   void _nextPage() {
     FocusScope.of(context).unfocus();
@@ -72,8 +100,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   String? _validatePassword(String? value) {
-    if (value == null || value.length < 6) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required';
+    }
+    if (value.length < 6) {
       return 'Password must be at least 6 characters';
+    }
+    if (!value.contains(RegExp(r'[A-Z]'))) {
+      return 'Password must contain at least 1 uppercase letter (A-Z)';
+    }
+    if (!value.contains(RegExp(r'[a-z]'))) {
+      return 'Password must contain at least 1 lowercase letter (a-z)';
+    }
+    if (!value.contains(RegExp(r'[0-9]'))) {
+      return 'Password must contain at least 1 number (0-9)';
     }
     return null;
   }
@@ -93,13 +133,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _executeRegistration() async {
     final auth = ref.read(authProvider.notifier);
     final cleanPhone = _phoneCtrl.text.trim().replaceAll(' ', '').replaceAll('-', '');
+    final bloodType = _selectedBloodType ?? (_bloodCtrl.text.trim().isNotEmpty ? _bloodCtrl.text.trim() : null);
 
     final success = await auth.registerUser({
       'email': _emailCtrl.text.trim().toLowerCase(),
       'password': _passwordCtrl.text,
       'full_name': _nameCtrl.text.trim(),
       'phone_number': cleanPhone,
-      'blood_type': _bloodCtrl.text.trim().isNotEmpty ? _bloodCtrl.text.trim() : null,
+      'blood_type': bloodType,
       'medical_conditions': _medicalCtrl.text.trim().isNotEmpty ? _medicalCtrl.text.trim() : null,
     });
 
@@ -117,6 +158,77 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
       }
     }
+  }
+
+  Widget _buildPasswordInstructions() {
+    final hasInput = _passwordCtrl.text.isNotEmpty;
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceGrey,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasInput
+              ? (_isPasswordValid ? Colors.green.shade400 : Colors.orange.shade400)
+              : Colors.grey.shade300,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _isPasswordValid ? Icons.check_circle : Icons.shield_outlined,
+                size: 16,
+                color: _isPasswordValid
+                    ? Colors.green
+                    : (hasInput ? Colors.orange : AppTheme.primaryRed),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Password Instructions:',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: _isPasswordValid ? Colors.green.shade800 : AppTheme.textDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildRequirementRow('6+ characters', _hasMinLength),
+          const SizedBox(height: 4),
+          _buildRequirementRow('At least 1 uppercase letter (A-Z)', _hasUppercase),
+          const SizedBox(height: 4),
+          _buildRequirementRow('At least 1 lowercase letter (a-z)', _hasLowercase),
+          const SizedBox(height: 4),
+          _buildRequirementRow('At least 1 number (0-9)', _hasNumber),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequirementRow(String text, bool isMet) {
+    return Row(
+      children: [
+        Icon(
+          isMet ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+          size: 14,
+          color: isMet ? Colors.green : Colors.grey.shade500,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            color: isMet ? Colors.green.shade800 : Colors.grey.shade700,
+            fontWeight: isMet ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildStep1Form(BuildContext context) {
@@ -175,14 +287,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             const SizedBox(height: 14),
             TextFormField(
               controller: _passwordCtrl,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Password',
-                hintText: 'Min 6 characters',
-                prefixIcon: Icon(Icons.lock_outline),
+                hintText: 'Enter secure password',
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    color: _obscurePassword ? Colors.grey.shade600 : AppTheme.primaryRed,
+                  ),
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
               ),
-              obscureText: true,
+              obscureText: _obscurePassword,
               validator: _validatePassword,
             ),
+            _buildPasswordInstructions(),
             const SizedBox(height: 14),
             TextFormField(
               controller: _phoneCtrl,
@@ -196,13 +317,40 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               validator: _validatePhone,
             ),
             const SizedBox(height: 14),
-            TextFormField(
-              controller: _bloodCtrl,
+            DropdownButtonFormField<String>(
+              value: _selectedBloodType,
               decoration: const InputDecoration(
                 labelText: 'Blood Type (Optional)',
-                hintText: 'e.g. A+, O-, B+',
-                prefixIcon: Icon(Icons.bloodtype_outlined),
+                hintText: 'Select your blood type',
+                prefixIcon: Icon(Icons.bloodtype_outlined, color: AppTheme.primaryRed),
               ),
+              items: [
+                const DropdownMenuItem<String>(
+                  value: null,
+                  child: Text('Unknown / Not Specified', style: TextStyle(color: AppTheme.subtleGrey)),
+                ),
+                ..._bloodTypes.map(
+                  (type) => DropdownMenuItem<String>(
+                    value: type,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.water_drop, color: AppTheme.primaryRed, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          type,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              onChanged: (val) {
+                setState(() {
+                  _selectedBloodType = val;
+                  _bloodCtrl.text = val ?? '';
+                });
+              },
             ),
             const SizedBox(height: 14),
             TextFormField(
@@ -225,7 +373,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     _nextPage();
                   }
                 },
-                child: const Text('Continue to Terms & Agreement'),
+                child: const Text('Register'),
               ),
             ),
           ],
@@ -362,7 +510,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       onPressed: (_agreedToTerms && !authState.isLoading) ? _executeRegistration : null,
                       child: authState.isLoading
                           ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                          : const Text('CONFIRM & REGISTER', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          : const Text('I Agreed Terms & Conditions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],

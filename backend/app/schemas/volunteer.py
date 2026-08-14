@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
-from app.schemas.auth import validate_myanmar_phone
+from app.schemas.auth import validate_myanmar_phone, validate_password
 
 
 class CreateVolunteerRequest(BaseModel):
@@ -9,6 +9,11 @@ class CreateVolunteerRequest(BaseModel):
     password: str
     full_name: str
     phone_number: str
+
+    @field_validator("password")
+    @classmethod
+    def check_password(cls, v: str) -> str:
+        return validate_password(v)
 
     @field_validator("phone_number")
     @classmethod

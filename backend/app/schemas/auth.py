@@ -15,6 +15,18 @@ def validate_myanmar_phone(v: str) -> str:
     return cleaned
 
 
+def validate_password(v: str) -> str:
+    if len(v) < 6:
+        raise ValueError("Password must be at least 6 characters long")
+    if not re.search(r"[A-Z]", v):
+        raise ValueError("Password must contain at least one uppercase letter (A-Z)")
+    if not re.search(r"[a-z]", v):
+        raise ValueError("Password must contain at least one lowercase letter (a-z)")
+    if not re.search(r"\d", v):
+        raise ValueError("Password must contain at least one number (0-9)")
+    return v
+
+
 class RegisterUserRequest(BaseModel):
     """Registration payload for regular users."""
     email: EmailStr
@@ -35,9 +47,7 @@ class RegisterUserRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def check_password(cls, v: str) -> str:
-        if len(v) < 6:
-            raise ValueError("Password must be at least 6 characters long")
-        return v
+        return validate_password(v)
 
     @field_validator("full_name")
     @classmethod
@@ -67,9 +77,7 @@ class RegisterOrgRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def check_password(cls, v: str) -> str:
-        if len(v) < 6:
-            raise ValueError("Password must be at least 6 characters long")
-        return v
+        return validate_password(v)
 
 
 class LoginRequest(BaseModel):

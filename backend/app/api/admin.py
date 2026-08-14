@@ -13,6 +13,8 @@ from app.models.account import Account, RoleEnum
 from app.models.organization import Organization
 from app.core.security import get_current_user, hash_password
 from app.core.permissions import require_role
+from app.schemas.auth import validate_password
+from pydantic import field_validator
 
 router = APIRouter()
 
@@ -29,6 +31,11 @@ class CreateAdminOrgRequest(BaseModel):
     operating_regions: Optional[str] = "Yangon"
     category: str = "Medical"
     coverage_radius_km: Optional[float] = 50.0
+
+    @field_validator("password")
+    @classmethod
+    def check_password(cls, v: str) -> str:
+        return validate_password(v)
 
 
 class UpdateAdminOrgRequest(BaseModel):
