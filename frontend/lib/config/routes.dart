@@ -107,5 +107,41 @@ final goRouter = GoRouter(
       path: '/manage-volunteers',
       builder: (_, _) => const ManageVolunteersScreen(),
     ),
+    GoRoute(
+      parentNavigatorKey: _rootNavigatorKey,
+      path: '/mission-map',
+      builder: (_, state) {
+        final extra = state.extra;
+        OrganizationModel? previewOrg;
+        Map<String, double>? targetLoc;
+        String? targetTitle;
+        String? returnRoute;
+
+        if (extra is OrganizationModel) {
+          previewOrg = extra;
+        } else if (extra is Map<String, double>) {
+          targetLoc = extra;
+        } else if (extra is Map) {
+          final lat = (extra['lat'] as num?)?.toDouble();
+          final lng = (extra['lng'] as num?)?.toDouble();
+          if (lat != null && lng != null) {
+            targetLoc = {'lat': lat, 'lng': lng};
+          }
+          if (extra['title'] != null) {
+            targetTitle = extra['title'].toString();
+          }
+          if (extra['returnRoute'] != null) {
+            returnRoute = extra['returnRoute'].toString();
+          }
+        }
+        return MapScreen(
+          previewOrg: previewOrg,
+          targetLocation: targetLoc,
+          targetTitle: targetTitle,
+          isMissionMode: true,
+          returnRoute: returnRoute,
+        );
+      },
+    ),
   ],
 );

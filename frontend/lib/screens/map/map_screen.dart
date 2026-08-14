@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../config/constants.dart';
@@ -18,12 +19,16 @@ class MapScreen extends ConsumerStatefulWidget {
   final OrganizationModel? previewOrg;
   final Map<String, double>? targetLocation;
   final String? targetTitle;
+  final bool isMissionMode;
+  final String? returnRoute;
 
   const MapScreen({
     super.key,
     this.previewOrg,
     this.targetLocation,
     this.targetTitle,
+    this.isMissionMode = false,
+    this.returnRoute,
   });
 
   @override
@@ -354,46 +359,66 @@ class _MapScreenState extends ConsumerState<MapScreen>
     });
   }
 
-  // Fetch real road lane geometry from OpenStreetMap OSRM Routing API (HTTPS)
+  // Fetch real road lane geometry from OpenStreetMap OSRM Routing API (HTTPS) with multi-mirror fallback
   Future<void> _fetchRealRoadRoute(LatLng start, LatLng end) async {
     final routeKey =
-        '${start.latitude.toStringAsFixed(3)},${start.longitude.toStringAsFixed(3)}->${end.latitude.toStringAsFixed(3)},${end.longitude.toStringAsFixed(3)}';
+        '${start.latitude.toStringAsFixed(4)},${start.longitude.toStringAsFixed(4)}->${end.latitude.toStringAsFixed(4)},${end.longitude.toStringAsFixed(4)}';
     if (_lastRouteKey == routeKey || _isFetchingRoute) return;
     _lastRouteKey = routeKey;
     _isFetchingRoute = true;
 
-    try {
-      final url =
-          'https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson';
-      final res = await Dio().get(
-        url,
-        options: Options(receiveTimeout: const Duration(seconds: 8)),
-      );
-      if (res.statusCode == 200 && res.data['routes'] != null && res.data['routes'].isNotEmpty) {
-        final coords =
-            res.data['routes'][0]['geometry']['coordinates'] as List;
-        final points = coords
-            .map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
-            .toList();
-        if (mounted) {
-          setState(() {
-            _roadRoutePoints = points;
-            _isFetchingRoute = false;
-            _simStep = 0;
-            if (_responderLocation == null && points.isNotEmpty) {
-              _responderLocation = points.first;
-            }
-          });
-          _startResponderMovementAnimation();
-        }
-        return;
-      }
-    } catch (_) {}
+    final mirrors = [
+      'https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson',
+      'https://routing.openstreetmap.de/routed-car/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson',
+    ];
 
-    // Fallback straight line if OSRM is offline or fails
+    for (final url in mirrors) {
+      try {
+        final res = await Dio().get(
+          url,
+          options: Options(
+            headers: {'User-Agent': 'KhuNyiKalSal-Emergency/1.0'},
+            receiveTimeout: const Duration(seconds: 8),
+            sendTimeout: const Duration(seconds: 8),
+          ),
+        );
+        if (res.statusCode == 200 && res.data['routes'] != null && (res.data['routes'] as List).isNotEmpty) {
+          final coords = res.data['routes'][0]['geometry']['coordinates'] as List;
+          final points = coords
+              .map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+              .toList();
+
+          if (points.length >= 2 && mounted) {
+            setState(() {
+              _roadRoutePoints = points;
+              _isFetchingRoute = false;
+              _responderLocation ??= points.first;
+            });
+            
+            // Auto fit camera view to frame the complete road route nicely
+            try {
+              final bounds = LatLngBounds.fromPoints(points);
+              _mapCtrl.fitCamera(
+                CameraFit.bounds(
+                  bounds: bounds,
+                  padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 70),
+                ),
+              );
+            } catch (_) {}
+
+            _startResponderMovementAnimation();
+            return;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Fallback if completely offline
     if (mounted) {
+      final midLat = (start.latitude + end.latitude) / 2 + (start.longitude - end.longitude) * 0.05;
+      final midLng = (start.longitude + end.longitude) / 2 - (start.latitude - end.latitude) * 0.05;
       setState(() {
-        _roadRoutePoints = [start, end];
+        _roadRoutePoints = [start, LatLng(midLat, midLng), end];
         _isFetchingRoute = false;
       });
     }
@@ -715,6 +740,82 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     SizedBox(height: 16),
                     Text('Getting your location...'),
                   ],
+                ),
+              ),
+            ),
+
+          // ── Mission Mode Top Command Header (Org & Volunteer) ───────
+          if (widget.isMissionMode || widget.returnRoute != null)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 10,
+              left: 16,
+              right: 16,
+              child: Material(
+                elevation: 6,
+                borderRadius: BorderRadius.circular(16),
+                color: const Color(0xFF0F172A),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                        tooltip: 'Return to Dashboard',
+                        onPressed: () {
+                          if (widget.returnRoute != null) {
+                            context.go(widget.returnRoute!);
+                          } else if (Navigator.of(context).canPop()) {
+                            Navigator.of(context).pop();
+                          } else {
+                            context.go('/org-dashboard');
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              widget.targetTitle ?? '🚨 EMERGENCY RESCUE MISSION',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const Text(
+                              'Live Road Route • GPS Tracking Active',
+                              style: TextStyle(
+                                color: Color(0xFF38BDF8),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00E676).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF00E676)),
+                        ),
+                        child: const Text(
+                          'MISSION',
+                          style: TextStyle(
+                            color: Color(0xFF00E676),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

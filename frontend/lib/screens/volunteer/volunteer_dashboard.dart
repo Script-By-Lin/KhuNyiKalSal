@@ -443,33 +443,44 @@ class _AlertCard extends StatelessWidget {
                   child: SizedBox(
                     width: double.infinity,
                     height: 44,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.navigation, color: Colors.white, size: 20),
-                      label: const Text(
-                        '🗺️ VIEW ROAD ROUTE & TRACK VICTIM ON MAP',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
+                    child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E293B),
+                        backgroundColor: const Color(0xFF0F172A),
                         foregroundColor: Colors.white,
-                        elevation: 2,
+                        elevation: 3,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () {
                         final loc = alert['location'] as Map<String, dynamic>? ?? {};
                         final lat = (loc['lat'] as num?)?.toDouble() ?? 16.8661;
                         final lng = (loc['lng'] as num?)?.toDouble() ?? 96.1951;
-                        context.go('/map', extra: {
+                        context.push('/mission-map', extra: {
                           'lat': lat,
                           'lng': lng,
                           'title': '🚨 Emergency Target: ${userInfo['full_name'] ?? 'Victim'} ($typeStr)',
+                          'returnRoute': '/volunteer-dashboard',
                         });
                       },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.map_rounded, color: Color(0xFF38BDF8), size: 19),
+                          SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'VIEW ROAD ROUTE ON MAP',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -479,68 +490,98 @@ class _AlertCard extends StatelessWidget {
                   children: [
                     if (phone.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(right: 10),
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.call, size: 18, color: AppTheme.primaryRed),
-                          label: const Text('CALL'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.primaryRed,
-                            side: const BorderSide(color: AppTheme.primaryRed),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        padding: const EdgeInsets.only(right: 8),
+                        child: SizedBox(
+                          height: 44,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.call, size: 18, color: AppTheme.primaryRed),
+                            label: const Text('CALL', style: TextStyle(fontWeight: FontWeight.w800)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.primaryRed,
+                              side: const BorderSide(color: AppTheme.primaryRed),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                            ),
+                            onPressed: () => _makeCall(phone),
                           ),
-                          onPressed: () => _makeCall(phone),
                         ),
                       ),
                     if (isAccepted)
                       Expanded(
                         child: SizedBox(
-                          height: 46,
-                          child: ElevatedButton.icon(
-                            icon: const Icon(Icons.check_circle, size: 20),
-                            label: const Text(
-                              'PATIENT SENT / MISSION COMPLETE',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                            ),
+                          height: 44,
+                          child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primaryRed,
+                              foregroundColor: Colors.white,
                               elevation: 2,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             onPressed: onComplete,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Icon(Icons.check_circle, size: 18),
+                                SizedBox(width: 6),
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'MISSION COMPLETE',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       )
                     else ...[
                       Expanded(
                         child: SizedBox(
-                          height: 46,
-                          child: ElevatedButton.icon(
-                            icon: const Icon(Icons.check_circle, size: 20),
-                            label: const Text(
-                              'ACCEPT & DISPATCH',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-                            ),
+                          height: 44,
+                          child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primaryRed,
+                              foregroundColor: Colors.white,
                               elevation: 2,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             onPressed: onAccept,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Icon(Icons.send_rounded, size: 18),
+                                SizedBox(width: 6),
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'ACCEPT & DISPATCH',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       SizedBox(
-                        height: 46,
+                        height: 44,
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.red,
                             side: const BorderSide(color: Colors.red),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                           ),
                           onPressed: onReject,
-                          child: const Text('REJECT'),
+                          child: const Text('REJECT', style: TextStyle(fontWeight: FontWeight.w800)),
                         ),
                       ),
                     ],

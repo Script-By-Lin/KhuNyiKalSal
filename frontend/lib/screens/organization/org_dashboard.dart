@@ -618,33 +618,44 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                   child: SizedBox(
                     width: double.infinity,
                     height: 44,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.navigation, color: Colors.white, size: 20),
-                      label: const Text(
-                        '🗺️ VIEW ROAD ROUTE & TRACK ON MAP',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
+                    child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E293B),
+                        backgroundColor: const Color(0xFF0F172A),
                         foregroundColor: Colors.white,
-                        elevation: 2,
+                        elevation: 3,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () {
                         final loc = e['location'] as Map<String, dynamic>? ?? {};
                         final lat = (loc['lat'] as num?)?.toDouble() ?? 16.8661;
                         final lng = (loc['lng'] as num?)?.toDouble() ?? 96.1951;
-                        context.go('/map', extra: {
+                        context.push('/mission-map', extra: {
                           'lat': lat,
                           'lng': lng,
                           'title': '🚨 Emergency Target: ${info['full_name'] ?? 'Victim'} ($typeStr)',
+                          'returnRoute': '/org-dashboard',
                         });
                       },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.map_rounded, color: Color(0xFF38BDF8), size: 19),
+                          SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'VIEW ROAD ROUTE ON MAP',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -652,28 +663,38 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                 // ── Live Dispatch Simulation Action ──────────────────
                 if (isAccepted) ...[
                   Container(
-                    margin: const EdgeInsets.only(bottom: 12),
+                    margin: const EdgeInsets.only(bottom: 10),
                     child: SizedBox(
                       width: double.infinity,
-                      height: 42,
-                      child: OutlinedButton.icon(
-                        icon: Icon(_isSimulating ? Icons.pause_circle : Icons.play_circle,
-                            color: AppTheme.primaryRed, size: 20),
-                        label: Text(
-                          _isSimulating ? 'SIMULATING LIVE GPS DISPATCH...' : '▶ START LIVE GPS DISPATCH SIMULATION',
-                          style: const TextStyle(
-                              color: AppTheme.primaryRed,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800),
-                        ),
+                      height: 40,
+                      child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(
-                              color: AppTheme.primaryRed.withValues(alpha: 0.6)),
-                          backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.08),
+                              color: AppTheme.primaryRed.withValues(alpha: 0.5)),
+                          backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.06),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: () => _startLiveSimulation(e),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(_isSimulating ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                                color: AppTheme.primaryRed, size: 18),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                _isSimulating ? 'STOP LIVE SIMULATION' : 'SIMULATE DISPATCH EN ROUTE',
+                                style: const TextStyle(
+                                    color: AppTheme.primaryRed,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w800),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -688,7 +709,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                     if (isAccepted)
                       Expanded(
                         child: _actionBtn(
-                          'PATIENT SENT / MISSION COMPLETE',
+                          'MISSION COMPLETE',
                           AppTheme.primaryRed,
                           Icons.check_circle_rounded,
                           () => _completeEmergency(eid),
@@ -697,7 +718,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                     else ...[
                       Expanded(
                         child: _actionBtn(
-                          'ACCEPT & DISPATCH',
+                          'DISPATCH RESCUE',
                           AppTheme.primaryRed,
                           Icons.send_rounded,
                           () => _respond(eid, 'accept'),
@@ -930,16 +951,32 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
   Widget _actionBtn(String label, Color bg, IconData icon, VoidCallback onTap) {
     return SizedBox(
       height: 44,
-      child: ElevatedButton.icon(
-        icon: Icon(icon, size: 18),
-        label: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+      child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: bg,
           foregroundColor: Colors.white,
-          elevation: 0,
+          elevation: 2,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
         onPressed: onTap,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18),
+            const SizedBox(width: 6),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
