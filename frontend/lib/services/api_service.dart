@@ -177,7 +177,16 @@ class ApiService {
 
   Future<Response> logoutAll() => dio.post('/auth/logout-all');
 
-  Future<Response> getSessions() => dio.get('/auth/sessions');
+  Future<Response> getSessions() async {
+    try {
+      return await dio.get('/auth/sessions');
+    } catch (e) {
+      if (e is DioException && e.response?.statusCode == 404) {
+        return await dio.get('/users/sessions');
+      }
+      rethrow;
+    }
+  }
 
   Future<Response> revokeSession(String sessionId) =>
       dio.delete('/auth/sessions/$sessionId');

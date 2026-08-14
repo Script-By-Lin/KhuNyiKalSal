@@ -33,6 +33,7 @@ class _DeviceManagementScreenState
       _error = null;
     });
 
+    final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
     try {
       final res = await _api.getSessions();
       final data = List<Map<String, dynamic>>.from(res.data);
@@ -45,10 +46,33 @@ class _DeviceManagementScreenState
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Failed to load sessions: ${e.toString()}';
+          _error = _extractError(e, isMm);
           _isLoading = false;
         });
       }
+    }
+  }
+
+  String _extractError(dynamic e, bool isMm) {
+    try {
+      final dioErr = e as dynamic;
+      final status = dioErr.response?.statusCode;
+      if (status == 404) {
+        return isMm
+            ? 'စက်ပစ္စည်းစီမံခန့်ခွဲမှု စနစ်ကို ဆာဗာတွင် အဆင့်မြှင့်တင်နေဆဲ ဖြစ်ပါသည်။ ကျေးဇူးပြု၍ Backend အသစ်ကို Deploy ပြုလုပ်ပေးပါ။'
+            : 'Connected devices feature is not yet active on the cloud server. Please deploy the latest backend to Railway.';
+      } else if (status == 401) {
+        return isMm
+            ? 'အကောင့်သက်တမ်းကုန်ဆုံးသွားပါပြီ။ ကျေးဇူးပြု၍ ပြန်လည်ဝင်ရောက်ပါ။'
+            : 'Session expired or invalidated. Please sign in again.';
+      } else if (dioErr.response?.data is Map && dioErr.response.data.containsKey('detail')) {
+        return dioErr.response.data['detail'].toString();
+      }
+      return isMm
+          ? 'ဆာဗာနှင့် ချိတ်ဆက်၍ မရနိုင်ပါ။ အင်တာနက်လိုင်းကို စစ်ဆေးပါ။'
+          : 'Unable to load devices. Please check your internet connection and try again.';
+    } catch (_) {
+      return isMm ? 'အမှားတစ်ခု ဖြစ်ပေါ်ခဲ့ပါသည်။' : 'An error occurred while loading devices.';
     }
   }
 

@@ -1,5 +1,5 @@
-"""User profile endpoints — view/update profile and real-time cache location tracking."""
-
+import uuid
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models.account import Account
 from app.models.user_profile import UserProfile
 from app.core.permissions import require_role
+from app.core.security import get_current_user, get_current_session_id
 from app.schemas.user import (
     UserProfileResponse,
     UpdateProfileRequest,
@@ -110,3 +111,15 @@ async def update_location(
         await db.commit()
 
     return {"message": "Real-time location updated in cache"}
+
+
+@router.get("/sessions")
+async def get_user_sessions_alias(
+    current_user: Account = Depends(get_current_user),
+    current_session_id: Optional[uuid.UUID] = Depends(get_current_session_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """User sessions endpoint alias."""
+    from app.services.session_service import list_user_sessions
+    return await list_user_sessions(current_user.id, current_session_id, db)
+

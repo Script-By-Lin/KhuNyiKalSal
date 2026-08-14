@@ -1,7 +1,7 @@
 """Authentication endpoints — register (user / org), login, refresh token, and device session control."""
 
 import uuid
-from typing import List
+from typing import List , Optional
 from fastapi import APIRouter, Depends, Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -90,7 +90,7 @@ async def refresh_endpoint(
 @router.post("/logout")
 async def logout_endpoint(
     current_user: Account = Depends(get_current_user),
-    current_session_id: uuid.UUID = Depends(get_current_session_id),
+    current_session_id: Optional[uuid.UUID] = Depends(get_current_session_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Single device logout — deactivate the caller's current session."""
@@ -112,7 +112,7 @@ async def logout_all_endpoint(
 @router.get("/sessions", response_model=List[SessionItemResponse])
 async def get_my_sessions(
     current_user: Account = Depends(get_current_user),
-    current_session_id: uuid.UUID = Depends(get_current_session_id),
+    current_session_id: Optional[uuid.UUID] = Depends(get_current_session_id),
     db: AsyncSession = Depends(get_db),
 ):
     """List all active and recent device sessions for the authenticated user."""
