@@ -70,4 +70,9 @@ class LocationService {
       ),
     );
   }
+
+  /// Calculates distance in meters between two GPS coordinates
+  static double calculateDistance(double startLatitude, double startLongitude, double endLatitude, double endLongitude) {
+    return Geolocator.distanceBetween(startLatitude, startLongitude, endLatitude, endLongitude);
+  }
 }

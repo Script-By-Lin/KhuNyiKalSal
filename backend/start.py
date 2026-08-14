@@ -10,13 +10,13 @@ if __name__ == "__main__":
     except ValueError:
         port = 8000
         
-    # Limit workers strictly for container memory limits (Railway 512MB RAM tier)
-    # Async Uvicorn handles thousands of concurrent connections efficiently in 1-2 workers.
+    # Scale workers safely for Railway hosting (supports up to 3GB RAM container tier)
+    # Async Uvicorn handles thousands of concurrent connections efficiently.
     default_workers = 2 if os.name != "nt" else 1
     workers = int(os.environ.get("WEB_CONCURRENCY", str(default_workers)))
-    workers = min(workers, 2)  # Cap at max 2 workers to prevent Railway OOM crashes
+    workers = min(max(workers, 1), 4)  # Cap at max 4 workers (well within 3GB RAM limit)
     
-    print(f"Starting Khu Nyi Kal Sal API on 0.0.0.0:{port} with {workers} workers (Memory-optimized)...")
+    print(f"Starting Khu Nyi Kal Sal API on 0.0.0.0:{port} with {workers} workers (Railway 3GB Scaled)...")
     
     # Run using Gunicorn with Uvicorn workers for production scaling and memory recycling
     cmd = [

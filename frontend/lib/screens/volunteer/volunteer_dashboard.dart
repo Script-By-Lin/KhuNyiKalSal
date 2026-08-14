@@ -9,6 +9,10 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/location_service.dart';
 
+import 'dart:convert';
+import 'package:flutter/services.dart';
+import '../../services/notification_service.dart';
+
 class VolunteerDashboard extends ConsumerStatefulWidget {
   const VolunteerDashboard({super.key});
 
@@ -68,7 +72,14 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
       if (!mounted) return;
       final eventType = event['event'];
       if (eventType == 'SOS_CREATED') {
+        HapticFeedback.heavyImpact();
         _loadAlerts();
+        NotificationService().showEmergencyAlert(
+          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          title: '🚨 CRITICAL SOS DISPATCH',
+          body: 'Emergency mission assigned in your coverage area! Tap to navigate.',
+          payload: json.encode(event),
+        );
       } else if (eventType == 'EMERGENCY_COMPLETED' || eventType == 'SOS_CANCELLED') {
         setState(() {
           _alerts.removeWhere((a) => a['emergency_id'] == event['emergency_id']);
@@ -426,9 +437,42 @@ class _AlertCard extends StatelessWidget {
                   ),
                 ],
 
-                const SizedBox(height: 16),
-                const Divider(height: 1),
-                const SizedBox(height: 16),
+                // ── Map Navigation Button ─────────────────────────────
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.navigation, color: Colors.white, size: 20),
+                      label: const Text(
+                        '🗺️ VIEW ROAD ROUTE & TRACK VICTIM ON MAP',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E293B),
+                        foregroundColor: Colors.white,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        final loc = alert['location'] as Map<String, dynamic>? ?? {};
+                        final lat = (loc['lat'] as num?)?.toDouble() ?? 16.8661;
+                        final lng = (loc['lng'] as num?)?.toDouble() ?? 96.1951;
+                        context.go('/map', extra: {
+                          'lat': lat,
+                          'lng': lng,
+                          'title': '🚨 Emergency Target: ${userInfo['full_name'] ?? 'Victim'} ($typeStr)',
+                        });
+                      },
+                    ),
+                  ),
+                ),
 
                 // Action Buttons
                 Row(

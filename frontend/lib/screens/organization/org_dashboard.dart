@@ -612,7 +612,42 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                   ),
                 ],
 
-                const Divider(color: Colors.black12, height: 24),
+                // ── Map Navigation Button ─────────────────────────────
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.navigation, color: Colors.white, size: 20),
+                      label: const Text(
+                        '🗺️ VIEW ROAD ROUTE & TRACK ON MAP',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E293B),
+                        foregroundColor: Colors.white,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        final loc = e['location'] as Map<String, dynamic>? ?? {};
+                        final lat = (loc['lat'] as num?)?.toDouble() ?? 16.8661;
+                        final lng = (loc['lng'] as num?)?.toDouble() ?? 96.1951;
+                        context.go('/map', extra: {
+                          'lat': lat,
+                          'lng': lng,
+                          'title': '🚨 Emergency Target: ${info['full_name'] ?? 'Victim'} ($typeStr)',
+                        });
+                      },
+                    ),
+                  ),
+                ),
 
                 // ── Live Dispatch Simulation Action ──────────────────
                 if (isAccepted) ...[

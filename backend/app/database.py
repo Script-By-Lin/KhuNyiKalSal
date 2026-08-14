@@ -6,8 +6,8 @@ from app.config import settings
 
 engine_kwargs = {"echo": False}
 if not settings.async_database_url.startswith("sqlite"):
-    pool_size = int(os.environ.get("DB_POOL_SIZE", "5"))
-    max_overflow = int(os.environ.get("DB_MAX_OVERFLOW", "5"))
+    pool_size = int(os.environ.get("DB_POOL_SIZE", "10"))
+    max_overflow = int(os.environ.get("DB_MAX_OVERFLOW", "20"))
     engine_kwargs.update({
         "pool_size": pool_size,
         "max_overflow": max_overflow,

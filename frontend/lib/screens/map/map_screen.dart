@@ -285,9 +285,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
+  Timer? _simAnimTimer;
+  int _simStep = 0;
+
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _simAnimTimer?.cancel();
     _pulseCtrl.dispose();
     _locationSub?.cancel();
     super.dispose();
@@ -301,10 +305,53 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (active.assignedOrgId != null) {
         final match =
             orgs.where((o) => o.accountId == active.assignedOrgId).firstOrNull;
-        return match;
+        if (match != null) return match;
+      }
+      // If assignedOrgId not yet populated, select nearest organization from user location
+      if (orgs.isNotEmpty && _userLocation != null) {
+        OrganizationModel? nearest;
+        double minD = double.infinity;
+        for (final o in orgs) {
+          final d = LocationService.calculateDistance(
+            _userLocation!.latitude,
+            _userLocation!.longitude,
+            o.geoLat,
+            o.geoLng,
+          );
+          if (d < minD) {
+            minD = d;
+            nearest = o;
+          }
+        }
+        return nearest;
       }
     }
     return null;
+  }
+
+  void _startResponderMovementAnimation() {
+    if (_simAnimTimer != null && _simAnimTimer!.isActive) return;
+    if (_roadRoutePoints.length < 2) return;
+
+    _simAnimTimer = Timer.periodic(const Duration(milliseconds: 1400), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final activeEmergencies = ref.read(emergencyProvider).value ?? [];
+      final active = activeEmergencies.isNotEmpty ? activeEmergencies.first : null;
+      if (active == null || (!active.isPending && !active.isAccepted)) {
+        timer.cancel();
+        return;
+      }
+
+      if (_roadRoutePoints.isNotEmpty) {
+        setState(() {
+          _simStep = (_simStep + 1) % _roadRoutePoints.length;
+          _responderLocation = _roadRoutePoints[_simStep];
+        });
+      }
+    });
   }
 
   // Fetch real road lane geometry from OpenStreetMap OSRM Routing API (HTTPS)
@@ -332,7 +379,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
           setState(() {
             _roadRoutePoints = points;
             _isFetchingRoute = false;
+            _simStep = 0;
+            if (_responderLocation == null && points.isNotEmpty) {
+              _responderLocation = points.first;
+            }
           });
+          _startResponderMovementAnimation();
         }
         return;
       }
@@ -365,7 +417,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
       _previewOrg = null;
       _roadRoutePoints = [];
       _lastRouteKey = null;
+      _responderLocation = null;
     });
+    _simAnimTimer?.cancel();
   }
 
   // Safe camera zoom to target organization route
@@ -403,9 +457,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // Direct navigation to Family SOS / Target victim location
       routeStartPoint = _userLocation ?? LatLng(AppConstants.defaultLat, AppConstants.defaultLng);
       routeEndPoint = LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!);
-    } else if (isSosPending && activeTargetOrg != null) {
-      // SOS active: route FROM Org base station TO user emergency location
-      routeStartPoint = LatLng(activeTargetOrg.geoLat, activeTargetOrg.geoLng);
+    } else if (isSosPending) {
+      // SOS active: route FROM Org base / Responder TO user emergency location
+      routeStartPoint = _responderLocation ??
+          (activeTargetOrg != null
+              ? LatLng(activeTargetOrg.geoLat, activeTargetOrg.geoLng)
+              : LatLng((_userLocation?.latitude ?? AppConstants.defaultLat) - 0.02,
+                  (_userLocation?.longitude ?? AppConstants.defaultLng) - 0.015));
       routeEndPoint = _userLocation ?? LatLng(AppConstants.defaultLat, AppConstants.defaultLng);
     } else if (_previewOrg != null) {
       // Preview: show user TO org
@@ -421,8 +479,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ? '${routeStartPoint.latitude.toStringAsFixed(3)},${routeStartPoint.longitude.toStringAsFixed(3)}->${routeEndPoint.latitude.toStringAsFixed(3)},${routeEndPoint.longitude.toStringAsFixed(3)}'
         : null;
 
-    final bool shouldFetchRoute = _targetLocation != null ||
-        (routeStartPoint != null && activeTargetOrg != null);
+    final bool shouldFetchRoute = _targetLocation != null || isSosPending || _previewOrg != null;
 
     if (shouldFetchRoute && routeStartPoint != null && _lastRouteKey != expectedRouteKey && !_isFetchingRoute) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -433,8 +490,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
 
     // Display route line when Target Location is active OR SOS is active OR preview org is selected
-    final bool showRouteLine = _targetLocation != null ||
-        ((isSosPending || _previewOrg != null) && activeTargetOrg != null);
+    final bool showRouteLine = _targetLocation != null || isSosPending || _previewOrg != null;
 
     final polylinePoints = showRouteLine
         ? (_roadRoutePoints.isNotEmpty
@@ -488,23 +544,48 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   if (_responderLocation != null)
                     Marker(
                       point: _responderLocation!,
-                      width: 52,
-                      height: 52,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.secondaryGreen,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.secondaryGreen.withValues(alpha: 0.5),
-                              blurRadius: 12,
-                              spreadRadius: 3,
+                      width: 80,
+                      height: 80,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Animated Green Radar Rings
+                          AnimatedBuilder(
+                            animation: _pulseAnim,
+                            builder: (context, _) => Container(
+                              width: 36 + (_pulseAnim.value * 40),
+                              height: 36 + (_pulseAnim.value * 40),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF00E676).withValues(
+                                  alpha: 0.45 * (1.0 - _pulseAnim.value),
+                                ),
+                                border: Border.all(
+                                  color: const Color(0xFF00E676).withValues(
+                                    alpha: 1.0 - _pulseAnim.value,
+                                  ),
+                                  width: 2.5,
+                                ),
+                              ),
                             ),
-                          ],
-                        ),
-                        child: const Icon(Icons.airport_shuttle, color: Colors.white, size: 24),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00E676),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF00E676).withValues(alpha: 0.6),
+                                  blurRadius: 14,
+                                  spreadRadius: 3,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.airport_shuttle, color: Colors.white, size: 26),
+                          ),
+                        ],
                       ),
                     ),
 
