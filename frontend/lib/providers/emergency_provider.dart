@@ -8,8 +8,10 @@ class EmergencyNotifier extends StateNotifier<AsyncValue<List<EmergencyModel>>> 
 
   EmergencyNotifier() : super(const AsyncValue.loading());
 
-  Future<void> loadActive() async {
-    state = const AsyncValue.loading();
+  Future<void> loadActive({bool showLoading = false}) async {
+    if (showLoading || !state.hasValue) {
+      state = const AsyncValue.loading();
+    }
     try {
       final res = await _api.getActiveEmergencies();
       final list = (res.data as List)
@@ -17,7 +19,32 @@ class EmergencyNotifier extends StateNotifier<AsyncValue<List<EmergencyModel>>> 
           .toList();
       state = AsyncValue.data(list);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (!state.hasValue) {
+        state = AsyncValue.error(e, st);
+      }
+    }
+  }
+
+  void markAccepted(String emergencyId, {String? assignedOrgId, String? assignedVolunteerId}) {
+    if (state.hasValue) {
+      final updated = state.value!.map((e) {
+        if (e.id == emergencyId) {
+          return EmergencyModel(
+            id: e.id,
+            userId: e.userId,
+            type: e.type,
+            status: 'accepted',
+            locationLat: e.locationLat,
+            locationLng: e.locationLng,
+            assignedOrgId: assignedOrgId ?? e.assignedOrgId,
+            assignedVolunteerId: assignedVolunteerId ?? e.assignedVolunteerId,
+            createdAt: e.createdAt,
+            updatedAt: DateTime.now(),
+          );
+        }
+        return e;
+      }).toList();
+      state = AsyncValue.data(updated);
     }
   }
 

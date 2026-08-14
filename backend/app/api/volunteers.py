@@ -276,12 +276,21 @@ async def respond_to_emergency(
 
         response_tracker.respond(data.emergency_id, str(current_user.id), True)
 
-        await manager.send_personal(str(emergency.user_id), {
+        accept_payload = {
             "event": "VOLUNTEER_ACCEPTED",
             "emergency_id": data.emergency_id,
+            "status": "accepted",
+            "assigned_org_id": str(emergency.assigned_org_id) if emergency.assigned_org_id else None,
             "volunteer_id": str(current_user.id),
             "message": "Help is on the way!",
-        })
+        }
+        await manager.send_personal(str(emergency.user_id), accept_payload)
+        
+        # Also send EMERGENCY_ACCEPTED event for generic event handlers
+        accept_payload_generic = dict(accept_payload)
+        accept_payload_generic["event"] = "EMERGENCY_ACCEPTED"
+        await manager.send_personal(str(emergency.user_id), accept_payload_generic)
+
         return {"message": "Emergency accepted"}
 
     else:

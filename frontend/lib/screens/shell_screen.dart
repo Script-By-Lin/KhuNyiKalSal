@@ -99,8 +99,19 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
           ),
         );
       } else if (event['event'] == 'SOS_ASSIGNED') {
-        // Backend has assigned the SOS to a specific organization.
-        // Reload the emergency to get the assigned_org_id.
+        ref.read(emergencyProvider.notifier).loadActive();
+      } else if (event['event'] == 'VOLUNTEER_ACCEPTED' || event['event'] == 'EMERGENCY_ACCEPTED') {
+        ref.read(emergencyProvider.notifier).markAccepted(
+          event['emergency_id'] ?? '',
+          assignedOrgId: event['assigned_org_id'],
+        );
+        ref.read(emergencyProvider.notifier).loadActive();
+        NotificationService().showEmergencyAlert(
+          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          title: '✅ SOS Accepted!',
+          body: 'A rescue team has accepted your distress call and is en route.',
+        );
+      } else if (event['event'] == 'EMERGENCY_COMPLETED' || event['event'] == 'SOS_CANCELLED') {
         ref.read(emergencyProvider.notifier).loadActive();
       }
     });
@@ -193,14 +204,21 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
               child: AnimatedBuilder(
                 animation: _sosCtrl,
                 builder: (context, _) {
+                  final isAccepted = activeEmergency?.isAccepted == true;
+                  final statusColor = isAccepted ? AppTheme.secondaryGreen : AppTheme.primaryRed;
+
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: Colors.black, // Sleek black dynamic island look
                       borderRadius: BorderRadius.circular(32),
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: 0.6),
+                        width: 1.5,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primaryRed.withValues(alpha: 0.5),
+                          color: statusColor.withValues(alpha: 0.5),
                           blurRadius: 16,
                           spreadRadius: 2,
                           offset: const Offset(0, 4),
@@ -210,13 +228,20 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                     child: activeEmergency != null
                         ? Row(
                             children: [
-                              // A pulsing red dot or icon
+                              // Pulsing indicator dot
                               Container(
                                 width: 12,
                                 height: 12,
-                                decoration: const BoxDecoration(
-                                  color: AppTheme.primaryRed,
+                                decoration: BoxDecoration(
+                                  color: statusColor,
                                   shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: statusColor.withValues(alpha: 0.8),
+                                      blurRadius: 6,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -225,19 +250,19 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'SOS ${activeEmergency.status.toUpperCase()}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
+                                      isAccepted ? 'SOS ACCEPTED' : 'SOS PENDING',
+                                      style: TextStyle(
+                                        color: isAccepted ? const Color(0xFF00E676) : Colors.white,
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                     Text(
-                                      activeEmergency.isAccepted
-                                          ? 'Help on the way'
+                                      isAccepted
+                                          ? 'Rescue Team En Route • Help on the way'
                                           : 'Alerting teams...',
                                       style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.7),
+                                        color: Colors.white.withValues(alpha: 0.85),
                                         fontSize: 12,
                                       ),
                                     ),
@@ -259,7 +284,11 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                                   ),
                                   child: const Text(
                                     'CANCEL',
-                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),

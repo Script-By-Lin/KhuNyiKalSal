@@ -39,6 +39,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   List<LatLng> _roadRoutePoints = [];
   String? _lastRouteKey;
   bool _isFetchingRoute = false;
+  Timer? _pollTimer;
 
   // Packet transmission pulse animation
   late AnimationController _pulseCtrl;
@@ -56,6 +57,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     _initLocation();
     _listenToWsEvents();
+
+    // Periodic sync timer while emergency is active to guarantee status & route color updates
+    _pollTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      final emergencies = ref.read(emergencyProvider).value ?? [];
+      if (emergencies.isNotEmpty) {
+        ref.read(emergencyProvider.notifier).loadActive();
+      }
+    });
   }
 
   @override
@@ -130,12 +139,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final eventType = event['event'];
       switch (eventType) {
         case 'VOLUNTEER_ACCEPTED':
-          // Force a state refresh immediately so the map route turns green
-          if (mounted) {
-            setState(() {});
-          }
+        case 'EMERGENCY_ACCEPTED':
+        case 'SOS_ACCEPTED':
+          final eid = event['emergency_id'] ?? '';
+          final orgId = event['assigned_org_id'];
+          ref.read(emergencyProvider.notifier).markAccepted(eid, assignedOrgId: orgId);
           ref.read(emergencyProvider.notifier).loadActive();
-          _showSnackBar('✅ Help is on the way! Tracking rescue team...', AppTheme.secondaryGreen);
+          setState(() {
+            _lastRouteKey = null; // Force route recalculation with green styling
+          });
+          _showSnackBar('✅ Help is on the way! Rescue team dispatched.', AppTheme.secondaryGreen);
+          _reloadCurrentRoute();
+          break;
+        case 'SOS_ASSIGNED':
+          ref.read(emergencyProvider.notifier).loadActive();
+          setState(() {
+            _lastRouteKey = null;
+          });
+          _reloadCurrentRoute();
           break;
         case 'RESPONDER_LOCATION_UPDATED':
           final loc = event['location'];
@@ -193,6 +214,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
     });
   }
 
+  Future<void> _reloadCurrentRoute() async {
+    final orgs = ref.read(organizationProvider).value ?? [];
+    final activeEmergencies = ref.read(emergencyProvider).value ?? [];
+    final active = activeEmergencies.isNotEmpty ? activeEmergencies.first : null;
+    final isSosPending = active != null && (active.isPending || active.isAccepted);
+    final sosOrg = _findSosTargetOrg(orgs);
+    final targetOrg = isSosPending ? sosOrg : _previewOrg;
+
+    setState(() {
+      _lastRouteKey = null;
+      _isFetchingRoute = false;
+    });
+
+    if (targetOrg != null) {
+      final start = _responderLocation ?? LatLng(targetOrg.geoLat, targetOrg.geoLng);
+      final end = _userLocation ?? LatLng(AppConstants.defaultLat, AppConstants.defaultLng);
+      await _fetchRealRoadRoute(start, end);
+      _zoomToRoute(targetOrg);
+    }
+  }
+
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -204,6 +246,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _pulseCtrl.dispose();
     _locationSub?.cancel();
     super.dispose();
@@ -369,16 +412,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
               // ── ROUTE POLYLINE (ONLY SHOW WHEN SOS OR PREVIEWING) ────
               if (showRouteLine && polylinePoints.isNotEmpty)
                 PolylineLayer(
+                  key: ValueKey('route_${activeEmergency?.status}_${polylinePoints.length}_$_lastRouteKey'),
                   polylines: [
+                    // Outer outline / glow
                     Polyline(
-                      points: polylinePoints.toList(), // Force new reference to guarantee color repaint
-                      strokeWidth: 5.5,
+                      points: polylinePoints.toList(),
+                      strokeWidth: 7.0,
                       color: isSosPending
                           ? ((activeEmergency.isAccepted || _responderLocation != null)
-                              ? AppTheme.secondaryGreen
+                              ? const Color(0xFF00E676) // Vivid Emerald Green
                               : AppTheme.primaryRed)
                           : Colors.blue,
-                      borderStrokeWidth: 2.5,
+                      borderStrokeWidth: 3.0,
                       borderColor: Colors.white,
                     ),
                   ],
@@ -487,6 +532,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     Text('Getting your location...'),
                   ],
                 ),
+              ),
+            ),
+
+          // ── Reload / Recalculate Route button ───────────────────────
+          if (showRouteLine)
+            Positioned(
+              right: 16,
+              bottom: 196,
+              child: FloatingActionButton.small(
+                heroTag: 'reload_route',
+                backgroundColor: Colors.white,
+                foregroundColor: (activeEmergency?.isAccepted == true || _responderLocation != null)
+                    ? AppTheme.secondaryGreen
+                    : AppTheme.primaryRed,
+                tooltip: 'Recalculate Route (လမ်းကြောင်း ပြန်ဆွဲမည်)',
+                onPressed: () {
+                  ref.read(emergencyProvider.notifier).loadActive();
+                  _reloadCurrentRoute();
+                  _showSnackBar('🔄 Recalculating rescue route...', Colors.blue);
+                },
+                child: const Icon(Icons.refresh),
               ),
             ),
 
