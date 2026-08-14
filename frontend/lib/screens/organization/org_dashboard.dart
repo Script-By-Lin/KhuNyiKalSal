@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:dio/dio.dart' as dio;
 import 'package:intl/intl.dart';
 
 import '../../config/theme.dart';
@@ -30,11 +29,6 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
   StreamSubscription? _locSub;
   Timer? _pollTimer;
   late TabController _tabController;
-
-  // Live GPS simulation state
-  Timer? _simTimer;
-  int _simStep = 0;
-  bool _isSimulating = false;
 
   @override
   void initState() {
@@ -62,7 +56,6 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
     _locSub?.cancel();
     _wsSub?.cancel();
     _pollTimer?.cancel();
-    _simTimer?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -118,7 +111,6 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
           body: 'An emergency has been reported in your coverage area.',
         );
       } else if (eventType == 'EMERGENCY_COMPLETED' || eventType == 'SOS_CANCELLED') {
-        _stopSimulation();
         setState(() {
           _emergencies.removeWhere((e) => e['emergency_id'] == event['emergency_id']);
         });
@@ -150,7 +142,6 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
   }
 
   Future<void> _completeEmergency(String emergencyId) async {
-    _stopSimulation();
     try {
       await ApiService().completeEmergency(emergencyId);
       if (mounted) {
@@ -173,77 +164,6 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
       } catch (_) {}
       _snack('❌ $errMsg', Colors.red);
     }
-  }
-
-  // ── Live GPS Simulation for Testing ──────────────────────────────────
-  Future<void> _startLiveSimulation(Map<String, dynamic> e) async {
-    if (_isSimulating) {
-      _stopSimulation();
-      return;
-    }
-    final loc = e['location'] as Map<String, dynamic>? ?? {};
-    final double endLat = (loc['lat'] as num?)?.toDouble() ?? 16.8661;
-    final double endLng = (loc['lng'] as num?)?.toDouble() ?? 96.1951;
-
-    final orgLoc = e['org_location'] as Map<String, dynamic>?;
-    final double startLat = (orgLoc?['lat'] as num?)?.toDouble() ?? (endLat - 0.020);
-    final double startLng = (orgLoc?['lng'] as num?)?.toDouble() ?? (endLng - 0.015);
-
-    setState(() => _isSimulating = true);
-    _snack('🚚 Live GPS Dispatch Simulator Started from Org Base!', AppTheme.primaryRed);
-
-    // Fetch real OSRM road route points between Org location and User location
-    List<Map<String, double>> routePoints = [];
-    try {
-      final url =
-          'https://router.project-osrm.org/route/v1/driving/$startLng,$startLat;$endLng,$endLat?overview=full&geometries=geojson';
-      final res = await dio.Dio().get(
-        url,
-        options: dio.Options(receiveTimeout: const Duration(seconds: 5)),
-      );
-      if (res.statusCode == 200 && res.data['routes'] != null && res.data['routes'].isNotEmpty) {
-        final coords = res.data['routes'][0]['geometry']['coordinates'] as List;
-        routePoints = coords
-            .map((c) => {
-                  'lat': (c[1] as num).toDouble(),
-                  'lng': (c[0] as num).toDouble(),
-                })
-            .toList();
-      }
-    } catch (_) {}
-
-    // Fallback interpolations if OSRM is unavailable
-    if (routePoints.isEmpty) {
-      const int steps = 25;
-      for (int i = 0; i <= steps; i++) {
-        final double progress = i / steps;
-        routePoints.add({
-          'lat': startLat + (endLat - startLat) * progress,
-          'lng': startLng + (endLng - startLng) * progress,
-        });
-      }
-    }
-
-    _simStep = 0;
-    _simTimer = Timer.periodic(const Duration(milliseconds: 1200), (timer) {
-      if (!mounted || !_isSimulating) {
-        timer.cancel();
-        return;
-      }
-      if (_simStep < routePoints.length) {
-        final pt = routePoints[_simStep];
-        ApiService().updateVolunteerLocation(pt['lat']!, pt['lng']!);
-        _simStep++;
-      } else {
-        _stopSimulation();
-        _snack('🎯 Ambulance Arrived at User Destination!', AppTheme.primaryRed);
-      }
-    });
-  }
-
-  void _stopSimulation() {
-    _simTimer?.cancel();
-    if (mounted) setState(() => _isSimulating = false);
   }
 
   void _snack(String msg, Color color) {
@@ -659,46 +579,6 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                     ),
                   ),
                 ),
-
-                // ── Live Dispatch Simulation Action ──────────────────
-                if (isAccepted) ...[
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 40,
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                              color: AppTheme.primaryRed.withValues(alpha: 0.5)),
-                          backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.06),
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () => _startLiveSimulation(e),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(_isSimulating ? Icons.pause_circle_filled : Icons.play_circle_fill,
-                                color: AppTheme.primaryRed, size: 18),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                _isSimulating ? 'STOP LIVE SIMULATION' : 'SIMULATE DISPATCH EN ROUTE',
-                                style: const TextStyle(
-                                    color: AppTheme.primaryRed,
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w800),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
 
                 // ── Primary Action Buttons ────────────────────────────
                 Row(

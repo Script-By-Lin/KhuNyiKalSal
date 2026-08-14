@@ -38,6 +38,7 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
   final MapController _mapCtrl = MapController();
+  bool _isMapReady = false;
   LatLng? _userLocation;
   LatLng? _responderLocation;
   bool _locationLoading = true;
@@ -46,7 +47,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   // Active preview target org (selected by user)
   OrganizationModel? _previewOrg;
 
-  // Active target location (e.g. from Family SOS Alert)
+  // Active target location (e.g. from Family SOS Alert / Mission View)
   Map<String, double>? _targetLocation;
   String? _targetTitle;
 
@@ -56,7 +57,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   bool _isFetchingRoute = false;
   Timer? _pollTimer;
 
-  // Packet transmission pulse animation
+  // Pulse animation for radar ring on vehicle marker
   late AnimationController _pulseCtrl;
   late Animation<double> _pulseAnim;
 
@@ -84,6 +85,26 @@ class _MapScreenState extends ConsumerState<MapScreen>
     });
   }
 
+  void _safeMove(LatLng center, double zoom) {
+    if (!_isMapReady) return;
+    try {
+      _mapCtrl.move(center, zoom);
+    } catch (_) {}
+  }
+
+  void _safeFitBounds(List<LatLng> points) {
+    if (!_isMapReady || points.length < 2) return;
+    try {
+      final bounds = LatLngBounds.fromPoints(points);
+      _mapCtrl.fitCamera(
+        CameraFit.bounds(
+          bounds: bounds,
+          padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 70),
+        ),
+      );
+    } catch (_) {}
+  }
+
   @override
   void didUpdateWidget(MapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -92,10 +113,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         _previewOrg = widget.previewOrg;
       });
       if (_previewOrg != null) {
-        _mapCtrl.move(
-          LatLng(_previewOrg!.geoLat, _previewOrg!.geoLng),
-          14.0,
-        );
+        _safeMove(LatLng(_previewOrg!.geoLat, _previewOrg!.geoLng), 14.0);
       }
     }
 
@@ -113,7 +131,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (_userLocation != null) {
         _fetchRealRoadRoute(_userLocation!, targetLatLng);
       }
-      _mapCtrl.move(targetLatLng, 14.0);
+      _safeMove(targetLatLng, 14.0);
     }
   }
 
@@ -126,7 +144,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
           _userLocation = LatLng(lastPos.latitude, lastPos.longitude);
           _locationLoading = false;
         });
-        _mapCtrl.move(_userLocation!, AppConstants.defaultZoom);
+        if (_targetLocation == null) {
+          _safeMove(_userLocation!, AppConstants.defaultZoom);
+        }
       }
     } catch (_) {}
 
@@ -137,7 +157,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
           _userLocation = LatLng(pos.latitude, pos.longitude);
           _locationLoading = false;
         });
-        _mapCtrl.move(_userLocation!, AppConstants.defaultZoom);
+        if (_targetLocation == null) {
+          _safeMove(_userLocation!, AppConstants.defaultZoom);
+        }
       }
 
       // Update server with location
@@ -149,15 +171,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
             pos.longitude,
           );
           
-      // Automatically route to target location if provided (SOS view)
+      // Automatically route to target location if provided (SOS view / Mission View)
       if (_targetLocation != null && _userLocation != null) {
         _fetchRealRoadRoute(
           _userLocation!,
           LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!)
-        );
-        _mapCtrl.move(
-          LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!), 
-          14.0
         );
       }
 
@@ -290,13 +308,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
-  Timer? _simAnimTimer;
-  int _simStep = 0;
-
   @override
   void dispose() {
     _pollTimer?.cancel();
-    _simAnimTimer?.cancel();
     _pulseCtrl.dispose();
     _locationSub?.cancel();
     super.dispose();
@@ -334,31 +348,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     return null;
   }
 
-  void _startResponderMovementAnimation() {
-    if (_simAnimTimer != null && _simAnimTimer!.isActive) return;
-    if (_roadRoutePoints.length < 2) return;
-
-    _simAnimTimer = Timer.periodic(const Duration(milliseconds: 1400), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      final activeEmergencies = ref.read(emergencyProvider).value ?? [];
-      final active = activeEmergencies.isNotEmpty ? activeEmergencies.first : null;
-      if (active == null || (!active.isPending && !active.isAccepted)) {
-        timer.cancel();
-        return;
-      }
-
-      if (_roadRoutePoints.isNotEmpty) {
-        setState(() {
-          _simStep = (_simStep + 1) % _roadRoutePoints.length;
-          _responderLocation = _roadRoutePoints[_simStep];
-        });
-      }
-    });
-  }
-
   // Fetch real road lane geometry from OpenStreetMap OSRM Routing API (HTTPS) with multi-mirror fallback
   Future<void> _fetchRealRoadRoute(LatLng start, LatLng end) async {
     final routeKey =
@@ -392,21 +381,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
             setState(() {
               _roadRoutePoints = points;
               _isFetchingRoute = false;
-              _responderLocation ??= points.first;
             });
-            
-            // Auto fit camera view to frame the complete road route nicely
-            try {
-              final bounds = LatLngBounds.fromPoints(points);
-              _mapCtrl.fitCamera(
-                CameraFit.bounds(
-                  bounds: bounds,
-                  padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 70),
-                ),
-              );
-            } catch (_) {}
-
-            _startResponderMovementAnimation();
+            _safeFitBounds(points);
             return;
           }
         }
@@ -417,10 +393,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (mounted) {
       final midLat = (start.latitude + end.latitude) / 2 + (start.longitude - end.longitude) * 0.05;
       final midLng = (start.longitude + end.longitude) / 2 - (start.latitude - end.latitude) * 0.05;
+      final fallbackPoints = [start, LatLng(midLat, midLng), end];
       setState(() {
-        _roadRoutePoints = [start, LatLng(midLat, midLng), end];
+        _roadRoutePoints = fallbackPoints;
         _isFetchingRoute = false;
       });
+      _safeFitBounds(fallbackPoints);
     }
   }
 
@@ -442,20 +420,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
       _previewOrg = null;
       _roadRoutePoints = [];
       _lastRouteKey = null;
-      _responderLocation = null;
     });
-    _simAnimTimer?.cancel();
   }
 
   // Safe camera zoom to target organization route
   void _zoomToRoute(OrganizationModel targetOrg) {
     if (_userLocation == null) return;
-    try {
-      final orgLoc = LatLng(targetOrg.geoLat, targetOrg.geoLng);
-      final centerLat = (_userLocation!.latitude + orgLoc.latitude) / 2;
-      final centerLng = (_userLocation!.longitude + orgLoc.longitude) / 2;
-      _mapCtrl.move(LatLng(centerLat, centerLng), 13.5);
-    } catch (_) {}
+    final orgLoc = LatLng(targetOrg.geoLat, targetOrg.geoLng);
+    final centerLat = (_userLocation!.latitude + orgLoc.latitude) / 2;
+    final centerLng = (_userLocation!.longitude + orgLoc.longitude) / 2;
+    _safeMove(LatLng(centerLat, centerLng), 13.5);
   }
 
   @override
@@ -530,9 +504,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
           FlutterMap(
             mapController: _mapCtrl,
             options: MapOptions(
-              initialCenter: _userLocation ??
-                  LatLng(AppConstants.defaultLat, AppConstants.defaultLng),
-              initialZoom: AppConstants.defaultZoom,
+              initialCenter: _targetLocation != null
+                  ? LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!)
+                  : (_userLocation ??
+                      LatLng(AppConstants.defaultLat, AppConstants.defaultLng)),
+              initialZoom: _targetLocation != null ? 14.5 : AppConstants.defaultZoom,
+              onMapReady: () {
+                _isMapReady = true;
+                if (_roadRoutePoints.length >= 2) {
+                  _safeFitBounds(_roadRoutePoints);
+                }
+              },
             ),
             children: [
               TileLayer(
@@ -729,7 +711,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ),
 
           // ── Loading overlay ──────────────────────────────────────────
-          if (_locationLoading && _userLocation == null)
+          if (_locationLoading && _userLocation == null && _targetLocation == null)
             Container(
               color: Colors.white70,
               child: const Center(
