@@ -49,3 +49,12 @@ async def create_tables(drop: bool = False):
         if drop:
             await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
+
+        # Self-healing column additions for existing production databases (e.g. Railway)
+        try:
+            from sqlalchemy import text
+            if not settings.async_database_url.startswith("sqlite"):
+                await conn.execute(text("ALTER TABLE sessions ADD COLUMN IF NOT EXISTS fcm_token VARCHAR(500);"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_sessions_fcm_token ON sessions (fcm_token);"))
+        except Exception:
+            pass
