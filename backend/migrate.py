@@ -10,6 +10,7 @@ import os
 import sys
 import subprocess
 import asyncio
+import concurrent.futures
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from app.config import settings
@@ -114,10 +115,28 @@ def run_alembic_upgrade():
             print(f"Alembic Migration Output: {res.stderr or res.stdout}")
 
 
+def _run_async_safely(coro_fn):
+    """Execute an async coroutine safely, even when an asyncio event loop is already running."""
+    try:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop is not None and loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(lambda: asyncio.run(coro_fn()))
+                return future.result()
+        else:
+            return asyncio.run(coro_fn())
+    except Exception as e:
+        print(f"⚠️ Async execution notice: {e}")
+
+
 def run_migrations():
     """Entry point for running all migrations during startup."""
     try:
-        asyncio.run(ensure_idempotent_schema())
+        _run_async_safely(ensure_idempotent_schema)
     except Exception as e:
         print(f"⚠️ ensure_idempotent_schema error: {e}")
 
