@@ -107,6 +107,8 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
           body: 'Patient: $victimName. Tap to view road route & dispatch rescue.',
           payload: json.encode(event),
         );
+      } else if (eventType == 'VOLUNTEER_ACCEPTED' || eventType == 'EMERGENCY_ACCEPTED') {
+        _loadAlerts();
       } else if (eventType == 'EMERGENCY_COMPLETED' || eventType == 'SOS_CANCELLED') {
         setState(() {
           _emergencies.removeWhere((e) => e['emergency_id'] == event['emergency_id']);
@@ -532,27 +534,58 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                 ],
 
                 if (isAccepted) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+                      color: const Color(0xFF1E1B4B),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF818CF8), width: 1.5),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.person_pin_circle_rounded, color: Color(0xFF818CF8), size: 20),
-                        const SizedBox(width: 8),
+                        const Icon(Icons.directions_run_rounded, color: Color(0xFF38BDF8), size: 22),
+                        const SizedBox(width: 10),
                         Expanded(
-                          child: Text(
-                            e['assigned_volunteer_name'] != null 
-                                ? 'Assigned to: ${e['assigned_volunteer_name']}'
-                                : 'Assigned to Volunteer',
-                            style: const TextStyle(
-                              color: Color(0xFFC7D2FE),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'HANDLED BY RESCUE VOLUNTEER',
+                                style: TextStyle(
+                                  color: Color(0xFF94A3B8),
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 10,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                e['assigned_volunteer_name'] != null 
+                                    ? e['assigned_volunteer_name'].toString()
+                                    : 'Assigned Volunteer',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00E676).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF00E676)),
+                          ),
+                          child: const Text(
+                            'EN ROUTE',
+                            style: TextStyle(
+                              color: Color(0xFF00E676),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 10,
                             ),
                           ),
                         ),

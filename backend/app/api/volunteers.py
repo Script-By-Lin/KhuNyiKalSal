@@ -135,11 +135,18 @@ async def get_active_alerts(
 
         vol_name = None
         vol_loc = None
-        if e.assigned_volunteer_id and e.assigned_volunteer:
-            v_account = e.assigned_volunteer.account
-            if v_account and v_account.user_profile:
-                vol_name = v_account.user_profile.full_name
-            vol_loc = {"lat": e.assigned_volunteer.geo_lat, "lng": e.assigned_volunteer.geo_lng}
+        if e.assigned_volunteer_id:
+            if e.assigned_volunteer:
+                vol_name = e.assigned_volunteer.full_name
+                if e.assigned_volunteer.current_lat and e.assigned_volunteer.current_lng:
+                    vol_loc = {"lat": e.assigned_volunteer.current_lat, "lng": e.assigned_volunteer.current_lng}
+            else:
+                v_res = await db.execute(select(Volunteer).where(Volunteer.account_id == e.assigned_volunteer_id))
+                vol_obj = v_res.scalar_one_or_none()
+                if vol_obj:
+                    vol_name = vol_obj.full_name
+                    if vol_obj.current_lat and vol_obj.current_lng:
+                        vol_loc = {"lat": vol_obj.current_lat, "lng": vol_obj.current_lng}
 
         alerts.append({
             "event": "SOS_CREATED",
@@ -314,21 +321,28 @@ async def respond_to_emergency(
             "emergency_id": data.emergency_id,
             "status": "accepted",
             "assigned_org_id": str(emergency.assigned_org_id) if emergency.assigned_org_id else None,
+            "assigned_volunteer_id": str(emergency.assigned_volunteer_id) if emergency.assigned_volunteer_id else None,
+            "assigned_volunteer_name": responder_name,
             "volunteer_id": str(current_user.id),
             "responder_name": responder_name,
             "responder_phone": responder_phone,
             "responder_role": responder_role,
             "responder_location": {"lat": responder_lat, "lng": responder_lng},
-            "message": f"🚨 {responder_name} has accepted your distress call and is en route!",
+            "message": f"🚨 {responder_name} has accepted distress call and is en route!",
         }
         await manager.send_personal(str(emergency.user_id), accept_payload)
+        
+        # Send to assigned organization and broadcast to active dashboard listeners
+        if emergency.assigned_org_id:
+            await manager.send_personal(str(emergency.assigned_org_id), accept_payload)
+        await manager.broadcast(accept_payload)
         
         # Also send EMERGENCY_ACCEPTED event for generic event handlers
         accept_payload_generic = dict(accept_payload)
         accept_payload_generic["event"] = "EMERGENCY_ACCEPTED"
         await manager.send_personal(str(emergency.user_id), accept_payload_generic)
 
-        return {"message": "Emergency accepted"}
+        return {"message": "Emergency accepted", "assigned_volunteer_name": responder_name}
 
     else:
         # Rejection handling — strictly record rejection, do NOT reroute

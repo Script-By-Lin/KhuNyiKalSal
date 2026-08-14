@@ -80,6 +80,8 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
           body: 'Emergency mission assigned in your coverage area! Tap to navigate.',
           payload: json.encode(event),
         );
+      } else if (eventType == 'VOLUNTEER_ACCEPTED' || eventType == 'EMERGENCY_ACCEPTED') {
+        _loadAlerts();
       } else if (eventType == 'EMERGENCY_COMPLETED' || eventType == 'SOS_CANCELLED') {
         setState(() {
           _alerts.removeWhere((a) => a['emergency_id'] == event['emergency_id']);
@@ -93,12 +95,17 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
       await ApiService().respondToEmergency(emergencyId, action);
       if (mounted) {
         if (action == 'accept') {
+          final myId = ref.read(authProvider).userId ?? '';
+          const myName = 'You';
           setState(() {
             final idx = _alerts.indexWhere((a) => a['emergency_id'] == emergencyId);
             if (idx != -1) {
               _alerts[idx]['status'] = 'accepted';
+              _alerts[idx]['assigned_volunteer_id'] = myId;
+              _alerts[idx]['assigned_volunteer_name'] = myName;
             }
           });
+          _loadAlerts();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('✅ Emergency Accepted — Streaming live location to victim!'),
@@ -123,30 +130,6 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to respond to emergency alert')),
-        );
-      }
-    }
-  }
-
-  Future<void> _completeEmergency(String emergencyId) async {
-    try {
-      await ApiService().completeEmergency(emergencyId);
-      if (mounted) {
-        setState(() {
-          _alerts.removeWhere((a) => a['emergency_id'] == emergencyId);
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🎉 Mission Completed! Patient safely delivered.'),
-            backgroundColor: AppTheme.primaryRed,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to complete rescue mission')),
         );
       }
     }
@@ -288,8 +271,6 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
                                 _respond(_alerts[i]['emergency_id'], 'accept'),
                             onReject: () =>
                                 _respond(_alerts[i]['emergency_id'], 'reject'),
-                            onComplete: () =>
-                                _completeEmergency(_alerts[i]['emergency_id']),
                           ),
                         ),
                       ),
@@ -305,14 +286,12 @@ class _AlertCard extends StatelessWidget {
   final String currentUserId;
   final VoidCallback onAccept;
   final VoidCallback onReject;
-  final VoidCallback onComplete;
 
   const _AlertCard({
     required this.alert,
     required this.currentUserId,
     required this.onAccept,
     required this.onReject,
-    required this.onComplete,
   });
 
   Future<void> _makeCall(String phoneNumber) async {
@@ -330,6 +309,10 @@ class _AlertCard extends StatelessWidget {
     final isMedical = typeStr == 'MEDICAL';
     final phone = userInfo['phone_number'] ?? '';
     final isAccepted = alert['status'] == 'accepted';
+    final isAssignedToMe = isAccepted &&
+        alert['assigned_volunteer_id'] != null &&
+        currentUserId.isNotEmpty &&
+        alert['assigned_volunteer_id'].toString().trim().toLowerCase() == currentUserId.trim().toLowerCase();
 
     final cardColor = isFire
         ? const Color(0xFFEA580C)
@@ -510,57 +493,47 @@ class _AlertCard extends StatelessWidget {
                         ),
                       ),
                     if (isAccepted)
-                      if (alert['assigned_volunteer_id'] == currentUserId)
-                        Expanded(
-                          child: SizedBox(
-                            height: 44,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryRed,
-                                foregroundColor: Colors.white,
-                                elevation: 2,
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      Expanded(
+                        child: Container(
+                          alignment: Alignment.center,
+                          height: 44,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: isAssignedToMe
+                                ? const Color(0xFF00E676).withValues(alpha: 0.15)
+                                : AppTheme.primaryRed.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isAssignedToMe ? const Color(0xFF00C853) : Colors.transparent,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isAssignedToMe ? Icons.check_circle_rounded : Icons.lock_clock_rounded,
+                                color: isAssignedToMe ? const Color(0xFF00C853) : AppTheme.primaryRed,
+                                size: 18,
                               ),
-                              onPressed: onComplete,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
-                                  Icon(Icons.check_circle, size: 18),
-                                  SizedBox(width: 6),
-                                  Flexible(
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        'MISSION COMPLETE',
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
-                                      ),
-                                    ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  isAssignedToMe
+                                      ? 'ACCEPTED BY YOU • LIVE DISPATCH'
+                                      : 'ACCEPTED BY ${alert['assigned_volunteer_name']?.toUpperCase() ?? 'OTHER VOLUNTEER'}',
+                                  style: TextStyle(
+                                    color: isAssignedToMe ? const Color(0xFF00C853) : AppTheme.primaryRed,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12,
                                   ),
-                                ],
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                        )
-                      else
-                        Expanded(
-                          child: Container(
-                            alignment: Alignment.center,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryRed.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'ACCEPTED BY ${alert['assigned_volunteer_name']?.toUpperCase() ?? 'OTHER VOLUNTEER'}',
-                              style: const TextStyle(
-                                color: AppTheme.primaryRed,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        )
+                        ),
+                      )
                     else ...[
                       Expanded(
                         child: SizedBox(

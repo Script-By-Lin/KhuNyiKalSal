@@ -367,22 +367,30 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   // Fetch real road lane geometry from OpenStreetMap OSRM Routing API (HTTPS) with multi-mirror fallback
   Future<void> _fetchRealRoadRoute(LatLng rawStart, LatLng end) async {
-    // If start is practically on top of end (e.g. testing with default coords), offset start so OSRM can compute real street route
-    LatLng start = rawStart;
-    if ((start.latitude - end.latitude).abs() < 0.0004 && (start.longitude - end.longitude).abs() < 0.0004) {
-      start = LatLng(end.latitude - 0.012, end.longitude - 0.009);
+    final diffLat = (rawStart.latitude - end.latitude).abs();
+    final diffLng = (rawStart.longitude - end.longitude).abs();
+
+    // If victim and responder are very close (< ~40m / in same building), draw clean direct connection
+    if (diffLat < 0.0004 && diffLng < 0.0004) {
+      if (mounted) {
+        setState(() {
+          _roadRoutePoints = [rawStart, end];
+          _isFetchingRoute = false;
+        });
+      }
+      return;
     }
 
     final routeKey =
-        '${start.latitude.toStringAsFixed(4)},${start.longitude.toStringAsFixed(4)}->${end.latitude.toStringAsFixed(4)},${end.longitude.toStringAsFixed(4)}';
+        '${rawStart.latitude.toStringAsFixed(4)},${rawStart.longitude.toStringAsFixed(4)}->${end.latitude.toStringAsFixed(4)},${end.longitude.toStringAsFixed(4)}';
     if (_lastRouteKey == routeKey || _isFetchingRoute) return;
     _lastRouteKey = routeKey;
     _isFetchingRoute = true;
 
     final mirrors = [
-      'https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson',
-      'https://routing.openstreetmap.de/routed-car/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson',
-      'https://router.project-osrm.org/route/v1/foot/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson',
+      'https://router.project-osrm.org/route/v1/driving/${rawStart.longitude},${rawStart.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson',
+      'https://routing.openstreetmap.de/routed-car/route/v1/driving/${rawStart.longitude},${rawStart.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson',
+      'https://router.project-osrm.org/route/v1/foot/${rawStart.longitude},${rawStart.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson',
     ];
 
     for (final url in mirrors) {
@@ -391,15 +399,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
           url,
           options: Options(
             headers: {'User-Agent': 'KhuNyiKalSal-Emergency/1.0'},
-            receiveTimeout: const Duration(seconds: 8),
-            sendTimeout: const Duration(seconds: 8),
+            receiveTimeout: const Duration(seconds: 6),
+            sendTimeout: const Duration(seconds: 6),
           ),
         );
         if (res.statusCode == 200 && res.data['routes'] != null && (res.data['routes'] as List).isNotEmpty) {
           final coords = res.data['routes'][0]['geometry']['coordinates'] as List;
-          final points = coords
-              .map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
-              .toList();
+          final points = <LatLng>[rawStart];
+          for (final c in coords) {
+            points.add(LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()));
+          }
+          points.add(end);
 
           if (points.length >= 2 && mounted) {
             setState(() {
@@ -413,11 +423,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
       } catch (_) {}
     }
 
-    // Fallback if completely offline
+    // Fallback if completely offline: direct connect between responder and target
     if (mounted) {
-      final midLat = (start.latitude + end.latitude) / 2 + (start.longitude - end.longitude) * 0.05;
-      final midLng = (start.longitude + end.longitude) / 2 - (start.latitude - end.latitude) * 0.05;
-      final fallbackPoints = [start, LatLng(midLat, midLng), end];
+      final fallbackPoints = [rawStart, end];
       setState(() {
         _roadRoutePoints = fallbackPoints;
         _isFetchingRoute = false;
