@@ -3,7 +3,7 @@ import enum
 from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import String, Boolean, DateTime, Enum as SAEnum
+from sqlalchemy import String, Boolean, DateTime, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
@@ -32,6 +32,34 @@ class RoleEnum(str, enum.Enum):
         return None
 
 
+class SafeRoleEnum(TypeDecorator):
+    """Robust column type for RoleEnum that safely handles any casing."""
+    impl = String(50)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, RoleEnum):
+            return value.value
+        val_clean = str(value).strip().upper()
+        for member in RoleEnum:
+            if member.value == val_clean or member.name.upper() == val_clean:
+                return member.value
+        return val_clean
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, RoleEnum):
+            return value
+        val_clean = str(value).strip().upper()
+        for member in RoleEnum:
+            if member.value == val_clean or member.name.upper() == val_clean:
+                return member
+        return RoleEnum.USER
+
+
 class Account(Base):
     """Unified authentication table for all roles."""
 
@@ -45,8 +73,9 @@ class Account(Base):
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[RoleEnum] = mapped_column(
-        SAEnum(RoleEnum, name="roleenum"),
+        SafeRoleEnum,
         nullable=False,
+        default=RoleEnum.USER,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(

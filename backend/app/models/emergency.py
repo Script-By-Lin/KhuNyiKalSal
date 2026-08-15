@@ -3,7 +3,7 @@ import enum
 from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import Float, DateTime, ForeignKey, Enum as SAEnum
+from sqlalchemy import Float, DateTime, ForeignKey, String, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
@@ -47,6 +47,62 @@ class EmergencyStatus(str, enum.Enum):
         return None
 
 
+class SafeEmergencyType(TypeDecorator):
+    """Robust column type for EmergencyType that safely handles any casing and prevents LookupError."""
+    impl = String(50)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, EmergencyType):
+            return value.value
+        val_clean = str(value).strip().lower()
+        for member in EmergencyType:
+            if member.value == val_clean or member.name.lower() == val_clean:
+                return member.value
+        return val_clean
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, EmergencyType):
+            return value
+        val_clean = str(value).strip().lower()
+        for member in EmergencyType:
+            if member.value == val_clean or member.name.lower() == val_clean:
+                return member
+        return EmergencyType.MEDICAL
+
+
+class SafeEmergencyStatus(TypeDecorator):
+    """Robust column type for EmergencyStatus that safely handles any casing and prevents LookupError."""
+    impl = String(50)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, EmergencyStatus):
+            return value.value
+        val_clean = str(value).strip().lower()
+        for member in EmergencyStatus:
+            if member.value == val_clean or member.name.lower() == val_clean:
+                return member.value
+        return val_clean
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, EmergencyStatus):
+            return value
+        val_clean = str(value).strip().lower()
+        for member in EmergencyStatus:
+            if member.value == val_clean or member.name.lower() == val_clean:
+                return member
+        return EmergencyStatus.PENDING
+
+
 class Emergency(Base):
     """An SOS emergency event created by a user."""
 
@@ -59,10 +115,10 @@ class Emergency(Base):
         PG_UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False
     )
     type: Mapped[EmergencyType] = mapped_column(
-        SAEnum(EmergencyType, name="emergency_type_enum", values_callable=lambda x: [e.value for e in x]), nullable=False, index=True
+        SafeEmergencyType, nullable=False, index=True, default=EmergencyType.MEDICAL
     )
     status: Mapped[EmergencyStatus] = mapped_column(
-        SAEnum(EmergencyStatus, name="emergency_status_enum"),
+        SafeEmergencyStatus,
         default=EmergencyStatus.PENDING, index=True
     )
     assigned_org_id: Mapped[Optional[uuid.UUID]] = mapped_column(
