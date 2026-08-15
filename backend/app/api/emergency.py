@@ -189,6 +189,12 @@ async def complete_emergency(
 
     emergency.status = EmergencyStatus.COMPLETED
     
+    role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if role_str.upper() == "ORGANIZATION" and not emergency.assigned_org_id:
+        emergency.assigned_org_id = current_user.id
+    elif role_str.upper() == "VOLUNTEER" and not emergency.assigned_volunteer_id:
+        emergency.assigned_volunteer_id = current_user.id
+
     # Mark associated family alerts as resolved
     await db.execute(
         update(FamilyAlert)

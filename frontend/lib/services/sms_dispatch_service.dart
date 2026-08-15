@@ -133,7 +133,12 @@ class SMSDispatchService {
           final name = (o['org_name'] ?? '').toString().toLowerCase();
           final etype = emergencyType.toLowerCase().replaceAll(' ', '_');
           if (etype == 'fire') return cat.contains('fire') || name.contains('fire') || name.contains('မီးသတ်');
-          if (etype == 'medical' || etype == 'accident') return cat.contains('medical') || name.contains('medical') || name.contains('ဆေး') || name.contains('hospital') || name.contains('ambulance');
+          if (etype == 'accident') {
+            final isVoluntary = cat.contains('voluntary') || cat.contains('volunteer') || cat.contains('local') || name.contains('ကယ်ဆယ်') || name.contains('rescue') || name.contains('အသင်း');
+            final isMedical = cat.contains('medical') || name.contains('medical') || name.contains('ဆေး') || name.contains('hospital') || name.contains('ambulance');
+            return isVoluntary || isMedical;
+          }
+          if (etype == 'medical') return cat.contains('medical') || name.contains('medical') || name.contains('ဆေး') || name.contains('hospital') || name.contains('ambulance');
           if (etype == 'natural_disaster' || etype == 'disaster') return cat.contains('fire') || cat.contains('voluntary') || cat.contains('volunteer') || name.contains('ကယ်ဆယ်') || name.contains('rescue');
           return true;
         },

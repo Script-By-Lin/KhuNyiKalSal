@@ -180,9 +180,16 @@ async def get_responder_history(
     db: AsyncSession = Depends(get_db),
 ):
     """Fetch completed and cancelled emergency history specifically for the responder's own organization with pagination & search."""
-    if current_user.role == RoleEnum.ORGANIZATION:
+    role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    role_upper = role_str.upper()
+
+    if role_upper == "ORGANIZATION":
+        v_sub = select(Volunteer.account_id).where(Volunteer.org_id == current_user.id)
         query = select(Emergency).where(
-            Emergency.assigned_org_id == current_user.id,
+            or_(
+                Emergency.assigned_org_id == current_user.id,
+                Emergency.assigned_volunteer_id.in_(v_sub),
+            ),
             Emergency.status.in_([EmergencyStatus.COMPLETED, EmergencyStatus.CANCELLED])
         )
     else:
@@ -215,12 +222,12 @@ async def get_responder_history(
 
     records = []
     for e in emergencies:
-        profile = e.user.user_profile
+        profile = e.user.user_profile if e.user else None
 
         records.append({
             "emergency_id": str(e.id),
-            "type": e.type.value,
-            "status": e.status.value,
+            "type": e.type.value if hasattr(e.type, "value") else str(e.type),
+            "status": e.status.value if hasattr(e.status, "value") else str(e.status),
             "location": {"lat": e.location_lat, "lng": e.location_lng},
             "user_info": {
                 "full_name": profile.full_name if profile else "Unknown User",
@@ -228,7 +235,7 @@ async def get_responder_history(
                 "blood_type": profile.blood_type or "Unknown",
                 "medical_conditions": profile.medical_conditions or "None",
             },
-            "created_at": e.created_at.isoformat(),
+            "created_at": e.created_at.isoformat() if e.created_at else None,
             "updated_at": e.updated_at.isoformat() if e.updated_at else None,
         })
 

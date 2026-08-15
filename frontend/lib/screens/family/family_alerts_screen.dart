@@ -243,15 +243,21 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
                   typeIcon = Icons.shield;
                 }
 
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
                 return Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: cardBg,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: typeColor.withValues(alpha: 0.3), width: 1.5),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF334155) : typeColor.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
+                        color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -264,7 +270,7 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
-                          color: typeColor.withValues(alpha: 0.08),
+                          color: typeColor.withValues(alpha: isDark ? 0.2 : 0.08),
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
                         ),
                         child: Row(
@@ -279,16 +285,17 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
                                     children: [
                                       Text(
                                         senderName,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 15,
+                                          color: isDark ? Colors.white : const Color(0xFF1E293B),
                                         ),
                                       ),
                                       const SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: typeColor.withValues(alpha: 0.15),
+                                          color: typeColor.withValues(alpha: isDark ? 0.25 : 0.15),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Text(
@@ -305,7 +312,7 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
                                   const SizedBox(height: 2),
                                   Text(
                                     'Alert Date: $createdAt',
-                                    style: const TextStyle(fontSize: 11, color: AppTheme.subtleGrey),
+                                    style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : AppTheme.subtleGrey),
                                   ),
                                 ],
                               ),
@@ -339,14 +346,16 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: Colors.red.shade50,
+                                color: isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.18) : Colors.red.shade50,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.red.shade200),
+                                border: Border.all(
+                                  color: isDark ? const Color(0xFFEF4444).withValues(alpha: 0.3) : Colors.red.shade200,
+                                ),
                               ),
                               child: Text(
                                 message,
                                 style: TextStyle(
-                                  color: Colors.red.shade900,
+                                  color: isDark ? Colors.red.shade200 : Colors.red.shade900,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
                                   height: 1.4,

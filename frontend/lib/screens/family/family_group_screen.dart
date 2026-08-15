@@ -617,6 +617,7 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
   }
 
   Widget _buildGroupDetailsView(bool isMm) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isCreator = _group?['is_creator'] == true;
     final members = (_group?['members'] as List?) ?? [];
 
@@ -760,8 +761,6 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
               chipColor = Colors.pink;
             }
 
-            final isDark = Theme.of(context).brightness == Brightness.dark;
-
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
@@ -845,10 +844,17 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
+                        color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text('Admin', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        'Admin',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
                     )
                   else if (isCreator)
                     IconButton(
@@ -869,9 +875,11 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.18) : Colors.red.shade50,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.red.shade200),
+                border: Border.all(
+                  color: isDark ? const Color(0xFFEF4444).withValues(alpha: 0.35) : Colors.red.shade200,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -895,7 +903,10 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
                     isMm
                         ? 'မိသားစု အဖွဲ့ကို ဖျက်သိမ်းပါက အဖွဲ့ဝင်အားလုံး ချိတ်ဆက်မှု ပျက်ပြယ်သွားပါမည်။'
                         : 'Disbanding this family group will unlink all members and stop all emergency circle notifications.',
-                    style: TextStyle(color: Colors.red.shade800, fontSize: 12),
+                    style: TextStyle(
+                      color: isDark ? Colors.red.shade200 : Colors.red.shade800,
+                      fontSize: 12,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -903,7 +914,10 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red),
+                        side: BorderSide(
+                          color: isDark ? Colors.red.shade400 : Colors.red,
+                        ),
+                        backgroundColor: isDark ? Colors.red.withValues(alpha: 0.08) : Colors.transparent,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),

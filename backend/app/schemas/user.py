@@ -42,6 +42,8 @@ class UpdateProfileRequest(BaseModel):
     headquarters_address: Optional[str] = None
     registration_number: Optional[str] = None
     coverage_radius_km: Optional[float] = None
+    location_lat: Optional[float] = None
+    location_lng: Optional[float] = None
     # Volunteer specific
     nrc_number: Optional[str] = None
     assigned_region: Optional[str] = None

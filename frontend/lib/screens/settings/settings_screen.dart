@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../providers/settings_provider.dart';
 import '../../config/theme.dart';
@@ -16,7 +15,7 @@ class SettingsScreen extends ConsumerWidget {
 
     final isMm = settings.locale.languageCode == 'my';
     
-    final title = isMm ? 'ဆက်တင်နှင့် ဘာသာစကား' : 'Settings & Language';
+    final title = isMm ? 'ဆက်တင်နှင့် ဘာသာစကား' : 'Language & Theme';
     final themeTitle = isMm ? 'အသွင်အပြင် (Theme Mode)' : 'Appearance & Theme';
     final themeDesc = isMm ? 'အလင်း သို့မဟုတ် အမှောင် မုဒ် ရွေးချယ်ပါ' : 'Choose light, dark, or system default mode';
     final langTitle = isMm ? 'ဘာသာစကား (Language)' : 'Language';
@@ -145,75 +144,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
 
-              const SizedBox(height: 28),
-
-              // ── Security & Password Section ───────────────────────
-              Text(
-                isMm ? 'လုံခြုံရေးနှင့် စကားဝှက်' : 'Security & Password',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textPrimary),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                isMm ? 'စကားဝှက် ပြောင်းလဲခြင်းနှင့် အကောင့်လုံခြုံရေး' : 'Manage your login password and active devices',
-                style: TextStyle(fontSize: 13, color: textSecondary),
-              ),
-              const SizedBox(height: 12),
-              Card(
-                color: cardBg,
-                margin: EdgeInsets.zero,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: cardBorder),
-                ),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(Icons.lock_reset_rounded, color: isDark ? Colors.amber : Colors.amber.shade900, size: 22),
-                      ),
-                      title: Text(
-                        isMm ? 'စကားဝှက် ပြောင်းလဲရန်' : 'Change Password',
-                        style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 14),
-                      ),
-                      subtitle: Text(
-                        isMm ? 'စကားဝှက်အသစ် သတ်မှတ်ပါ' : 'Set a new secure password',
-                        style: TextStyle(fontSize: 12, color: textSecondary),
-                      ),
-                      trailing: Icon(Icons.chevron_right, color: textSecondary.withValues(alpha: 0.5), size: 20),
-                      onTap: () => context.push('/change-password'),
-                    ),
-                    Divider(height: 1, color: cardBorder),
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.devices_rounded, color: Colors.blue, size: 22),
-                      ),
-                      title: Text(
-                        isMm ? 'ချိတ်ဆက်ထားသော စက်ပစ္စည်းများ' : 'Logged-in Devices',
-                        style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 14),
-                      ),
-                      subtitle: Text(
-                        isMm ? 'ဝင်ရောက်ထားသော စက်များ စီမံခန့်ခွဲရန်' : 'Manage your active login sessions',
-                        style: TextStyle(fontSize: 12, color: textSecondary),
-                      ),
-                      trailing: Icon(Icons.chevron_right, color: textSecondary.withValues(alpha: 0.5), size: 20),
-                      onTap: () => context.push('/settings/devices'),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 40),
+              const SizedBox(height: 36),
 
               // ── App Brand Footer ─────────────────────────────────
               Center(

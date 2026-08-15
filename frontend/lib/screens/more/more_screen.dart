@@ -328,7 +328,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               _menuTile(
                 icon: Icons.language_rounded,
                 color: Colors.green,
-                title: isMm ? 'ဆက်တင်နှင့် ဘာသာစကား' : 'Settings & Language',
+                title: isMm ? 'ဆက်တင်နှင့် ဘာသာစကား' : 'Language & Themes',
                 subtitle: isMm ? 'ဘာသာစကားနှင့် အပြင်အဆင် ပြောင်းလဲရန်' : 'Theme mode, app language and alerts',
                 onTap: () => context.push('/settings'),
                 cardBg: cardBg,

@@ -81,7 +81,17 @@ async def find_nearest_organizations(
                 return 1
             return 2
 
-        if etype in ["medical", "accident"]:
+        if etype == "accident":
+            # For accidents: Primary: Local Volunteer Group (0), Secondary: Medical (1), Tertiary: Fire (2), Others: (3)
+            if is_voluntary:
+                return 0
+            if is_medical:
+                return 1
+            if is_fire:
+                return 2
+            return 3
+
+        if etype == "medical":
             # Primary: Medical (0), Secondary: Local Voluntary (1), Others: (2)
             if is_medical:
                 return 0

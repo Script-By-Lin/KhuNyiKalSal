@@ -1153,97 +1153,145 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   void _showOrgInfo(OrganizationModel org) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final dividerCol = isDark ? const Color(0xFF334155) : Colors.grey.shade200;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1E293B);
+    final textSecondary = isDark ? Colors.white70 : AppTheme.subtleGrey;
+
+    final cat = org.category.toLowerCase();
+    IconData orgIcon = Icons.medical_services;
+    Color orgColor = AppTheme.secondaryGreen;
+    if (cat.contains('fire')) {
+      orgIcon = Icons.local_fire_department;
+      orgColor = const Color(0xFFFF6B35);
+    } else if (cat.contains('volunt') || cat.contains('rescue')) {
+      orgIcon = Icons.shield_rounded;
+      orgColor = AppTheme.primaryRed;
+    }
+
     showModalBottomSheet(
       context: context,
       useRootNavigator: false,
-      backgroundColor: Colors.white,
+      backgroundColor: cardBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
         final bottomPadding = MediaQuery.of(context).padding.bottom + kBottomNavigationBarHeight + 20;
+        final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
+
         return Container(
           padding: EdgeInsets.fromLTRB(24, 20, 24, bottomPadding),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: isDark ? const Border(top: BorderSide(color: Color(0xFF334155), width: 1)) : null,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppTheme.secondaryGreen.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: orgColor.withValues(alpha: isDark ? 0.2 : 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(orgIcon, color: orgColor, size: 24),
                   ),
-                  child: const Icon(Icons.local_hospital, color: AppTheme.secondaryGreen),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        org.orgName,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                      ),
-                      Text(
-                        '📞 ${org.phoneNumber}',
-                        style: const TextStyle(color: AppTheme.subtleGrey, fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 12),
-            Builder(
-              builder: (ctx) {
-                final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
-                return Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isMm
-                              ? '📍 လွှမ်းခြုံဧရိယာ: ${org.coverageRadiusKm} km'
-                              : '📍 Coverage: ${org.coverageRadiusKm} km',
-                        ),
-                        if (org.distanceKm != null)
-                          Text(
-                            isMm
-                                ? '🏃 ${org.distanceKm!.toStringAsFixed(1)} km အကွာ'
-                                : '🏃 ${org.distanceKm!.toStringAsFixed(1)} km away',
-                            style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.blue),
+                          org.orgName,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: textPrimary,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(Icons.phone, size: 14, color: textSecondary),
+                            const SizedBox(width: 4),
+                            Text(
+                              org.phoneNumber,
+                              style: TextStyle(color: textSecondary, fontSize: 13),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.alt_route),
-                        label: Text(isMm ? 'မြေပုံပေါ်တွင် လမ်းကြောင်းကြည့်မည်' : 'Preview Route on Map'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                        ),
-                        onPressed: () {
-                          Navigator.of(sheetContext).pop();
-                          _previewRouteTo(org);
-                        },
+                  ),
+                  if (org.phoneNumber.isNotEmpty)
+                    IconButton.filledTonal(
+                      icon: const Icon(Icons.call, color: AppTheme.secondaryGreen, size: 20),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppTheme.secondaryGreen.withValues(alpha: 0.15),
+                      ),
+                      onPressed: () => launchUrl(Uri(scheme: 'tel', path: org.phoneNumber)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Divider(color: dividerCol, height: 1),
+              const SizedBox(height: 14),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    isMm
+                        ? '📍 လွှမ်းခြုံဧရိယာ: ${org.coverageRadiusKm} km'
+                        : '📍 Coverage: ${org.coverageRadiusKm} km',
+                    style: TextStyle(fontSize: 13, color: textSecondary, fontWeight: FontWeight.w500),
+                  ),
+                  if (org.distanceKm != null)
+                    Text(
+                      isMm
+                          ? '🏃 ${org.distanceKm!.toStringAsFixed(1)} km အကွာ'
+                          : '🏃 ${org.distanceKm!.toStringAsFixed(1)} km away',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: isDark ? Colors.lightBlueAccent : Colors.blue.shade700,
                       ),
                     ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-      );
-    });
+                ],
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.alt_route, color: Colors.white, size: 20),
+                  label: Text(
+                    isMm ? 'မြေပုံပေါ်တွင် လမ်းကြောင်းကြည့်မည်' : 'Preview Route on Map',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    _previewRouteTo(org);
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
