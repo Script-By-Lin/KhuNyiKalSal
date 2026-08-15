@@ -2,8 +2,9 @@
 
 import uuid as uuid_module
 
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.organization import Organization
 from app.database import get_db
@@ -172,10 +173,13 @@ async def get_active_alerts(
 
 @router.get("/history")
 async def get_responder_history(
+    skip: int = 0,
+    limit: int = 50,
+    search: Optional[str] = None,
     current_user: Account = Depends(require_role("organization", "volunteer")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Fetch completed and cancelled emergency history specifically for the responder's own organization."""
+    """Fetch completed and cancelled emergency history specifically for the responder's own organization with pagination & search."""
     if current_user.role == RoleEnum.ORGANIZATION:
         query = select(Emergency).where(
             Emergency.assigned_org_id == current_user.id,
@@ -195,7 +199,18 @@ async def get_responder_history(
             Emergency.status.in_([EmergencyStatus.COMPLETED, EmergencyStatus.CANCELLED])
         )
 
-    result = await db.execute(query.order_by(Emergency.created_at.desc()).limit(50))
+    if search and search.strip():
+        term = f"%{search.strip().lower()}%"
+        from app.models.user_profile import UserProfile
+        query = query.join(UserProfile, Emergency.user_id == UserProfile.account_id, isouter=True).where(
+            or_(
+                func.lower(UserProfile.full_name).like(term),
+                func.lower(Emergency.type.cast(str)).like(term),
+                func.lower(Emergency.status.cast(str)).like(term),
+            )
+        )
+
+    result = await db.execute(query.order_by(Emergency.created_at.desc()).offset(skip).limit(limit))
     emergencies = result.scalars().all()
 
     records = []

@@ -1,20 +1,22 @@
-"""Admin endpoints — CRUD management of rescue organizations and system accounts."""
+"""Admin endpoints — CRUD management of rescue organizations, system accounts, emergencies, and sessions."""
 
 import uuid as uuid_module
+import re
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from pydantic import BaseModel, EmailStr, field_validator
+from sqlalchemy import select, or_, func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.account import Account, RoleEnum
 from app.models.organization import Organization
-from app.core.security import get_current_user, hash_password
+from app.models.user_profile import UserProfile
+from app.models.emergency import Emergency
+from app.core.security import hash_password
 from app.core.permissions import require_role
-from app.schemas.auth import validate_password
-from pydantic import field_validator
+from app.schemas.auth import validate_password, validate_myanmar_phone
 
 router = APIRouter()
 
@@ -24,8 +26,8 @@ class CreateAdminOrgRequest(BaseModel):
     email: EmailStr
     password: str
     phone_number: str
-    geo_lat: float
-    geo_lng: float
+    geo_lat: float = 16.8661
+    geo_lng: float = 96.1951
     registration_number: Optional[str] = "REG-2026-HQ"
     headquarters_address: Optional[str] = "Main HQ"
     operating_regions: Optional[str] = "Yangon"
@@ -36,6 +38,18 @@ class CreateAdminOrgRequest(BaseModel):
     @classmethod
     def check_password(cls, v: str) -> str:
         return validate_password(v)
+
+    @field_validator("phone_number")
+    @classmethod
+    def check_phone(cls, v: str) -> str:
+        try:
+            return validate_myanmar_phone(v)
+        except Exception:
+            # Fallback sanitized string if non-standard
+            cleaned = v.strip().replace(" ", "").replace("-", "")
+            if len(cleaned) < 5:
+                raise ValueError("Phone number is too short")
+            return cleaned
 
 
 class UpdateAdminOrgRequest(BaseModel):
@@ -54,11 +68,28 @@ class UpdateAdminOrgRequest(BaseModel):
 
 @router.get("/organizations")
 async def list_organizations(
-    current_user: Account = Depends(require_role("admin")),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    search: Optional[str] = Query(None),
+    current_user: Account = Depends(require_role("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Admin endpoint to list all registered rescue organizations."""
-    result = await db.execute(select(Organization).options(joinedload(Organization.account)))
+    """Admin endpoint to list all registered rescue organizations with search & pagination."""
+    query = select(Organization).options(joinedload(Organization.account))
+
+    if search and search.strip():
+        term = f"%{search.strip().lower()}%"
+        query = query.where(
+            or_(
+                func.lower(Organization.org_name).like(term),
+                func.lower(Organization.category).like(term),
+                func.lower(Organization.operating_regions).like(term),
+                func.lower(Organization.registration_number).like(term),
+            )
+        )
+
+    query = query.order_by(Organization.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
     orgs = result.scalars().all()
 
     items = []
@@ -85,16 +116,16 @@ async def list_organizations(
 @router.post("/organizations", status_code=status.HTTP_201_CREATED)
 async def create_organization(
     data: CreateAdminOrgRequest,
-    current_user: Account = Depends(require_role("admin")),
+    current_user: Account = Depends(require_role("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
     """Admin endpoint to create a new rescue organization account."""
-    existing = await db.execute(select(Account).where(Account.email == data.email))
+    existing = await db.execute(select(Account).where(Account.email == data.email.lower().strip()))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="An account with this email is already registered")
 
     account = Account(
-        email=data.email,
+        email=data.email.lower().strip(),
         hashed_password=hash_password(data.password),
         role=RoleEnum.ORGANIZATION,
     )
@@ -103,19 +134,19 @@ async def create_organization(
 
     org = Organization(
         account_id=account.id,
-        org_name=data.org_name,
+        org_name=data.org_name.strip(),
         phone_number="",
         geo_lat=data.geo_lat,
         geo_lng=data.geo_lng,
-        registration_number=data.registration_number,
-        headquarters_address=data.headquarters_address,
-        operating_regions=data.operating_regions,
-        category=data.category,
-        coverage_radius_km=data.coverage_radius_km,
+        registration_number=data.registration_number.strip() if data.registration_number else "REG-2026-HQ",
+        headquarters_address=data.headquarters_address.strip() if data.headquarters_address else "Main HQ",
+        operating_regions=data.operating_regions.strip() if data.operating_regions else "Yangon",
+        category=data.category.strip() if data.category else "Medical",
+        coverage_radius_km=data.coverage_radius_km or 50.0,
         status="Active",
         is_active=True,
     )
-    org.set_salted_phone(data.phone_number)
+    org.set_salted_phone(data.phone_number.strip())
     db.add(org)
     await db.commit()
 
@@ -130,7 +161,7 @@ async def create_organization(
 async def update_organization(
     account_id: str,
     data: UpdateAdminOrgRequest,
-    current_user: Account = Depends(require_role("admin")),
+    current_user: Account = Depends(require_role("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
     """Admin endpoint to update an organization account."""
@@ -145,21 +176,21 @@ async def update_organization(
         raise HTTPException(status_code=404, detail="Organization not found")
 
     if data.org_name is not None:
-        org.org_name = data.org_name
+        org.org_name = data.org_name.strip()
     if data.phone_number is not None:
-        org.set_salted_phone(data.phone_number)
+        org.set_salted_phone(data.phone_number.strip())
     if data.geo_lat is not None:
         org.geo_lat = data.geo_lat
     if data.geo_lng is not None:
         org.geo_lng = data.geo_lng
     if data.registration_number is not None:
-        org.registration_number = data.registration_number
+        org.registration_number = data.registration_number.strip()
     if data.headquarters_address is not None:
-        org.headquarters_address = data.headquarters_address
+        org.headquarters_address = data.headquarters_address.strip()
     if data.operating_regions is not None:
-        org.operating_regions = data.operating_regions
+        org.operating_regions = data.operating_regions.strip()
     if data.category is not None:
-        org.category = data.category
+        org.category = data.category.strip()
     if data.coverage_radius_km is not None:
         org.coverage_radius_km = data.coverage_radius_km
     if data.status is not None:
@@ -174,7 +205,7 @@ async def update_organization(
 @router.delete("/organizations/{account_id}")
 async def delete_organization(
     account_id: str,
-    current_user: Account = Depends(require_role("admin")),
+    current_user: Account = Depends(require_role("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
     """Admin endpoint to delete an organization account."""
@@ -193,27 +224,79 @@ async def delete_organization(
     return {"message": "Organization account deleted successfully"}
 
 
-@router.get("/emergencies")
-async def list_emergencies(
-    current_user: Account = Depends(require_role("admin")),
+@router.get("/users")
+async def list_users(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    search: Optional[str] = Query(None),
+    current_user: Account = Depends(require_role("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Admin endpoint to list all SOS emergencies with eagerly loaded user and org details (O(1) queries)."""
-    from app.models.emergency import Emergency
+    """Admin endpoint to list system users with pagination and search."""
+    query = select(Account).options(joinedload(Account.user_profile))
+
+    if search and search.strip():
+        term = f"%{search.strip().lower()}%"
+        query = query.join(UserProfile, Account.id == UserProfile.account_id, isouter=True).where(
+            or_(
+                func.lower(Account.email).like(term),
+                func.lower(UserProfile.full_name).like(term),
+            )
+        )
+
+    query = query.order_by(Account.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    accounts = result.scalars().all()
+
+    items = []
+    for acc in accounts:
+        prof = acc.user_profile
+        items.append({
+            "account_id": str(acc.id),
+            "email": acc.email,
+            "role": acc.role.value if hasattr(acc.role, "value") else str(acc.role),
+            "full_name": prof.full_name if prof else "User",
+            "phone_number": prof.phone_number if prof else "",
+            "blood_type": prof.blood_type if prof else None,
+            "is_active": acc.is_active,
+            "created_at": acc.created_at,
+        })
+    return items
+
+
+@router.get("/emergencies")
+async def list_emergencies(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    search: Optional[str] = Query(None),
+    current_user: Account = Depends(require_role("admin", "superadmin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin endpoint to list all SOS emergencies with search & pagination."""
     from app.schemas.emergency import AdminEmergencyRecord
-    from sqlalchemy.orm import joinedload
     
-    result = await db.execute(
+    query = (
         select(Emergency)
         .options(joinedload(Emergency.user), joinedload(Emergency.assigned_org))
-        .order_by(Emergency.created_at.desc())
-        .limit(100)
     )
+
+    if search and search.strip():
+        term = f"%{search.strip().lower()}%"
+        query = query.join(UserProfile, Emergency.user_id == UserProfile.account_id, isouter=True).where(
+            or_(
+                func.lower(UserProfile.full_name).like(term),
+                func.lower(Emergency.type.cast(str)).like(term),
+                func.lower(Emergency.status.cast(str)).like(term),
+            )
+        )
+
+    query = query.order_by(Emergency.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
     emergencies = result.scalars().all()
     
     records = []
     for e in emergencies:
-        profile = e.user.user_profile
+        profile = e.user.user_profile if e.user else None
         records.append(
             AdminEmergencyRecord(
                 emergency_id=str(e.id),
@@ -221,8 +304,8 @@ async def list_emergencies(
                 user_phone=profile.phone_number if profile else "",
                 blood_type=profile.blood_type or "Unknown",
                 medical_conditions=profile.medical_conditions or "None",
-                type=e.type.value,
-                status=e.status.value,
+                type=e.type.value if hasattr(e.type, "value") else str(e.type),
+                status=e.status.value if hasattr(e.status, "value") else str(e.status),
                 assigned_org_name=e.assigned_org.org_name if e.assigned_org else "Unassigned",
                 location_lat=e.location_lat,
                 location_lng=e.location_lng,
@@ -236,18 +319,20 @@ async def list_emergencies(
 
 @router.get("/sessions")
 async def list_admin_sessions(
-    current_user: Account = Depends(require_role("admin")),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    current_user: Account = Depends(require_role("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
     """Admin endpoint to monitor all active and recent user device sessions."""
     from app.services.session_service import admin_list_sessions
-    return await admin_list_sessions(db=db, limit=200)
+    return await admin_list_sessions(db=db, limit=limit)
 
 
 @router.get("/sessions/user/{user_id}")
 async def list_user_sessions_admin(
     user_id: str,
-    current_user: Account = Depends(require_role("admin")),
+    current_user: Account = Depends(require_role("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
     """Admin endpoint to inspect sessions of a specific user account."""
@@ -256,13 +341,13 @@ async def list_user_sessions_admin(
         u_uuid = uuid_module.UUID(user_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid user ID format")
-    return await admin_list_sessions(db=db, user_id=u_uuid, limit=100)
+    return await admin_list_sessions(db=db, user_id=u_uuid, limit=50)
 
 
 @router.post("/sessions/{session_id}/terminate")
 async def terminate_session_admin(
     session_id: str,
-    current_user: Account = Depends(require_role("admin")),
+    current_user: Account = Depends(require_role("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
     """Admin endpoint to forcibly revoke/terminate any active session."""
@@ -287,7 +372,7 @@ async def terminate_session_admin(
 @router.post("/sessions/user/{user_id}/terminate-all")
 async def terminate_all_user_sessions_admin(
     user_id: str,
-    current_user: Account = Depends(require_role("admin")),
+    current_user: Account = Depends(require_role("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
     """Admin endpoint to forcibly revoke/terminate all active sessions for a user."""
@@ -299,4 +384,3 @@ async def terminate_all_user_sessions_admin(
 
     count = await logout_all_user_sessions(u_uuid, db)
     return {"message": f"Successfully terminated {count} session(s) for user"}
-

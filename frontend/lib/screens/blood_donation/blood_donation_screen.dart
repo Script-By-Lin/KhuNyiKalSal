@@ -25,7 +25,6 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
   final _phoneCtrl = TextEditingController();
   final _ageCtrl = TextEditingController();
   final _medCtrl = TextEditingController();
-  final _customLocCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
   // Request Form Controllers (Patient Requisition)
@@ -49,16 +48,19 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
   String _reqUrgency = 'Emergency / Immediate';
   LatLng? _reqCoords;
 
-  // Destination mode for donation
-  bool _useNearest = true;
+  // Organization centers for donation
   List<Map<String, dynamic>> _nearbyOrgs = [];
   Map<String, dynamic>? _selectedOrg;
-  LatLng? _customCoords;
 
   bool _loadingProfile = true;
   bool _submitting = false;
   bool _loadingHistory = false;
   List<dynamic> _myRecords = [];
+
+  // Full-Screen Onboarding Guidelines State & Search Filter
+  bool _showGuidelines = true;
+  final _recordSearchCtrl = TextEditingController();
+  String _recordFilterQuery = '';
 
   @override
   void initState() {
@@ -74,13 +76,13 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
     _phoneCtrl.dispose();
     _ageCtrl.dispose();
     _medCtrl.dispose();
-    _customLocCtrl.dispose();
     _notesCtrl.dispose();
     _patientNameCtrl.dispose();
     _reqContactNameCtrl.dispose();
     _reqContactPhoneCtrl.dispose();
     _reqHospitalCtrl.dispose();
     _reqDiagnosisCtrl.dispose();
+    _recordSearchCtrl.dispose();
     super.dispose();
   }
 
@@ -170,7 +172,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
     }
   }
 
-  Future<void> _pickLocationOnMap({required bool isRequestMode}) async {
+  Future<void> _pickHospitalLocationOnMap() async {
     double initLat = 16.8661;
     double initLng = 96.1951;
     try {
@@ -179,7 +181,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
       initLng = pos.longitude;
     } catch (_) {}
 
-    LatLng pickedPoint = (isRequestMode ? _reqCoords : _customCoords) ?? LatLng(initLat, initLng);
+    LatLng pickedPoint = _reqCoords ?? LatLng(initLat, initLng);
     final mapController = MapController();
 
     if (!mounted) return;
@@ -205,9 +207,9 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        isRequestMode ? 'Pick Patient / Hospital Location' : 'Pick Blood Donation Center',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      const Text(
+                        'Pick Hospital Location',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close),
@@ -268,15 +270,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                         ),
                         onPressed: () {
                           setState(() {
-                            if (isRequestMode) {
-                              _reqCoords = pickedPoint;
-                            } else {
-                              _customCoords = pickedPoint;
-                              if (_customLocCtrl.text.isEmpty) {
-                                _customLocCtrl.text =
-                                    'Custom Location (${pickedPoint.latitude.toStringAsFixed(4)}, ${pickedPoint.longitude.toStringAsFixed(4)})';
-                              }
-                            }
+                            _reqCoords = pickedPoint;
                           });
                           Navigator.pop(ctx);
                         },
@@ -311,27 +305,12 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
       return;
     }
 
-    String locationName = '';
-    String? targetOrgId;
-    double? lat;
-    double? lng;
-
-    if (_useNearest) {
-      if (_selectedOrg != null) {
-        locationName = _selectedOrg!['org_name'] ?? 'Local Rescue Hospital';
-        targetOrgId = _selectedOrg!['account_id'];
-        lat = (_selectedOrg!['geo_lat'] as num?)?.toDouble();
-        lng = (_selectedOrg!['geo_lng'] as num?)?.toDouble();
-      } else {
-        locationName = 'Nearest Available Hospital';
-      }
-    } else {
-      locationName = _customLocCtrl.text.trim().isNotEmpty
-          ? _customLocCtrl.text.trim()
-          : 'Specified Blood Donation Center';
-      lat = _customCoords?.latitude;
-      lng = _customCoords?.longitude;
-    }
+    String locationName = _selectedOrg != null
+        ? (_selectedOrg!['org_name'] ?? 'Local Rescue Hospital')
+        : 'Nearest Available Hospital';
+    String? targetOrgId = _selectedOrg != null ? _selectedOrg!['account_id'] : null;
+    double? lat = (_selectedOrg?['geo_lat'] as num?)?.toDouble();
+    double? lng = (_selectedOrg?['geo_lng'] as num?)?.toDouble();
 
     setState(() => _submitting = true);
 
@@ -421,7 +400,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
       };
 
       await ApiService().createBloodDonation(payload);
-      _snack('🚨 Emergency blood request broadcasted to nearest hospitals & rescue groups!', AppTheme.secondaryGreen);
+      _snack('Emergency blood request broadcasted to nearest hospitals & rescue groups!', AppTheme.secondaryGreen);
 
       await _loadMyRecords();
       if (mounted) {
@@ -445,49 +424,253 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
     );
   }
 
-  void _showTipsDialog(bool isMm) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.favorite, color: AppTheme.primaryRed),
-            const SizedBox(width: 10),
-            Text(isMm ? 'သွေးမလှူမီ သိကောင်းစရာများ' : 'Blood Donor Preparation Tips',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isMm
-                    ? '• အသက် (၁၈) မှ (၆၀) နှစ်ကြား ဖြစ်ရမည်။\n'
-                      '• ကိုယ်အလေးချိန် အနည်းဆုံး ပေါင် (၁၀၀) / ၄၅ ကီလို ရှိရမည်။\n'
-                      '• သွေးမလှူမီ အနည်းဆုံး (၇) နာရီ ကောင်းစွာ အိပ်စက်အနားယူပါ။\n'
-                      '• ရေများများ (အနည်းဆုံး ၅၀၀ မီလီလီတာ) သောက်သုံးပါ။\n'
-                      '• သွေးမလှူမီ ၂၄ နာရီအတွင်း အရက်သေစာ မသောက်စားပါနှင့်။\n'
-                      '• အဆီများသော အစားအစာများ ရှောင်ကြဉ်ပြီး ပေါ့ပါးသော အစာစားပါ။'
-                    : '• Age must be between 18 and 60 years old.\n'
-                      '• Weight must be at least 45 kg (100 lbs).\n'
-                      '• Sleep well for at least 7-8 hours before donating.\n'
-                      '• Drink plenty of water (at least 500ml before donation).\n'
-                      '• Avoid alcohol for 24 hours prior to donation.\n'
-                      '• Eat a healthy, light meal (avoid fatty foods before donation).',
-                style: const TextStyle(fontSize: 13, height: 1.5),
-              ),
-            ],
+  Widget _buildGuidelineCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 22),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(isMm ? 'နားလည်ပါပြီ' : 'Got it',
-                style: const TextStyle(color: AppTheme.primaryRed, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFullScreenGuidelines(bool isMm) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          isMm ? 'သွေးမလှူမီ သိကောင်းစရာများ' : 'Blood Donor Preparation Guide',
+          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Hero Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFD32F2F), Color(0xFFC2185B)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withValues(alpha: 0.25),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.favorite, color: Colors.white, size: 36),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            isMm ? 'သွေးလှူရှင်များ လိုက်နာရမည့် စည်းကမ်းချက်များ' : 'Donor Eligibility & Health Checklist',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            isMm
+                                ? 'ကျန်းမာသော သွေးတစ်ပုလင်းသည် အရေးပေါ်လူနာအတွက် အသက်ကယ်ဆေးဖြစ်ပါသည်။'
+                                : 'Ensure safe blood donation for both your health and the patient.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    Text(
+                      isMm ? 'အဓိက သတ်မှတ်ချက်များ' : 'Key Preparation Rules',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    _buildGuidelineCard(
+                      icon: Icons.cake_outlined,
+                      iconColor: Colors.orange,
+                      title: isMm ? 'အသက်အပိုင်းအခြား' : 'Age Criteria',
+                      subtitle: isMm
+                          ? 'အသက် (၁၈) မှ (၆၀) နှစ်ကြား ဖြစ်ရပါမည်။'
+                          : 'Age must be between 18 and 60 years old.',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildGuidelineCard(
+                      icon: Icons.monitor_weight_outlined,
+                      iconColor: Colors.blue,
+                      title: isMm ? 'ကိုယ်အလေးချိန်' : 'Body Weight',
+                      subtitle: isMm
+                          ? 'အနည်းဆုံး ပေါင် (၁၀၀) သို့မဟုတ် ၄၅ ကီလိုဂရမ် ရှိရပါမည်။'
+                          : 'Weight must be at least 45 kg (100 lbs).',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildGuidelineCard(
+                      icon: Icons.bedtime_outlined,
+                      iconColor: Colors.indigo,
+                      title: isMm ? 'လုံလောက်စွာ အိပ်စက်အနားယူခြင်း' : 'Adequate Sleep & Rest',
+                      subtitle: isMm
+                          ? 'သွေးမလှူမီ ညတွင် အနည်းဆုံး (၇-၈) နာရီ ကောင်းစွာ အိပ်စက်ပါ။'
+                          : 'Sleep well for at least 7-8 hours before donating.',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildGuidelineCard(
+                      icon: Icons.water_drop_outlined,
+                      iconColor: Colors.teal,
+                      title: isMm ? 'ရေလုံလောက်စွာ သောက်သုံးခြင်း' : 'Hydration',
+                      subtitle: isMm
+                          ? 'သွေးမလှူမီ ရေ (အနည်းဆုံး ၅၀၀ မီလီလီတာ) သောက်သုံးပေးပါ။'
+                          : 'Drink plenty of water (at least 500ml before donation).',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildGuidelineCard(
+                      icon: Icons.no_drinks_outlined,
+                      iconColor: Colors.red,
+                      title: isMm ? 'အရက်သေစာ ရှောင်ကြဉ်ခြင်း' : 'Avoid Alcohol',
+                      subtitle: isMm
+                          ? 'သွေးမလှူမီ (၂၄) နာရီအတွင်း အရက်သေစာ လုံးဝမသောက်ပါနှင့်။'
+                          : 'Avoid alcohol for 24 hours prior to donation.',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildGuidelineCard(
+                      icon: Icons.restaurant_outlined,
+                      iconColor: Colors.green,
+                      title: isMm ? 'ကျန်းမာသော အစားအသောက်' : 'Healthy Light Meal',
+                      subtitle: isMm
+                          ? 'အဆီအစိမ့်များ ရှောင်ကြဉ်ပြီး ပေါ့ပေါ့ပါးပါး အစာစားသုံးထားပါ။'
+                          : 'Eat a healthy, light meal (avoid fatty foods before donation).',
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+
+            // Bottom Continue / Next Button
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryRed,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 2,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _showGuidelines = false;
+                    });
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        isMm ? 'ရှေ့သို့ ဆက်သွားမည် (NEXT)' : 'CONTINUE TO BLOOD HUB',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_rounded, size: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -495,6 +678,10 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
   @override
   Widget build(BuildContext context) {
     final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
+
+    if (_showGuidelines) {
+      return _buildFullScreenGuidelines(isMm);
+    }
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -507,7 +694,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
           IconButton(
             icon: const Icon(Icons.info_outline),
             tooltip: 'Donor Tips',
-            onPressed: () => _showTipsDialog(isMm),
+            onPressed: () => setState(() => _showGuidelines = true),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -721,130 +908,63 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
 
           // Destination
           Text(
-            isMm ? '၂။ သွေးလှူဒါန်းမည့် နေရာ ရွေးချယ်ပါ' : '2. Donation Center / Hospital',
+            isMm ? '၂။ သွေးလှူဒါန်းမည့် ဆေးရုံ/အဖွဲ့' : '2. Donation Center / Hospital',
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
 
-          Row(
-            children: [
-              Expanded(
-                child: ChoiceChip(
-                  label: Center(
+          if (_nearbyOrgs.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.location_searching, color: Colors.grey),
+                  const SizedBox(width: 10),
+                  Expanded(
                     child: Text(
-                      isMm ? 'အနီးဆုံး ဆေးရုံ/အဖွဲ့' : 'Nearest Org / Hospital',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: _useNearest ? Colors.white : Colors.black87,
-                      ),
+                      isMm ? 'အနီးဆုံး ဆေးရုံ/အဖွဲ့များ ရှာဖွေနေပါသည်...' : 'Locating nearest rescue hospitals & centers...',
+                      style: const TextStyle(fontSize: 13, color: Colors.grey),
                     ),
                   ),
-                  selected: _useNearest,
-                  selectedColor: AppTheme.primaryRed,
-                  onSelected: (val) => setState(() => _useNearest = true),
-                ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ChoiceChip(
-                  label: Center(
-                    child: Text(
-                      isMm ? 'စိတ်ကြိုက်နေရာ/မြေပုံ' : 'Custom / Pick on Map',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: !_useNearest ? Colors.white : Colors.black87,
-                      ),
-                    ),
-                  ),
-                  selected: !_useNearest,
-                  selectedColor: AppTheme.primaryRed,
-                  onSelected: (val) => setState(() => _useNearest = false),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          if (_useNearest) ...[
-            if (_nearbyOrgs.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.location_searching, color: Colors.grey),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        isMm ? 'အနီးဆုံး အဖွဲ့များ ရှာဖွေနေပါသည်...' : 'Locating nearest rescue hospitals...',
-                        style: const TextStyle(fontSize: 13, color: Colors.grey),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: DropdownButtonFormField<Map<String, dynamic>>(
-                  value: _selectedOrg,
-                  dropdownColor: Colors.white,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: isMm ? 'အနီးဆုံး ဆေးရုံ/ကယ်ဆယ်ရေးအဖွဲ့' : 'Select Target Hospital / Org',
-                    prefixIcon: const Icon(Icons.local_hospital, color: AppTheme.secondaryGreen),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  items: _nearbyOrgs.map((org) {
-                    final name = (org['org_name'] ?? 'Hospital').toString();
-                    final dist = (org['distance_km'] as num?)?.toDouble();
-                    final distStr = dist != null ? ' (${dist.toStringAsFixed(1)} km)' : '';
-                    return DropdownMenuItem<Map<String, dynamic>>(
-                      value: org,
-                      child: Text(
-                        '$name$distStr',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (val) => setState(() => _selectedOrg = val),
-                ),
-              ),
-          ] else ...[
-            _input(_customLocCtrl, isMm ? 'ဆေးရုံ သို့မဟုတ် သွေးလှူဘဏ် အမည်' : 'Hospital / Blood Center Name',
-                Icons.business_outlined),
+            )
+          else
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.pin_drop, color: AppTheme.primaryRed),
-                  label: Text(
-                    _customCoords != null
-                        ? (isMm ? '📍 တည်နေရာ မှတ်သားပြီး' : '📍 Location Pinned on Map')
-                        : (isMm ? '📍 မြေပုံပေါ်တွင် တည်နေရာ ရွေးချယ်မည်' : '📍 Pick Location on Map'),
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryRed),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () => _pickLocationOnMap(isRequestMode: false),
+              child: DropdownButtonFormField<Map<String, dynamic>>(
+                value: _selectedOrg,
+                dropdownColor: Colors.white,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: isMm ? 'ဆေးရုံ/ကယ်ဆယ်ရေးအဖွဲ့ ရွေးချယ်ပါ' : 'Select Target Hospital / Org',
+                  prefixIcon: const Icon(Icons.local_hospital, color: AppTheme.secondaryGreen),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
+                items: _nearbyOrgs.map((org) {
+                  final name = (org['org_name'] ?? 'Hospital').toString();
+                  final dist = (org['distance_km'] as num?)?.toDouble();
+                  final distStr = dist != null ? ' (${dist.toStringAsFixed(1)} km)' : '';
+                  return DropdownMenuItem<Map<String, dynamic>>(
+                    value: org,
+                    child: Text(
+                      '$name$distStr',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: (val) => setState(() => _selectedOrg = val),
               ),
             ),
-          ],
 
           const SizedBox(height: 8),
 
@@ -917,14 +1037,17 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                     )
                   : const Icon(Icons.favorite, color: Colors.white),
-              label: Text(
-                _submitting
-                    ? (isMm ? 'ပေးပို့နေပါသည်...' : 'SUBMITTING PLEDGE...')
-                    : (isMm ? 'သွေးလှူဒါန်းရန် ပေးပို့မည်' : 'SUBMIT BLOOD DONATION PLEDGE'),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.3,
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  _submitting
+                      ? (isMm ? 'ပေးပို့နေပါသည်...' : 'SUBMITTING PLEDGE...')
+                      : (isMm ? 'သွေးလှူဒါန်းရန် ပေးပို့မည်' : 'CONFIRM DONATION PLEDGE'),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3,
+                  ),
                 ),
               ),
               style: ElevatedButton.styleFrom(
@@ -1117,18 +1240,21 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
               width: double.infinity,
               height: 48,
               child: OutlinedButton.icon(
-                icon: const Icon(Icons.pin_drop, color: AppTheme.primaryRed),
-                label: Text(
-                  _reqCoords != null
-                      ? (isMm ? '📍 ဆေးရုံမြေပုံ တည်နေရာ မှတ်သားပြီး' : '📍 Hospital Location Pinned on Map')
-                      : (isMm ? '📍 ဆေးရုံတည်နေရာ မြေပုံပေါ်တွင် ရွေးချယ်မည်' : '📍 Pin Hospital on Map (Optional)'),
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryRed),
+                icon: const Icon(Icons.pin_drop_outlined, color: AppTheme.primaryRed),
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    _reqCoords != null
+                        ? (isMm ? 'ဆေးရုံတည်နေရာ မှတ်သားပြီး' : 'Hospital Location Pinned')
+                        : (isMm ? 'ဆေးရုံတည်နေရာ မြေပုံပေါ်တွင် ရွေးချယ်မည်' : 'Pin Hospital on Map (Optional)'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryRed, fontSize: 13),
+                  ),
                 ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                onPressed: () => _pickLocationOnMap(isRequestMode: true),
+                onPressed: _pickHospitalLocationOnMap,
               ),
             ),
           ),
@@ -1147,14 +1273,17 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                     )
                   : const Icon(Icons.cell_tower_rounded, color: Colors.white),
-              label: Text(
-                _submitting
-                    ? (isMm ? 'အဖွဲ့များသို့ ပေးပို့နေပါသည်...' : 'BROADCASTING TO ORGS...')
-                    : (isMm ? 'အရေးပေါ် သွေးတောင်းခံလွှာ ပေးပို့မည်' : 'BROADCAST EMERGENCY BLOOD REQUEST'),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.3,
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  _submitting
+                      ? (isMm ? 'အဖွဲ့များသို့ ပေးပို့နေပါသည်...' : 'BROADCASTING TO ORGS...')
+                      : (isMm ? 'သွေးတောင်းခံလွှာ ပေးပို့မည်' : 'BROADCAST BLOOD REQUEST'),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3,
+                  ),
                 ),
               ),
               style: ElevatedButton.styleFrom(
@@ -1177,48 +1306,94 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
       return const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed));
     }
 
-    if (_myRecords.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.water_drop_outlined, size: 54, color: AppTheme.primaryRed),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                isMm ? 'သွေးမှတ်တမ်း မရှိသေးပါ' : 'No Blood Records Yet',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                isMm
-                    ? 'သွေးလှူဒါန်းရန် သို့မဟုတ် လူနာအတွက် သွေးတောင်းခံရန် အပေါ်ရှိ Tab များမှ လျှောက်ထားနိုင်ပါသည်။'
-                    : 'Submit a blood donation pledge or an emergency blood request to view status and pickup locations.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    final filteredRecords = _myRecords.where((item) {
+      if (_recordFilterQuery.isEmpty) return true;
+      final q = _recordFilterQuery.toLowerCase();
+      final pName = (item['patient_name'] ?? '').toString().toLowerCase();
+      final dName = (item['donor_name'] ?? '').toString().toLowerCase();
+      final bType = (item['blood_type'] ?? '').toString().toLowerCase();
+      final status = (item['status'] ?? '').toString().toLowerCase();
+      final loc = (item['target_location_name'] ?? item['hospital_name'] ?? '').toString().toLowerCase();
+      return pName.contains(q) || dName.contains(q) || bType.contains(q) || status.contains(q) || loc.contains(q);
+    }).toList();
 
     return RefreshIndicator(
       onRefresh: _loadMyRecords,
       color: AppTheme.primaryRed,
-      child: ListView.builder(
+      child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
-        itemCount: _myRecords.length,
-        itemBuilder: (context, index) {
-          final item = _myRecords[index];
+        children: [
+          // Search Bar
+          Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.grey.shade300),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2)),
+              ],
+            ),
+            child: TextField(
+              controller: _recordSearchCtrl,
+              decoration: InputDecoration(
+                hintText: isMm ? 'မှတ်တမ်းများ ရှာဖွေရန်...' : 'Search records by name, blood type, status...',
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                prefixIcon: const Icon(Icons.search, color: Colors.grey, size: 20),
+                suffixIcon: _recordFilterQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          _recordSearchCtrl.clear();
+                          setState(() => _recordFilterQuery = '');
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+              onChanged: (val) => setState(() => _recordFilterQuery = val.trim()),
+            ),
+          ),
+
+          if (filteredRecords.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.water_drop_outlined, size: 54, color: AppTheme.primaryRed),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _recordFilterQuery.isNotEmpty
+                          ? (isMm ? 'ကိုက်ညီသော မှတ်တမ်း မရှိပါ' : 'No Matching Records')
+                          : (isMm ? 'သွေးမှတ်တမ်း မရှိသေးပါ' : 'No Blood Records Yet'),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _recordFilterQuery.isNotEmpty
+                          ? (isMm ? 'အခြားသော အချက်အလက်ဖြင့် ပြန်လည် ရှာဖွေကြည့်ပါ။' : 'Try searching with another query.')
+                          : (isMm
+                              ? 'သွေးလှူဒါန်းရန် သို့မဟုတ် လူနာအတွက် သွေးတောင်းခံရန် အပေါ်ရှိ Tab များမှ လျှောက်ထားနိုင်ပါသည်။'
+                              : 'Submit a blood donation pledge or an emergency blood request to view status and pickup locations.'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ...filteredRecords.map((item) {
           final reqType = (item['request_type'] ?? 'donate').toString().toLowerCase();
           final isRequest = reqType == 'request';
           final status = (item['status'] ?? 'Pending').toString();
@@ -1268,7 +1443,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
               children: [
                 // Header Bar
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: isRequest
                         ? (isAccepted ? AppTheme.secondaryGreen.withValues(alpha: 0.08) : Colors.red.shade50)
@@ -1276,6 +1451,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
                   ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
@@ -1292,31 +1468,33 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 6,
+                              runSpacing: 4,
                               children: [
                                 Text(
-                                  isRequest ? '🚨 Blood Request' : '🩸 Blood Donation',
+                                  isRequest ? 'Blood Request' : 'Blood Donation',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 13,
                                     color: isRequest ? AppTheme.primaryRed : Colors.black87,
                                   ),
                                 ),
-                                if (urgency != null && urgency.toString().isNotEmpty) ...[
-                                  const SizedBox(width: 6),
+                                if (urgency != null && urgency.toString().isNotEmpty)
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: Colors.red.shade100,
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      urgency,
+                                      urgency.toString(),
                                       style: TextStyle(
                                         fontSize: 9,
                                         fontWeight: FontWeight.bold,
@@ -1324,33 +1502,36 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                                       ),
                                     ),
                                   ),
-                                ],
                               ],
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
                             Text(
                               isRequest
                                   ? 'Patient: ${patientName ?? item['donor_name']} (${item['units'] ?? 1} Units)'
                                   : 'Donor: ${item['donor_name']} (${item['units'] ?? 1} Units)',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isAccepted && isRequest ? AppTheme.secondaryGreen : badgeColor,
-                          borderRadius: BorderRadius.circular(10),
+                          color: isAccepted ? AppTheme.secondaryGreen : badgeColor,
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          isAccepted && isRequest
-                              ? (isMm ? 'ရရှိပါပြီ' : 'DONE / GOT')
+                          isAccepted
+                              ? (isMm ? 'လက်ခံပြီး' : 'ACCEPTED')
                               : status.toUpperCase(),
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
+                            letterSpacing: 0.3,
                           ),
                         ),
                       ),
@@ -1397,7 +1578,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                         ),
                       ],
 
-                      // ── CONFIRMED / FULFILLED BANNER (When Org Accepted) ────
+                      // ── CONFIRMED / ACCEPTED BANNER ────
                       if (isAccepted) ...[
                         const SizedBox(height: 14),
                         Container(
@@ -1413,57 +1594,102 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                             children: [
                               Row(
                                 children: [
-                                  const Icon(Icons.verified, color: AppTheme.secondaryGreen, size: 20),
+                                  const Icon(Icons.verified, color: AppTheme.secondaryGreen, size: 18),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    isRequest
-                                        ? (isMm ? 'သွေးရရှိပါပြီ • သွားရောက်ထုတ်ယူရန်' : 'DONE / GOT • Pickup Details')
-                                        : (isMm ? 'အတည်ပြုပြီး ရက်ချိန်း အချက်အလက်' : 'Confirmed Appointment Details'),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      color: Colors.green.shade900,
+                                  Expanded(
+                                    child: Text(
+                                      isRequest
+                                          ? (isMm ? 'လက်ခံပြီး • သွေးထုတ်ယူရန် အချက်အလက်' : 'Confirmed Pickup Details')
+                                          : (isMm ? 'အတည်ပြုပြီး ရက်ချိန်း အချက်အလက်' : 'Confirmed Appointment Details'),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: Colors.green.shade900,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 10),
                               if (isRequest && pickupMsg != null && pickupMsg.toString().isNotEmpty) ...[
-                                Text(
-                                  '📍 Where to get blood: $pickupMsg',
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.location_on, size: 15, color: Colors.green),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Where to get blood: $pickupMsg',
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                               ],
                               if (apptDate != null && apptDate.toString().isNotEmpty) ...[
-                                Text(
-                                  '📅 Time: $apptDate',
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.access_time, size: 15, color: Colors.green),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Time: $apptDate',
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                               ],
                               if (!isRequest && apptLoc != null && apptLoc.toString().isNotEmpty) ...[
-                                Text(
-                                  '📍 Where to come: $apptLoc',
-                                  style: TextStyle(fontSize: 13, color: Colors.grey.shade900),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.location_on, size: 15, color: Colors.green),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Where to come: $apptLoc',
+                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade900),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                               ],
                               if (apptNotes != null && apptNotes.toString().isNotEmpty) ...[
-                                Text(
-                                  '📝 Notes: $apptNotes',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.note_alt_outlined, size: 15, color: Colors.green),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Notes: $apptNotes',
+                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                               ],
                               if (orgName != null && orgName.toString().isNotEmpty) ...[
-                                Text(
-                                  '🏥 Organization: $orgName',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.green.shade800,
-                                  ),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.local_hospital, size: 15, color: AppTheme.secondaryGreen),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Organization: $orgName',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.green.shade800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ],
@@ -1523,7 +1749,8 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
               ],
             ),
           );
-        },
+        }),
+        ],
       ),
     );
   }

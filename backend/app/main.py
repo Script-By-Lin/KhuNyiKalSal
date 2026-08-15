@@ -1,18 +1,24 @@
 """
 Khu Nyi Kal Sal — Mobile Emergency Response API
 
-FastAPI application entry point with CORS, routing, DB initialisation, and Alembic migrations.
+FastAPI application entry point with CORS, routing, DB initialisation, health diagnostics, and Alembic migrations.
 """
 
+import time
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
-from app.database import create_tables
+from app.database import create_tables, async_session_maker
+from app.websocket.manager import manager
 from app.api import auth, users, organizations, volunteers, emergency, admin, family, blood_donation
 from app.api import websocket as ws
+
+logger = logging.getLogger(__name__)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,14 +33,14 @@ async def lifespan(app: FastAPI):
         from migrate import run_migrations
         run_migrations()
     except Exception as e:
-        logging.warning(f"Alembic migration notice: {e}")
+        logger.warning(f"Alembic migration notice: {e}")
 
     await create_tables()
     try:
         from app.seed import seed
         await seed(drop=False)
     except Exception as e:
-        logging.warning(f"Database seed notice: {e}")
+        logger.warning(f"Database seed notice: {e}")
     yield
 
 
@@ -52,6 +58,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Production global exception handler returning clean JSON error responses."""
+    logger.error(f"Unhandled Server Exception on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "An internal server error occurred. Please try again later."},
+    )
+
 
 # ── Route registration ─────────────────────────────────────────────────────
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
@@ -80,4 +97,37 @@ async def root():
     return {
         "message": "Khu Nyi Kal Sal — Emergency Response API",
         "docs": "/docs",
+        "health": "/health",
     }
+
+
+@app.get("/health")
+@app.get("/api/health")
+async def health_check():
+    """Production health check endpoint assessing DB, Redis, and WebSocket connectivity."""
+    db_status = "unhealthy"
+    db_latency_ms = None
+    t0 = time.time()
+    try:
+        async with async_session_maker() as session:
+            await session.execute(text("SELECT 1"))
+            db_latency_ms = round((time.time() - t0) * 1000, 2)
+            db_status = "healthy"
+    except Exception as e:
+        logger.error(f"Health check DB ping failed: {e}")
+
+    ws_stats = manager.get_stats()
+
+    is_overall_healthy = db_status == "healthy"
+    return JSONResponse(
+        status_code=status.HTTP_200_OK if is_overall_healthy else status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "status": "healthy" if is_overall_healthy else "degraded",
+            "database": {
+                "status": db_status,
+                "latency_ms": db_latency_ms,
+            },
+            "websockets": ws_stats,
+            "timestamp": time.time(),
+        },
+    )

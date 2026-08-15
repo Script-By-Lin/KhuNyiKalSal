@@ -95,14 +95,18 @@ async def get_active_emergencies(
 
 @router.get("/history", response_model=list[EmergencyResponse])
 async def get_emergency_history(
+    skip: int = 0,
+    limit: int = 50,
     current_user: Account = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return full emergency history for the current user."""
+    """Return full emergency history for the current user with pagination."""
     result = await db.execute(
         select(Emergency)
         .where(Emergency.user_id == current_user.id)
         .order_by(Emergency.created_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
     emergencies = result.scalars().all()
     return [_to_response(e) for e in emergencies]

@@ -147,9 +147,11 @@ async def get_current_user_and_session(
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
-            # Refresh last_used_at
-            user_session.last_used_at = datetime.now(timezone.utc)
-            await db.commit()
+            # Refresh last_used_at only if more than 5 minutes have elapsed (throttles DB writes)
+            now_utc = datetime.now(timezone.utc)
+            if (now_utc - last_used) > timedelta(minutes=5):
+                user_session.last_used_at = now_utc
+                await db.commit()
             session_id = session_uuid
 
         except ValueError:

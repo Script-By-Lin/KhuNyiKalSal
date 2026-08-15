@@ -4,7 +4,7 @@ import uuid as uuid_module
 import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, update, or_
+from sqlalchemy import select, update, or_, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -203,27 +203,47 @@ async def create_blood_donation(
 
 @router.get("/my", response_model=list[BloodDonationResponse])
 async def get_my_blood_donations(
+    skip: int = 0,
+    limit: int = 50,
+    search: Optional[str] = None,
     current_user: Account = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return all blood donations & blood supply requests submitted by the current user."""
-    result = await db.execute(
+    """Return all blood donations & blood supply requests submitted by the current user with pagination & search."""
+    query = (
         select(BloodDonation)
         .options(selectinload(BloodDonation.target_org), selectinload(BloodDonation.accepted_org))
         .where(BloodDonation.user_id == current_user.id)
-        .order_by(BloodDonation.created_at.desc())
     )
+
+    if search and search.strip():
+        term = f"%{search.strip().lower()}%"
+        query = query.where(
+            or_(
+                func.lower(BloodDonation.patient_name).like(term),
+                func.lower(BloodDonation.donor_name).like(term),
+                func.lower(BloodDonation.blood_type).like(term),
+                func.lower(BloodDonation.status).like(term),
+                func.lower(BloodDonation.hospital_name).like(term),
+            )
+        )
+
+    query = query.order_by(BloodDonation.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
     donations = result.scalars().all()
     return [_to_response(d) for d in donations]
 
 
 @router.get("/org", response_model=list[BloodDonationResponse])
 async def get_org_blood_donations(
+    skip: int = 0,
+    limit: int = 50,
+    search: Optional[str] = None,
     current_user: Account = Depends(require_role("organization", "admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return incoming blood donation pledges and blood supply requests for the organization."""
-    result = await db.execute(
+    """Return incoming blood donation pledges and blood supply requests for the organization with pagination & search."""
+    query = (
         select(BloodDonation)
         .options(selectinload(BloodDonation.target_org), selectinload(BloodDonation.accepted_org))
         .where(
@@ -234,25 +254,53 @@ async def get_org_blood_donations(
                 BloodDonation.request_type == "request",
             )
         )
-        .order_by(BloodDonation.created_at.desc())
-        .limit(100)
     )
+
+    if search and search.strip():
+        term = f"%{search.strip().lower()}%"
+        query = query.where(
+            or_(
+                func.lower(BloodDonation.patient_name).like(term),
+                func.lower(BloodDonation.donor_name).like(term),
+                func.lower(BloodDonation.blood_type).like(term),
+                func.lower(BloodDonation.status).like(term),
+                func.lower(BloodDonation.hospital_name).like(term),
+            )
+        )
+
+    query = query.order_by(BloodDonation.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
     donations = result.scalars().all()
     return [_to_response(d) for d in donations]
 
 
 @router.get("/all", response_model=list[BloodDonationResponse])
 async def get_all_blood_donations(
+    skip: int = 0,
+    limit: int = 100,
+    search: Optional[str] = None,
     current_user: Account = Depends(require_role("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Admin endpoint to list all blood records."""
-    result = await db.execute(
+    """Admin endpoint to list all blood records with pagination & search."""
+    query = (
         select(BloodDonation)
         .options(selectinload(BloodDonation.target_org), selectinload(BloodDonation.accepted_org))
-        .order_by(BloodDonation.created_at.desc())
-        .limit(200)
     )
+
+    if search and search.strip():
+        term = f"%{search.strip().lower()}%"
+        query = query.where(
+            or_(
+                func.lower(BloodDonation.patient_name).like(term),
+                func.lower(BloodDonation.donor_name).like(term),
+                func.lower(BloodDonation.blood_type).like(term),
+                func.lower(BloodDonation.status).like(term),
+            )
+        )
+
+    query = query.order_by(BloodDonation.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
     donations = result.scalars().all()
     return [_to_response(d) for d in donations]
 

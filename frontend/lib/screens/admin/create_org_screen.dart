@@ -241,8 +241,13 @@ class _CreateOrgScreenState extends ConsumerState<CreateOrgScreen> {
   }
 
   Future<void> _submit() async {
-    if (nameCtrl.text.isEmpty || emailCtrl.text.isEmpty || passCtrl.text.isEmpty) {
+    if (nameCtrl.text.trim().isEmpty || emailCtrl.text.trim().isEmpty || passCtrl.text.isEmpty) {
       _snack('Please fill required fields (Name, Email, Password)', AppTheme.primaryRed);
+      return;
+    }
+
+    if (passCtrl.text.length < 6) {
+      _snack('Password must be at least 6 characters (include A-Z, a-z, 0-9)', Colors.orange);
       return;
     }
 
@@ -260,10 +265,25 @@ class _CreateOrgScreenState extends ConsumerState<CreateOrgScreen> {
         'operating_regions': regionCtrl.text.trim(),
         'headquarters_address': addressCtrl.text.trim(),
       });
-      _snack('✨ Rescue Organization Account Created!', AppTheme.primaryRed);
+      _snack('Rescue Organization Account Created!', AppTheme.secondaryGreen);
       if (mounted) context.pop(true);
     } catch (e) {
-      _snack('Failed to create organization', Colors.red);
+      String errMsg = 'Failed to create organization';
+      try {
+        final dioErr = e as dynamic;
+        if (dioErr.response?.data != null) {
+          final data = dioErr.response.data;
+          if (data is Map && data.containsKey('detail')) {
+            final detail = data['detail'];
+            if (detail is List) {
+              errMsg = detail.map((d) => d['msg'] ?? d.toString()).join('\n');
+            } else {
+              errMsg = detail.toString();
+            }
+          }
+        }
+      } catch (_) {}
+      _snack(errMsg, Colors.red);
       setState(() => _isSubmitting = false);
     }
   }

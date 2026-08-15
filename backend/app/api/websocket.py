@@ -21,4 +21,6 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             data = await websocket.receive_text()
             await manager.send_personal(user_id, {"event": "PONG", "data": data})
     except WebSocketDisconnect:
-        manager.disconnect(user_id)
+        manager.disconnect(user_id, websocket)
+    except Exception:
+        manager.disconnect(user_id, websocket)

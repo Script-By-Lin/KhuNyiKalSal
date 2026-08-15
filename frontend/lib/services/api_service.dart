@@ -59,15 +59,17 @@ class ApiService {
   ApiService._internal() {
     dio = Dio(BaseOptions(
       baseUrl: AppConstants.apiBaseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      sendTimeout: const Duration(seconds: 15),
       headers: {'Content-Type': 'application/json'},
     ));
 
     _tokenDio = Dio(BaseOptions(
       baseUrl: AppConstants.apiBaseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      sendTimeout: const Duration(seconds: 15),
       headers: {'Content-Type': 'application/json'},
     ));
 
@@ -275,7 +277,8 @@ class ApiService {
 
   Future<Response> getActiveEmergencies() => dio.get('/emergency/active');
 
-  Future<Response> getEmergencyHistory() => dio.get('/emergency/history');
+  Future<Response> getEmergencyHistory({int skip = 0, int limit = 50}) =>
+      dio.get('/emergency/history', queryParameters: {'skip': skip, 'limit': limit});
 
   Future<Response> cancelEmergency(String id) =>
       dio.put('/emergency/$id/cancel');
@@ -332,10 +335,27 @@ class ApiService {
         'volunteer_id': volunteerId,
       });
 
-  Future<Response> getResponderHistory() => dio.get('/volunteers/history');
+  Future<Response> getResponderHistory({int skip = 0, int limit = 50, String? search}) =>
+      dio.get('/volunteers/history', queryParameters: {
+        'skip': skip,
+        'limit': limit,
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
 
   // ── Admin ─────────────────────────────────────────────────────────────
-  Future<Response> getAdminOrgs() => dio.get('/admin/organizations');
+  Future<Response> getAdminOrgs({int skip = 0, int limit = 50, String? search}) =>
+      dio.get('/admin/organizations', queryParameters: {
+        'skip': skip,
+        'limit': limit,
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
+
+  Future<Response> getAdminUsers({int skip = 0, int limit = 50, String? search}) =>
+      dio.get('/admin/users', queryParameters: {
+        'skip': skip,
+        'limit': limit,
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
 
   Future<Response> createAdminOrg(Map<String, dynamic> data) =>
       dio.post('/admin/organizations', data: data);
@@ -346,20 +366,37 @@ class ApiService {
   Future<Response> deleteAdminOrg(String accountId) =>
       dio.delete('/admin/organizations/$accountId');
 
-  Future<Response> getAdminEmergencies() => dio.get('/admin/emergencies');
+  Future<Response> getAdminEmergencies({int skip = 0, int limit = 50, String? search}) =>
+      dio.get('/admin/emergencies', queryParameters: {
+        'skip': skip,
+        'limit': limit,
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
 
   // ── Blood Donation ────────────────────────────────────────────────────
   Future<Response> createBloodDonation(Map<String, dynamic> data) =>
       dio.post('/blood-donations', data: data);
 
-  Future<Response> getMyBloodDonations() =>
-      dio.get('/blood-donations/my');
+  Future<Response> getMyBloodDonations({int skip = 0, int limit = 50, String? search}) =>
+      dio.get('/blood-donations/my', queryParameters: {
+        'skip': skip,
+        'limit': limit,
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
 
-  Future<Response> getOrgBloodDonations() =>
-      dio.get('/blood-donations/org');
+  Future<Response> getOrgBloodDonations({int skip = 0, int limit = 50, String? search}) =>
+      dio.get('/blood-donations/org', queryParameters: {
+        'skip': skip,
+        'limit': limit,
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
 
-  Future<Response> getAllBloodDonations() =>
-      dio.get('/blood-donations/all');
+  Future<Response> getAllBloodDonations({int skip = 0, int limit = 100, String? search}) =>
+      dio.get('/blood-donations/all', queryParameters: {
+        'skip': skip,
+        'limit': limit,
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
 
   Future<Response> acceptBloodDonation(String donationId, Map<String, dynamic> data) =>
       dio.put('/blood-donations/$donationId/accept', data: data);

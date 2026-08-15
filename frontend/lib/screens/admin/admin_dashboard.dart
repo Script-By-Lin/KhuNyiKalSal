@@ -451,10 +451,13 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
   @override
   Widget build(BuildContext context) {
     final filteredOrgs = _orgs.where((o) {
+      if (_searchQuery.trim().isEmpty) return true;
       final name = (o['org_name'] ?? '').toString().toLowerCase();
       final region = (o['operating_regions'] ?? '').toString().toLowerCase();
-      final query = _searchQuery.toLowerCase();
-      return name.contains(query) || region.contains(query);
+      final category = (o['category'] ?? '').toString().toLowerCase();
+      final phone = (o['phone_number'] ?? '').toString().toLowerCase();
+      final query = _searchQuery.trim().toLowerCase();
+      return name.contains(query) || region.contains(query) || category.contains(query) || phone.contains(query);
     }).toList();
 
     return Scaffold(
