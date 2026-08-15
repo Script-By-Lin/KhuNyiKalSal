@@ -3,7 +3,7 @@ import enum
 from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import String, Boolean, DateTime, Enum as SAEnum
+from sqlalchemy import String, Boolean, DateTime, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
@@ -32,39 +32,32 @@ class RoleEnum(str, enum.Enum):
         return None
 
 
-class RobustRoleEnum(SAEnum):
-    """
-    Native PostgreSQL Enum for roleenum that binds correctly to PostgreSQL
-    while overriding result_processor to safely handle case-insensitive values without LookupError.
-    """
-    def result_processor(self, dialect, coltype):
-        def process(value):
-            if value is None:
-                return None
-            if isinstance(value, self.enum_class):
-                return value
-            val_clean = str(value).strip().upper()
-            for member in self.enum_class:
-                if str(member.value).upper() == val_clean or member.name.upper() == val_clean:
-                    return member
-            try:
-                return self.enum_class(val_clean)
-            except Exception:
-                return RoleEnum.USER
-        return process
+class SafeRoleEnum(TypeDecorator):
+    """Robust column type for RoleEnum that safely handles any casing and prevents PostgreSQL enum mismatch."""
+    impl = String(50)
+    cache_ok = True
 
-    def bind_processor(self, dialect):
-        def process(value):
-            if value is None:
-                return None
-            if isinstance(value, self.enum_class):
-                return value.value
-            val_clean = str(value).strip().upper()
-            for member in self.enum_class:
-                if str(member.value).upper() == val_clean or member.name.upper() == val_clean:
-                    return member.value
-            return val_clean
-        return process
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, RoleEnum):
+            return value.value
+        val_clean = str(value).strip().upper()
+        for member in RoleEnum:
+            if member.value == val_clean or member.name.upper() == val_clean:
+                return member.value
+        return val_clean
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, RoleEnum):
+            return value
+        val_clean = str(value).strip().upper()
+        for member in RoleEnum:
+            if member.value == val_clean or member.name.upper() == val_clean:
+                return member
+        return RoleEnum.USER
 
 
 class Account(Base):
@@ -80,7 +73,7 @@ class Account(Base):
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[RoleEnum] = mapped_column(
-        RobustRoleEnum(RoleEnum, name="roleenum"),
+        SafeRoleEnum,
         nullable=False,
         default=RoleEnum.USER,
     )

@@ -3,7 +3,7 @@ import enum
 from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import Float, DateTime, ForeignKey, Enum as SAEnum
+from sqlalchemy import Float, DateTime, ForeignKey, String, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
@@ -47,74 +47,60 @@ class EmergencyStatus(str, enum.Enum):
         return None
 
 
-class RobustEmergencyTypeEnum(SAEnum):
-    """
-    Native PostgreSQL Enum for emergency_type_enum that binds correctly to PostgreSQL
-    while overriding result_processor to safely handle case-insensitive values without LookupError.
-    """
-    def result_processor(self, dialect, coltype):
-        def process(value):
-            if value is None:
-                return None
-            if isinstance(value, self.enum_class):
-                return value
-            val_clean = str(value).strip().lower()
-            for member in self.enum_class:
-                if str(member.value).lower() == val_clean or member.name.lower() == val_clean:
-                    return member
-            try:
-                return self.enum_class(val_clean)
-            except Exception:
-                return EmergencyType.MEDICAL
-        return process
+class SafeEmergencyType(TypeDecorator):
+    """Robust column type for EmergencyType that safely handles any casing and prevents PostgreSQL enum mismatch."""
+    impl = String(50)
+    cache_ok = True
 
-    def bind_processor(self, dialect):
-        def process(value):
-            if value is None:
-                return None
-            if isinstance(value, self.enum_class):
-                return value.value
-            val_clean = str(value).strip().lower()
-            for member in self.enum_class:
-                if str(member.value).lower() == val_clean or member.name.lower() == val_clean:
-                    return member.value
-            return val_clean
-        return process
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, EmergencyType):
+            return value.value
+        val_clean = str(value).strip().lower()
+        for member in EmergencyType:
+            if member.value == val_clean or member.name.lower() == val_clean:
+                return member.value
+        return val_clean
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, EmergencyType):
+            return value
+        val_clean = str(value).strip().lower()
+        for member in EmergencyType:
+            if member.value == val_clean or member.name.lower() == val_clean:
+                return member
+        return EmergencyType.MEDICAL
 
 
-class RobustEmergencyStatusEnum(SAEnum):
-    """
-    Native PostgreSQL Enum for emergency_status_enum that binds correctly to PostgreSQL
-    while overriding result_processor to safely handle case-insensitive values without LookupError.
-    """
-    def result_processor(self, dialect, coltype):
-        def process(value):
-            if value is None:
-                return None
-            if isinstance(value, self.enum_class):
-                return value
-            val_clean = str(value).strip().lower()
-            for member in self.enum_class:
-                if str(member.value).lower() == val_clean or member.name.lower() == val_clean:
-                    return member
-            try:
-                return self.enum_class(val_clean)
-            except Exception:
-                return EmergencyStatus.PENDING
-        return process
+class SafeEmergencyStatus(TypeDecorator):
+    """Robust column type for EmergencyStatus that safely handles any casing and prevents PostgreSQL enum mismatch."""
+    impl = String(50)
+    cache_ok = True
 
-    def bind_processor(self, dialect):
-        def process(value):
-            if value is None:
-                return None
-            if isinstance(value, self.enum_class):
-                return value.value
-            val_clean = str(value).strip().lower()
-            for member in self.enum_class:
-                if str(member.value).lower() == val_clean or member.name.lower() == val_clean:
-                    return member.value
-            return val_clean
-        return process
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, EmergencyStatus):
+            return value.value
+        val_clean = str(value).strip().lower()
+        for member in EmergencyStatus:
+            if member.value == val_clean or member.name.lower() == val_clean:
+                return member.value
+        return val_clean
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, EmergencyStatus):
+            return value
+        val_clean = str(value).strip().lower()
+        for member in EmergencyStatus:
+            if member.value == val_clean or member.name.lower() == val_clean:
+                return member
+        return EmergencyStatus.PENDING
 
 
 class Emergency(Base):
@@ -129,11 +115,11 @@ class Emergency(Base):
         PG_UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False
     )
     type: Mapped[EmergencyType] = mapped_column(
-        RobustEmergencyTypeEnum(EmergencyType, name="emergency_type_enum", values_callable=lambda x: [e.value for e in x]),
+        SafeEmergencyType,
         nullable=False, index=True, default=EmergencyType.MEDICAL
     )
     status: Mapped[EmergencyStatus] = mapped_column(
-        RobustEmergencyStatusEnum(EmergencyStatus, name="emergency_status_enum", values_callable=lambda x: [e.value for e in x]),
+        SafeEmergencyStatus,
         default=EmergencyStatus.PENDING, index=True
     )
     assigned_org_id: Mapped[Optional[uuid.UUID]] = mapped_column(

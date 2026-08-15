@@ -66,9 +66,13 @@ async def ensure_idempotent_schema():
             """,
             """CREATE INDEX IF NOT EXISTS ix_emergencies_assigned_volunteer_id ON emergencies (assigned_volunteer_id);""",
 
-            # Update PostgreSQL emergency_type_enum values if enum is used
-            """ALTER TYPE emergency_type_enum ADD VALUE IF NOT EXISTS 'accident';""",
-            """ALTER TYPE emergency_type_enum ADD VALUE IF NOT EXISTS 'natural_disaster';""",
+            # Ensure column types are standard VARCHAR(50) to prevent enum type mismatch
+            """ALTER TABLE emergencies ALTER COLUMN type TYPE VARCHAR(50) USING type::text;""",
+            """ALTER TABLE emergencies ALTER COLUMN status TYPE VARCHAR(50) USING status::text;""",
+            """ALTER TABLE accounts ALTER COLUMN role TYPE VARCHAR(50) USING role::text;""",
+            """UPDATE emergencies SET type = lower(type) WHERE type IS NOT NULL AND type != lower(type);""",
+            """UPDATE emergencies SET status = lower(status) WHERE status IS NOT NULL AND status != lower(status);""",
+            """UPDATE accounts SET role = upper(role) WHERE role IS NOT NULL AND role != upper(role);""",
 
             # Ensure blood_donations table exists
             """
