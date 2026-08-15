@@ -146,5 +146,8 @@ async def update_organization(
         geo_lng=org.geo_lng,
         coverage_radius_km=org.coverage_radius_km,
         category=org.category,
+        registration_number=org.registration_number,
+        headquarters_address=org.headquarters_address,
+        operating_regions=org.operating_regions,
         is_active=org.is_active,
     )

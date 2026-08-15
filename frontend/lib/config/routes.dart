@@ -26,6 +26,8 @@ import '../screens/more/more_screen.dart';
 import '../screens/blood_donation/blood_donation_screen.dart';
 import '../screens/admin/admin_dashboard.dart';
 import '../screens/admin/create_org_screen.dart';
+import '../screens/announcements/announcements_screen.dart';
+import '../screens/support/support_us_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -34,10 +36,11 @@ final goRouter = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: '/login',
   routes: [
-    // ── Auth ──────────────────────────────────────────────────────────────
+    // ── Auth & Legal ──────────────────────────────────────────────────────
     GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
     GoRoute(path: '/register', builder: (_, _) => const RegisterScreen()),
-    GoRoute(path: '/legal', builder: (_, _) => const LegalAgreementScreen()),
+    GoRoute(path: '/legal', builder: (_, _) => const RulesLawsScreen()),
+    GoRoute(path: '/legal-agreement', builder: (_, _) => const LegalAgreementScreen()),
 
     // ── Main app (bottom nav shell) ──────────────────────────────────────
     ShellRoute(
@@ -89,6 +92,8 @@ final goRouter = GoRouter(
     GoRoute(path: '/first-aid', builder: (_, _) => const OfflineFirstAidScreen()),
     GoRoute(path: '/how-to-use', builder: (_, _) => const HowToUseScreen()),
     GoRoute(path: '/rules-laws', builder: (_, _) => const RulesLawsScreen()),
+    GoRoute(path: '/announcements', builder: (_, _) => const AnnouncementsScreen()),
+    GoRoute(path: '/support-us', builder: (_, _) => const SupportUsScreen()),
 
     // ── Role dashboards ──────────────────────────────────────────────────
     GoRoute(

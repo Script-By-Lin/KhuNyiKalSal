@@ -15,7 +15,7 @@ from sqlalchemy import text
 
 from app.database import create_tables, async_session_maker
 from app.websocket.manager import manager
-from app.api import auth, users, organizations, volunteers, emergency, admin, family, blood_donation
+from app.api import auth, users, organizations, volunteers, emergency, admin, family, blood_donation, announcements, support
 from app.api import websocket as ws
 
 logger = logging.getLogger(__name__)
@@ -88,6 +88,12 @@ app.include_router(
 )
 app.include_router(
     blood_donation.router, prefix="/api/blood-donations", tags=["Blood Donation"]
+)
+app.include_router(
+    announcements.router, prefix="/api/announcements", tags=["Announcements"]
+)
+app.include_router(
+    support.router, prefix="/api/support", tags=["Support & Donation"]
 )
 app.include_router(ws.router, tags=["WebSocket"])
 

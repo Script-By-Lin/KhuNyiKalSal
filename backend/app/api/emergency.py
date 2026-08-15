@@ -26,7 +26,7 @@ router = APIRouter()
 @router.post("/sos", response_model=SOSCreatedResponse)
 async def create_sos(
     data: SOSRequest,
-    current_user: Account = Depends(require_role("user")),
+    current_user: Account = Depends(get_current_user),
     current_session_id: Optional[uuid_module.UUID] = Depends(get_current_session_id),
     db: AsyncSession = Depends(get_db),
 ):

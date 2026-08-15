@@ -48,6 +48,7 @@ async def create_tables(drop: bool = False):
         from app.models import (  # noqa: F401
             Account, UserProfile, Organization, Volunteer, Emergency,
             FamilyGroup, FamilyMember, FamilyAlert, UserSession, BloodDonation,
+            Announcement, SupportInfo,
         )
         if drop:
             await conn.run_sync(Base.metadata.drop_all)
@@ -60,6 +61,9 @@ async def create_tables(drop: bool = False):
                 # Sessions FCM token self-healing
                 await conn.execute(text("ALTER TABLE sessions ADD COLUMN IF NOT EXISTS fcm_token VARCHAR(500);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_sessions_fcm_token ON sessions (fcm_token);"))
+                
+                # Organizations created_at self-healing
+                await conn.execute(text("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
                 
                 # Blood Donations columns self-healing
                 await conn.execute(text("ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS request_type VARCHAR(20) DEFAULT 'donate';"))
@@ -78,5 +82,7 @@ async def create_tables(drop: bool = False):
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blood_type ON blood_donations (blood_type);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_emergency_type_status ON emergencies (type, status);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_emergency_assigned_org ON emergencies (assigned_org_id);"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_emergency_user_created ON emergencies (user_id, created_at);"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_announcements_pinned_created ON announcements (is_pinned, created_at);"))
         except Exception as e:
             logger.warning(f"Production schema self-healing check note: {e}")

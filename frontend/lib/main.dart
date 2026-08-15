@@ -74,7 +74,8 @@ class _KhuNyiKalSalAppState extends ConsumerState<KhuNyiKalSalApp> {
       title: 'Khu Nyi Kal Sal',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      themeMode: ThemeMode.light,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: settings.themeMode,
       locale: settings.locale,
       // Minimal localization support placeholders:
       supportedLocales: const [Locale('en'), Locale('my')],

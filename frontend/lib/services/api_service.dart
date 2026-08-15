@@ -234,6 +234,15 @@ class ApiService {
   Future<Response> revokeSession(String sessionId) =>
       dio.delete('/auth/sessions/$sessionId');
 
+  Future<Response> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) =>
+      dio.post('/auth/change-password', data: {
+        'current_password': currentPassword,
+        'new_password': newPassword,
+      });
+
   Future<Response> getMe() => dio.get('/auth/me');
 
   // ── User ──────────────────────────────────────────────────────────────
@@ -403,4 +412,37 @@ class ApiService {
 
   Future<Response> updateBloodDonationStatus(String donationId, String status) =>
       dio.put('/blood-donations/$donationId/status', data: {'status': status});
+
+  // ── Announcements ─────────────────────────────────────────────────────
+  Future<Response> getAnnouncements({String? category, int skip = 0, int limit = 50}) =>
+      dio.get('/announcements', queryParameters: {
+        'skip': skip,
+        'limit': limit,
+        if (category != null && category.isNotEmpty) 'category': category,
+      });
+
+  Future<Response> createAnnouncement(Map<String, dynamic> data) =>
+      dio.post('/announcements', data: data);
+
+  Future<Response> updateAnnouncement(String id, Map<String, dynamic> data) =>
+      dio.put('/announcements/$id', data: data);
+
+  Future<Response> deleteAnnouncement(String id) =>
+      dio.delete('/announcements/$id');
+
+  // ── Support & Donation Info ───────────────────────────────────────────
+  Future<Response> getSupportInfo() => dio.get('/support');
+
+  Future<Response> updateSupportInfo(Map<String, dynamic> data) =>
+      dio.put('/support', data: data);
+
+  // ── Admin SOS Control & Abuse Mitigation ──────────────────────────────
+  Future<Response> adminCancelEmergency(String emergencyId) =>
+      dio.post('/admin/emergencies/$emergencyId/cancel');
+
+  Future<Response> adminBanUser(String userId) =>
+      dio.post('/admin/users/$userId/ban');
+
+  Future<Response> adminUnbanUser(String userId) =>
+      dio.post('/admin/users/$userId/unban');
 }

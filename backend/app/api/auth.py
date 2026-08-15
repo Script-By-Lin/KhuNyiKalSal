@@ -11,6 +11,7 @@ from app.schemas.auth import (
     RegisterOrgRequest,
     LoginRequest,
     RefreshTokenRequest,
+    ChangePasswordRequest,
     TokenResponse,
     AccountResponse,
     SessionItemResponse,
@@ -22,7 +23,7 @@ from app.services.session_service import (
     logout_all_user_sessions,
     list_user_sessions,
 )
-from app.core.security import get_current_user, get_current_session_id
+from app.core.security import get_current_user, get_current_session_id, verify_password, hash_password
 from app.models.account import Account
 
 router = APIRouter()
@@ -146,4 +147,28 @@ async def get_me(current_user: Account = Depends(get_current_user)):
         role=current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role),
         is_active=current_user.is_active,
     )
+
+
+@router.post("/change-password")
+async def change_password_endpoint(
+    data: ChangePasswordRequest,
+    current_user: Account = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Change the account password with validation and current password verification."""
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect. Please verify and try again.",
+        )
+    
+    if data.current_password == data.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from your current password.",
+        )
+
+    current_user.hashed_password = hash_password(data.new_password)
+    await db.commit()
+    return {"message": "Password changed successfully. Please remember your new password."}
 

@@ -10,6 +10,9 @@ class OrganizationResponse(BaseModel):
     geo_lng: float
     coverage_radius_km: float
     category: str
+    registration_number: Optional[str] = None
+    headquarters_address: Optional[str] = None
+    operating_regions: Optional[str] = None
     is_active: bool
     distance_km: Optional[float] = None
 
@@ -23,3 +26,6 @@ class UpdateOrgRequest(BaseModel):
     geo_lng: Optional[float] = None
     coverage_radius_km: Optional[float] = None
     category: Optional[str] = None
+    registration_number: Optional[str] = None
+    headquarters_address: Optional[str] = None
+    operating_regions: Optional[str] = None

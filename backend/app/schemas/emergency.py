@@ -27,8 +27,10 @@ class EmergencyResponse(BaseModel):
 
 class AdminEmergencyRecord(BaseModel):
     emergency_id: str
+    user_id: str
     user_name: str
     user_phone: str
+    user_is_active: bool = True
     blood_type: str
     medical_conditions: str
     type: str
@@ -36,6 +38,9 @@ class AdminEmergencyRecord(BaseModel):
     assigned_org_name: Optional[str] = None
     location_lat: float
     location_lng: float
+    sos_count_24h: int = 1
+    is_suspected_abuse: bool = False
+    abuse_flag_reason: Optional[str] = None
     created_at: datetime
 
 

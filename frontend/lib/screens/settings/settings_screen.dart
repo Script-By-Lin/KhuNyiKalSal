@@ -16,75 +16,99 @@ class SettingsScreen extends ConsumerWidget {
 
     final isMm = settings.locale.languageCode == 'my';
     
-    final title = isMm ? 'ဆက်တင်များ' : 'Settings';
-    final langTitle = isMm ? 'ဘာသာစကား' : 'Language';
-    final desc = isMm 
+    final title = isMm ? 'ဆက်တင်နှင့် ဘာသာစကား' : 'Settings & Language';
+    final themeTitle = isMm ? 'အသွင်အပြင် (Theme Mode)' : 'Appearance & Theme';
+    final themeDesc = isMm ? 'အလင်း သို့မဟုတ် အမှောင် မုဒ် ရွေးချယ်ပါ' : 'Choose light, dark, or system default mode';
+    final langTitle = isMm ? 'ဘာသာစကား (Language)' : 'Language';
+    final langDesc = isMm 
         ? 'သင်အသုံးပြုလိုသော ဘာသာစကားကို ရွေးချယ်ပါ။' 
         : 'Choose your preferred language.';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Theme / Appearance Section ────────────────────────
               Text(
-                isMm ? 'အကောင့်' : 'Account',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                themeTitle,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 4),
+              Text(
+                themeDesc,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 12),
               Card(
                 margin: EdgeInsets.zero,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                   side: BorderSide(color: Colors.grey.shade300),
                 ),
                 child: Column(
                   children: [
-                    ListTile(
-                      leading: const Icon(Icons.person, color: AppTheme.primaryRed),
+                    RadioListTile<ThemeMode>(
+                      secondary: const Icon(Icons.light_mode_outlined, color: Colors.amber),
                       title: Text(
-                        isMm ? 'ကိုယ်ရေးအချက်အလက် ပြင်ဆင်ရန်' : 'Update Profile',
+                        isMm ? 'အလင်းမုဒ် (Light Mode)' : 'Light Mode',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        context.push('/profile');
-                      },
+                      value: ThemeMode.light,
+                      groupValue: settings.themeMode,
+                      onChanged: (val) => settingsNotifier.setThemeMode(val!),
+                      activeColor: AppTheme.primaryRed,
                     ),
                     const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.devices, color: AppTheme.primaryRed),
+                    RadioListTile<ThemeMode>(
+                      secondary: const Icon(Icons.dark_mode_outlined, color: Colors.indigo),
                       title: Text(
-                        isMm ? 'ချိတ်ဆက်ထားသော စက်များ' : 'Connected Devices',
+                        isMm ? 'အမှောင်မုဒ် (Dark Mode)' : 'Dark Mode',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        context.push('/settings/devices');
-                      },
+                      value: ThemeMode.dark,
+                      groupValue: settings.themeMode,
+                      onChanged: (val) => settingsNotifier.setThemeMode(val!),
+                      activeColor: AppTheme.primaryRed,
+                    ),
+                    const Divider(height: 1),
+                    RadioListTile<ThemeMode>(
+                      secondary: const Icon(Icons.settings_brightness_outlined, color: Colors.blueGrey),
+                      title: Text(
+                        isMm ? 'စနစ်သုံး မုဒ် (System Default)' : 'System Default',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      value: ThemeMode.system,
+                      groupValue: settings.themeMode,
+                      onChanged: (val) => settingsNotifier.setThemeMode(val!),
+                      activeColor: AppTheme.primaryRed,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
+
+              const SizedBox(height: 28),
               
+              // ── Language Section ──────────────────────────────────
               Text(
                 langTitle,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Text(
-                desc,
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                langDesc,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
               Card(
                 margin: EdgeInsets.zero,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                   side: BorderSide(color: Colors.grey.shade300),
@@ -92,6 +116,7 @@ class SettingsScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     RadioListTile<String>(
+                      secondary: const Text('🇬🇧', style: TextStyle(fontSize: 22)),
                       title: const Text('English', style: TextStyle(fontWeight: FontWeight.w600)),
                       value: 'en',
                       groupValue: settings.locale.languageCode,
@@ -100,6 +125,7 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     const Divider(height: 1),
                     RadioListTile<String>(
+                      secondary: const Text('🇲🇲', style: TextStyle(fontSize: 22)),
                       title: const Text('မြန်မာ', style: TextStyle(fontWeight: FontWeight.w600)),
                       value: 'my',
                       groupValue: settings.locale.languageCode,
@@ -110,7 +136,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
 
-              const Spacer(),
+              const SizedBox(height: 40),
 
               // ── App Brand Footer ─────────────────────────────────
               Center(
@@ -222,6 +248,7 @@ class SettingsScreen extends ConsumerWidget {
                   },
                 ),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),

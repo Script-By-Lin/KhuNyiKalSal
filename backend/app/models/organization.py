@@ -1,7 +1,8 @@
 import uuid
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import String, Float, Boolean, ForeignKey
+from datetime import datetime, timezone
+from sqlalchemy import String, Float, Boolean, ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
@@ -35,6 +36,9 @@ class Organization(Base):
     status: Mapped[str] = mapped_column(String(50), default="Active")
     coverage_radius_km: Mapped[float] = mapped_column(Float, default=50.0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
 
     account: Mapped["Account"] = relationship(back_populates="organization")
     volunteers: Mapped[list["Volunteer"]] = relationship(

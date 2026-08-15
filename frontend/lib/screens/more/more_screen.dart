@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:dio/dio.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -315,6 +316,13 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 onTap: () => context.push('/settings/devices'),
               ),
               _menuTile(
+                icon: Icons.lock_reset_rounded,
+                color: Colors.amber.shade900,
+                title: isMm ? 'စကားဝှက် ပြောင်းလဲရန်' : 'Change Password',
+                subtitle: isMm ? 'အကောင့်လုံခြုံရေးအတွက် စကားဝှက်အသစ်သတ်မှတ်ရန်' : 'Update account login password',
+                onTap: () => _showChangePasswordDialog(context, isMm),
+              ),
+              _menuTile(
                 icon: Icons.help_outline_rounded,
                 color: Colors.brown,
                 title: isMm ? 'အသုံးပြုပုံ လမ်းညွှန်' : 'How to Use App',
@@ -327,6 +335,20 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 title: isMm ? 'စည်းမျဉ်းနှင့် ဥပဒေများ' : 'Rules & Legal Regulations',
                 subtitle: isMm ? 'တရားဝင် သဘောတူညီချက်များ' : 'Terms of service and privacy',
                 onTap: () => context.push('/legal'),
+              ),
+              _menuTile(
+                icon: Icons.campaign_rounded,
+                color: Colors.deepOrange,
+                title: isMm ? 'သတင်းနှင့် ထုတ်ပြန်ချက်များ' : 'Announcements & News',
+                subtitle: isMm ? 'ဗဟိုဌာနချုပ်၏ တရားဝင် သတင်းလွှာများ' : 'Official emergency bulletins & news',
+                onTap: () => context.push('/announcements'),
+              ),
+              _menuTile(
+                icon: Icons.volunteer_activism_rounded,
+                color: AppTheme.primaryRed,
+                title: isMm ? 'လှူဒါန်းထောက်ပံ့ရန်' : 'Support Our Mission',
+                subtitle: isMm ? 'KBZPay, WavePay, MMQR ဖြင့် လှူဒါန်းရန်' : 'Donate via KBZPay, WavePay & Bank Transfer',
+                onTap: () => context.push('/support-us'),
               ),
 
               // ── Privileged Role Portals ─────────────────────────────
@@ -499,6 +521,271 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
         trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
         onTap: onTap,
       ),
+    );
+  }
+
+  void _showChangePasswordDialog(BuildContext context, bool isMm) {
+    final currentPassController = TextEditingController();
+    final newPassController = TextEditingController();
+    final confirmPassController = TextEditingController();
+
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+    bool isSubmitting = false;
+    String? errorMessage;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                top: 20,
+                left: 20,
+                right: 20,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header Bar
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade50,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.lock_reset_rounded, color: Colors.amber.shade900, size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isMm ? 'စကားဝှက် ပြောင်းလဲရန်' : 'Change Password',
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                isMm ? 'အကောင့်လုံခြုံရေးအတွက် စကားဝှက်အသစ်သတ်မှတ်ပါ' : 'Set a new secure login password',
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.grey),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(height: 1),
+                    const SizedBox(height: 16),
+
+                    if (errorMessage != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errorMessage!,
+                                style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+
+                    // Current Password
+                    Text(
+                      isMm ? 'လက်ရှိ စကားဝှက်' : 'Current Password',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: currentPassController,
+                      obscureText: obscureCurrent,
+                      decoration: InputDecoration(
+                        hintText: isMm ? 'လက်ရှိ စကားဝှက် ရိုက်ထည့်ပါ' : 'Enter current password',
+                        prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureCurrent ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+                          onPressed: () => setModalState(() => obscureCurrent = !obscureCurrent),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // New Password
+                    Text(
+                      isMm ? 'စကားဝှက် အသစ်' : 'New Password',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: newPassController,
+                      obscureText: obscureNew,
+                      decoration: InputDecoration(
+                        hintText: isMm ? 'အနည်းဆုံး ၆ လုံး (စာလုံးကြီး၊ စာလုံးသေး၊ ဂဏန်း)' : 'At least 6 chars (A-Z, a-z, 0-9)',
+                        prefixIcon: const Icon(Icons.key_outlined, size: 20),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureNew ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+                          onPressed: () => setModalState(() => obscureNew = !obscureNew),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Confirm New Password
+                    Text(
+                      isMm ? 'စကားဝှက် အသစ် ထပ်မံရိုက်ထည့်ပါ' : 'Confirm New Password',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: confirmPassController,
+                      obscureText: obscureConfirm,
+                      decoration: InputDecoration(
+                        hintText: isMm ? 'စကားဝှက် အသစ် ပြန်ရိုက်ပါ' : 'Re-enter new password',
+                        prefixIcon: const Icon(Icons.check_circle_outline, size: 20),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+                          onPressed: () => setModalState(() => obscureConfirm = !obscureConfirm),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Submit Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryRed,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                final currentPass = currentPassController.text.trim();
+                                final newPass = newPassController.text.trim();
+                                final confirmPass = confirmPassController.text.trim();
+
+                                if (currentPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
+                                  setModalState(() {
+                                    errorMessage = isMm
+                                        ? 'စကားဝှက်အကွက်များ အားလုံးဖြည့်သွင်းပေးပါ။'
+                                        : 'Please fill in all password fields.';
+                                  });
+                                  return;
+                                }
+
+                                if (newPass != confirmPass) {
+                                  setModalState(() {
+                                    errorMessage = isMm
+                                        ? 'စကားဝှက်အသစ် နှစ်ခု တူညီမှုမရှိပါ။'
+                                        : 'New password and confirmation do not match.';
+                                  });
+                                  return;
+                                }
+
+                                if (newPass.length < 6) {
+                                  setModalState(() {
+                                    errorMessage = isMm
+                                        ? 'စကားဝှက်သည် အနည်းဆုံး ၆ လုံး ရှိရပါမည်။'
+                                        : 'Password must be at least 6 characters long.';
+                                  });
+                                  return;
+                                }
+
+                                setModalState(() {
+                                  isSubmitting = true;
+                                  errorMessage = null;
+                                });
+
+                                try {
+                                  await ApiService().changePassword(
+                                    currentPassword: currentPass,
+                                    newPassword: newPass,
+                                  );
+
+                                  if (modalCtx.mounted) {
+                                    Navigator.pop(ctx);
+                                  }
+
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          isMm
+                                              ? 'စကားဝှက် အောင်မြင်စွာ ပြောင်းလဲပြီးပါပြီ။'
+                                              : 'Password changed successfully.',
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                        backgroundColor: AppTheme.secondaryGreen,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  String errDetail = isMm
+                                      ? 'စကားဝှက် ပြောင်းလဲ၍ မရပါ။ ကျေးဇူးပြု၍ ပြန်လည်စစ်ဆေးပါ။'
+                                      : 'Failed to change password. Please check your current password.';
+                                  if (e is DioException && e.response?.data != null) {
+                                    final data = e.response!.data;
+                                    if (data is Map && data['detail'] != null) {
+                                      errDetail = data['detail'].toString();
+                                    }
+                                  }
+                                  setModalState(() {
+                                    isSubmitting = false;
+                                    errorMessage = errDetail;
+                                  });
+                                }
+                              },
+                        child: isSubmitting
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                              )
+                            : Text(
+                                isMm ? 'စကားဝှက် အသစ်သိမ်းမည်' : 'UPDATE PASSWORD',
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
