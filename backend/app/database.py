@@ -154,6 +154,11 @@ async def create_tables(drop: bool = False):
                 except Exception as e:
                     logger.debug(f"Enum add 'crime' note: {e}")
 
+                try:
+                    await conn.execute(text("UPDATE emergencies SET type = lower(type::text)::emergency_type_enum WHERE type::text != lower(type::text);"))
+                except Exception as e:
+                    logger.debug(f"Enum case normalization note: {e}")
+
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blood_req_status ON blood_donations (request_type, status);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blood_accepted_org ON blood_donations (accepted_org_id);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blood_type ON blood_donations (blood_type);"))

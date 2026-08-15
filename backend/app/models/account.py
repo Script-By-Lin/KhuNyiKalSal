@@ -22,6 +22,15 @@ class RoleEnum(str, enum.Enum):
     VOLUNTEER = "VOLUNTEER"
     ADMIN = "ADMIN"
 
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            val_clean = value.strip().upper()
+            for member in cls:
+                if member.value == val_clean or member.name.upper() == val_clean:
+                    return member
+        return None
+
 
 class Account(Base):
     """Unified authentication table for all roles."""

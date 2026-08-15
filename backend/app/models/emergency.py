@@ -21,12 +21,30 @@ class EmergencyType(str, enum.Enum):
     NATURAL_DISASTER = "natural_disaster"
     CRIME = "crime"
 
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            val_clean = value.strip().lower()
+            for member in cls:
+                if member.value == val_clean or member.name.lower() == val_clean:
+                    return member
+        return None
+
 
 class EmergencyStatus(str, enum.Enum):
     PENDING = "pending"
     ACCEPTED = "accepted"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            val_clean = value.strip().lower()
+            for member in cls:
+                if member.value == val_clean or member.name.lower() == val_clean:
+                    return member
+        return None
 
 
 class Emergency(Base):
