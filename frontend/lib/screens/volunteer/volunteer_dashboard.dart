@@ -119,7 +119,7 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('❌ Emergency Rejected'),
+              content: Text('Emergency Rejected'),
               backgroundColor: Colors.orange,
               behavior: SnackBarBehavior.floating,
             ),

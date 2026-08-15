@@ -75,6 +75,10 @@ async def ensure_idempotent_schema():
             CREATE TABLE IF NOT EXISTS blood_donations (
                 id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                 user_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                request_type VARCHAR(20) DEFAULT 'donate',
+                patient_name VARCHAR(255),
+                hospital_name VARCHAR(255),
+                urgency_level VARCHAR(50) DEFAULT 'Normal',
                 donor_name VARCHAR(255) NOT NULL,
                 donor_phone VARCHAR(500) NOT NULL,
                 donor_phone_salt VARCHAR(64),
@@ -83,6 +87,7 @@ async def ensure_idempotent_schema():
                 gender VARCHAR(20),
                 medical_notes VARCHAR(500),
                 target_org_id UUID REFERENCES organizations(account_id) ON DELETE SET NULL,
+                accepted_org_id UUID REFERENCES organizations(account_id) ON DELETE SET NULL,
                 target_location_name VARCHAR(255) NOT NULL,
                 target_lat DOUBLE PRECISION,
                 target_lng DOUBLE PRECISION,
@@ -92,13 +97,22 @@ async def ensure_idempotent_schema():
                 appointment_date VARCHAR(100),
                 appointment_location VARCHAR(255),
                 appointment_notes VARCHAR(500),
+                pickup_location_message VARCHAR(500),
                 notes VARCHAR(500),
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMPTZ
             );
             """,
+            """ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS request_type VARCHAR(20) DEFAULT 'donate';""",
+            """ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS patient_name VARCHAR(255);""",
+            """ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS hospital_name VARCHAR(255);""",
+            """ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS urgency_level VARCHAR(50) DEFAULT 'Normal';""",
+            """ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS accepted_org_id UUID REFERENCES organizations(account_id) ON DELETE SET NULL;""",
+            """ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS pickup_location_message VARCHAR(500);""",
             """CREATE INDEX IF NOT EXISTS ix_blood_donations_user_id ON blood_donations (user_id);""",
             """CREATE INDEX IF NOT EXISTS ix_blood_donations_target_org_id ON blood_donations (target_org_id);""",
+            """CREATE INDEX IF NOT EXISTS ix_blood_donations_accepted_org_id ON blood_donations (accepted_org_id);""",
+            """CREATE INDEX IF NOT EXISTS ix_blood_donations_request_type ON blood_donations (request_type);""",
             """CREATE INDEX IF NOT EXISTS ix_blood_donations_blood_type ON blood_donations (blood_type);""",
             """CREATE INDEX IF NOT EXISTS ix_blood_donations_status ON blood_donations (status);"""
         ]

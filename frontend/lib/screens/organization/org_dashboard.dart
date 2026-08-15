@@ -159,7 +159,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
           setState(() {
             _emergencies.removeWhere((e) => e['emergency_id'] == emergencyId);
           });
-          _snack('❌ Emergency Rejected', Colors.orange);
+          _snack('Emergency Rejected', Colors.orange);
         }
       }
     } catch (_) {
@@ -175,7 +175,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
           _emergencies.removeWhere((e) => e['emergency_id'] == emergencyId);
         });
         _loadHistory();
-        _snack('🎉 Mission Completed! Record saved.', AppTheme.primaryRed);
+        _snack('Mission Completed. Record saved.', AppTheme.primaryRed);
       }
     } catch (e) {
       String errMsg = 'Failed to complete emergency';
@@ -188,7 +188,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
           }
         }
       } catch (_) {}
-      _snack('❌ $errMsg', Colors.red);
+      _snack(errMsg, Colors.red);
     }
   }
 
@@ -953,7 +953,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
     );
   }
 
-  // ── Blood Donation Management ──────────────────────────────────────────
+  // ── Blood Donation & Supply Request Management ─────────────────────────
   Widget _buildBloodDonationsList() {
     if (_bloodLoading) {
       return const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed));
@@ -974,12 +974,12 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
             ),
             const SizedBox(height: 12),
             const Text(
-              'No Blood Donation Requests',
+              'No Blood Records',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 4),
             const Text(
-              'Incoming blood donation pledges will appear here for scheduling.',
+              'Incoming blood donation pledges & emergency blood requests will appear here.',
               style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ],
@@ -996,7 +996,10 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
         itemBuilder: (ctx, i) {
           final d = _bloodDonations[i];
           final id = d['id'] ?? '';
+          final reqType = (d['request_type'] ?? 'donate').toString().toLowerCase();
+          final isRequest = reqType == 'request';
           final donorName = d['donor_name'] ?? 'Citizen Donor';
+          final patientName = d['patient_name'];
           final phone = d['donor_phone'] ?? '';
           final bloodType = d['blood_type'] ?? '';
           final preferredDate = d['preferred_date'] ?? 'ASAP';
@@ -1006,7 +1009,10 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
           final isPending = status.toLowerCase() == 'pending';
           final apptDate = d['appointment_date'];
           final apptLoc = d['appointment_location'];
+          final pickupMsg = d['pickup_location_message'];
           final medNotes = d['medical_notes'];
+          final urgency = d['urgency_level'];
+          final hospital = d['hospital_name'] ?? d['target_location_name'] ?? '';
 
           Color badgeColor = Colors.orange;
           if (isAccepted) badgeColor = AppTheme.secondaryGreen;
@@ -1018,8 +1024,10 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isPending ? Colors.orange.shade300 : Colors.grey.shade200,
-                width: isPending ? 1.5 : 1.0,
+                color: isRequest
+                    ? (isAccepted ? AppTheme.secondaryGreen.withValues(alpha: 0.5) : Colors.red.shade300)
+                    : (isPending ? Colors.orange.shade300 : Colors.grey.shade200),
+                width: (isPending || isRequest) ? 1.5 : 1.0,
               ),
               boxShadow: [
                 BoxShadow(
@@ -1039,13 +1047,15 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryRed.withValues(alpha: 0.12),
+                          color: isRequest
+                              ? Colors.red.shade100
+                              : AppTheme.primaryRed.withValues(alpha: 0.12),
                           shape: BoxShape.circle,
                         ),
                         child: Text(
                           bloodType,
-                          style: const TextStyle(
-                            color: AppTheme.primaryRed,
+                          style: TextStyle(
+                            color: isRequest ? const Color(0xFFB71C1C) : AppTheme.primaryRed,
                             fontWeight: FontWeight.w900,
                             fontSize: 14,
                           ),
@@ -1056,12 +1066,45 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Row(
+                              children: [
+                                Text(
+                                  isRequest ? '🚨 BLOOD REQUEST' : '🩸 DONATION PLEDGE',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12,
+                                    color: isRequest ? const Color(0xFFB71C1C) : Colors.black87,
+                                  ),
+                                ),
+                                if (urgency != null && urgency.toString().isNotEmpty) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade50,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      urgency,
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red.shade900,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 2),
                             Text(
-                              donorName,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                              isRequest
+                                  ? 'Patient: ${patientName ?? donorName} ($units Units)'
+                                  : 'Donor: $donorName ($units Units)',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                             ),
                             if (phone.isNotEmpty)
-                              Text('📞 $phone', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text('📞 Contact: $phone', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                           ],
                         ),
                       ),
@@ -1083,27 +1126,33 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                      const Icon(Icons.local_hospital_outlined, size: 14, color: Colors.grey),
                       const SizedBox(width: 6),
-                      Text('Preferred: $preferredDate • $units Unit(s)',
-                          style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                      Expanded(
+                        child: Text(
+                          isRequest ? 'Hospital / Location: $hospital' : 'Preferred: $preferredDate',
+                          style: const TextStyle(fontSize: 12, color: Colors.black87),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                   if (medNotes != null && medNotes.toString().isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.medical_information, size: 14, color: Colors.grey),
+                        const Icon(Icons.medical_information_outlined, size: 14, color: Colors.grey),
                         const SizedBox(width: 6),
                         Expanded(
-                          child: Text('Medical Note: $medNotes',
+                          child: Text('Notes: $medNotes',
                               style: const TextStyle(fontSize: 12, color: Colors.grey)),
                         ),
                       ],
                     ),
                   ],
 
-                  if (isAccepted && apptDate != null) ...[
+                  if (isAccepted) ...[
                     const SizedBox(height: 10),
                     Container(
                       width: double.infinity,
@@ -1116,9 +1165,13 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('📅 Appointment: $apptDate',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          if (apptLoc != null)
+                          if (isRequest && pickupMsg != null && pickupMsg.toString().isNotEmpty)
+                            Text('📍 Pickup at: $pickupMsg',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
+                          if (apptDate != null && apptDate.toString().isNotEmpty)
+                            Text('📅 Time: $apptDate',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          if (!isRequest && apptLoc != null)
                             Text('📍 Where to come: $apptLoc',
                                 style: const TextStyle(fontSize: 12, color: Colors.black87)),
                         ],
@@ -1141,11 +1194,13 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                       if (isPending)
                         Expanded(
                           child: ElevatedButton.icon(
-                            icon: const Icon(Icons.check, size: 18),
-                            label: const Text('ACCEPT & SCHEDULE',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            icon: const Icon(Icons.check_circle_outline, size: 18),
+                            label: Text(
+                              isRequest ? 'PROVIDE BLOOD & SET PICKUP' : 'ACCEPT & SCHEDULE',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                            ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryRed,
+                              backgroundColor: isRequest ? const Color(0xFFB71C1C) : AppTheme.primaryRed,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
@@ -1180,14 +1235,21 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
   }
 
   void _openAcceptAppointmentModal(Map<String, dynamic> donation) {
+    final reqType = (donation['request_type'] ?? 'donate').toString().toLowerCase();
+    final isRequest = reqType == 'request';
+
     final dateCtrl = TextEditingController(
-      text: 'Tomorrow at 10:00 AM',
+      text: isRequest ? 'Immediately available / Today' : 'Tomorrow at 10:00 AM',
     );
     final locCtrl = TextEditingController(
-      text: 'Blood Donation Center, Main Hospital Wing Room 102',
+      text: isRequest
+          ? 'Hospital Blood Bank Desk Room 102, 1st Floor'
+          : 'Blood Donation Center, Main Hospital Wing Room 102',
     );
     final notesCtrl = TextEditingController(
-      text: 'Please bring your NRC / ID card and arrive 15 minutes before your scheduled appointment.',
+      text: isRequest
+          ? 'Please bring patient crossmatch sample and hospital blood requisition form.'
+          : 'Please bring your NRC / ID card and arrive 15 minutes before your scheduled appointment.',
     );
 
     showDialog(
@@ -1196,11 +1258,16 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.calendar_month, color: AppTheme.primaryRed),
+            Icon(
+              isRequest ? Icons.bloodtype : Icons.calendar_month,
+              color: AppTheme.primaryRed,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Schedule Appointment for ${donation['donor_name']}',
+                isRequest
+                    ? 'Provide Blood for ${donation['patient_name'] ?? donation['donor_name']}'
+                    : 'Schedule Appointment for ${donation['donor_name']}',
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
@@ -1211,28 +1278,34 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Donor Information:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              Text('Blood Type: ${donation['blood_type']} • Preferred: ${donation['preferred_date']} • Units: ${donation['units']}'),
+              Text(
+                isRequest ? 'Blood Request Details:' : 'Donor Information:',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+              Text(
+                'Blood Type: ${donation['blood_type']} • Units: ${donation['units']} • Location: ${donation['hospital_name'] ?? donation['target_location_name']}',
+                style: const TextStyle(fontSize: 12, color: Colors.black87),
+              ),
               const SizedBox(height: 14),
 
               TextField(
-                controller: dateCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Appointment Date & Time',
-                  prefixIcon: Icon(Icons.access_time, size: 20),
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                controller: locCtrl,
+                decoration: InputDecoration(
+                  labelText: isRequest ? 'Where to Pick Up Blood (Room / Counter)' : 'Where to Come (Room / Location)',
+                  prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
               ),
               const SizedBox(height: 12),
 
               TextField(
-                controller: locCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Where to Come (Room / Location)',
-                  prefixIcon: Icon(Icons.location_on_outlined, size: 20),
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                controller: dateCtrl,
+                decoration: InputDecoration(
+                  labelText: isRequest ? 'Pickup Available Time' : 'Appointment Date & Time',
+                  prefixIcon: const Icon(Icons.access_time, size: 20),
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1240,11 +1313,11 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
               TextField(
                 controller: notesCtrl,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Hospital Notes / Instructions',
-                  prefixIcon: Icon(Icons.note_alt_outlined, size: 20),
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                decoration: InputDecoration(
+                  labelText: isRequest ? 'Instructions for Requester' : 'Hospital Notes / Instructions',
+                  prefixIcon: const Icon(Icons.note_alt_outlined, size: 20),
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
               ),
             ],
@@ -1257,7 +1330,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryRed,
+              backgroundColor: isRequest ? const Color(0xFFB71C1C) : AppTheme.primaryRed,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
@@ -1268,14 +1341,17 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                   await ApiService().acceptBloodDonation(id, {
                     'appointment_date': dateCtrl.text.trim(),
                     'appointment_location': locCtrl.text.trim(),
+                    'pickup_location_message': locCtrl.text.trim(),
                     'appointment_notes': notesCtrl.text.trim(),
                   });
                   if (ctx.mounted) Navigator.pop(ctx);
                   _loadBloodDonations();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('✅ Blood donation appointment confirmed and sent to donor!'),
+                      SnackBar(
+                        content: Text(isRequest
+                            ? 'Blood supply request accepted and pickup location sent to patient!'
+                            : 'Blood donation appointment confirmed and sent to donor!'),
                         backgroundColor: AppTheme.secondaryGreen,
                       ),
                     );
@@ -1289,7 +1365,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                 }
               }
             },
-            child: const Text('CONFIRM & NOTIFY DONOR'),
+            child: Text(isRequest ? 'CONFIRM & SEND PICKUP LOCATION' : 'CONFIRM & NOTIFY DONOR'),
           ),
         ],
       ),

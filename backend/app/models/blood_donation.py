@@ -33,7 +33,16 @@ class BloodDonation(Base):
     gender: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     medical_notes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
+    # Request Type: 'donate' (pledge blood) or 'request' (patient/emergency blood need)
+    request_type: Mapped[str] = mapped_column(String(20), default="donate", index=True)
+    patient_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    hospital_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    urgency_level: Mapped[Optional[str]] = mapped_column(String(50), default="Normal")
+
     target_org_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("organizations.account_id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    accepted_org_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("organizations.account_id", ondelete="SET NULL"), nullable=True, index=True
     )
     target_location_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -44,10 +53,11 @@ class BloodDonation(Base):
     units: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[str] = mapped_column(String(50), default="Pending", index=True)  # Pending, Accepted, Completed, Cancelled
     
-    # Details provided by the Organization when accepting the appointment
+    # Details provided by the Organization when accepting the appointment or supply request
     appointment_date: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     appointment_location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     appointment_notes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    pickup_location_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     
     notes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -61,6 +71,7 @@ class BloodDonation(Base):
 
     user: Mapped["Account"] = relationship(foreign_keys=[user_id], lazy="selectin")
     target_org: Mapped[Optional["Organization"]] = relationship(foreign_keys=[target_org_id], lazy="selectin")
+    accepted_org: Mapped[Optional["Organization"]] = relationship(foreign_keys=[accepted_org_id], lazy="selectin")
 
     def get_decrypted_phone(self) -> str:
         """Return decrypted donor phone number using stored salt."""

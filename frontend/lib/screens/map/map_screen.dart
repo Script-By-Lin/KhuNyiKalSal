@@ -293,7 +293,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             });
           }
           _showSnackBar(
-              '🔄 ${event['message'] ?? 'Searching next rescue organization...'}',
+              '${event['message'] ?? 'Searching next rescue organization...'}',
               Colors.orange);
           break;
         case 'SOS_CANCELLED':
@@ -307,12 +307,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
             });
           }
           _showSnackBar(
-              '❌ ${event['message'] ?? 'No responders available'}',
+              '${event['message'] ?? 'No responders available'}',
               AppTheme.primaryRed);
           break;
         case 'FAMILY_NOTIFIED':
           _showSnackBar(
-              '👨‍👩‍👧 Family notified (${event['contacts_notified']} contacts)',
+              'Family notified (${event['contacts_notified']} contacts)',
               Colors.blue);
           break;
       }
@@ -818,7 +818,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 onPressed: () {
                   ref.read(emergencyProvider.notifier).loadActive();
                   _reloadCurrentRoute();
-                  _showSnackBar('🔄 Recalculating rescue route...', Colors.blue);
+                  _showSnackBar('Recalculating rescue route...', Colors.blue);
                 },
                 child: const Icon(Icons.refresh),
               ),
