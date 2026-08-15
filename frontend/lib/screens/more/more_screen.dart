@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:dio/dio.dart';
+
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -38,18 +38,23 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
   @override
   Widget build(BuildContext context) {
     final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final auth = ref.watch(authProvider);
     final role = (auth.role ?? 'user').toLowerCase();
     final isVolunteer = role == 'volunteer' || role == 'admin' || role == 'superadmin';
     final isOrg = role == 'organization' || role == 'admin' || role == 'superadmin';
     final isAdmin = role == 'admin' || role == 'superadmin';
 
-    final fullName = _profile?['full_name'] ?? auth.email?.split('@').first ?? 'User';
+    final fullName = _profile?['full_name'] ?? _profile?['org_name'] ?? auth.email?.split('@').first ?? 'User';
     final phone = _profile?['phone_number'] ?? '';
     final bloodType = _profile?['blood_type'];
 
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade200;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1E293B);
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade600;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: Text(
           isMm ? 'ပိုမိုသိရှိရန်' : 'More Services',
@@ -75,12 +80,12 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: cardBg,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(color: cardBorder),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -92,7 +97,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                         width: 56,
                         height: 56,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                          color: AppTheme.primaryRed.withValues(alpha: 0.12),
                           shape: BoxShape.circle,
                           border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.3)),
                         ),
@@ -117,10 +122,10 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                                 Flexible(
                                   child: Text(
                                     fullName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
-                                      color: Colors.black87,
+                                      color: textPrimary,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -149,12 +154,12 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                             const SizedBox(height: 2),
                             Text(
                               phone.isNotEmpty ? phone : (auth.email ?? ''),
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                              style: TextStyle(color: textSecondary, fontSize: 13),
                             ),
                           ],
                         ),
                       ),
-                      const Icon(Icons.chevron_right, color: Colors.grey),
+                      Icon(Icons.chevron_right, color: isDark ? Colors.white38 : Colors.grey),
                     ],
                   ),
                 ),
@@ -165,7 +170,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               // ── Featured Service: Blood Donation ────────────────────
               Text(
                 isMm ? 'အထူးဝန်ဆောင်မှု' : 'Featured Services',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textPrimary),
               ),
               const SizedBox(height: 12),
               GestureDetector(
@@ -181,7 +186,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.red.withValues(alpha: 0.25),
+                        color: const Color(0xFFD32F2F).withValues(alpha: 0.3),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -193,9 +198,9 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Icon(Icons.bloodtype, color: Colors.white, size: 28),
+                        child: const Icon(Icons.water_drop, color: Colors.white, size: 28),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -205,14 +210,14 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                             Row(
                               children: [
                                 Text(
-                                  isMm ? 'သွေးလှူဒါန်းရန်' : 'Blood Donation Hub',
+                                  isMm ? 'သွေးလှူဒါန်းခြင်း ဗဟိုဌာန' : 'Blood Donation Hub',
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 16,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 15,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 6),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
@@ -222,7 +227,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                                   child: const Text(
                                     'NEW',
                                     style: TextStyle(
-                                      color: AppTheme.primaryRed,
+                                      color: Color(0xFFD32F2F),
                                       fontWeight: FontWeight.w900,
                                       fontSize: 9,
                                     ),
@@ -233,8 +238,8 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                             const SizedBox(height: 4),
                             Text(
                               isMm
-                                  ? 'အနီးဆုံးဆေးရုံ/သွေးဘဏ် ရွေးချယ်၍ ရက်ချိန်းရယူရန်'
-                                  : 'Schedule a blood donation with nearest hospital',
+                                  ? 'သွေးလှူဒါန်းရန်နှင့် အရေးပေါ် သွေးတောင်းခံရန်'
+                                  : 'Donate blood or request emergency blood units',
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.9),
                                 fontSize: 12,
@@ -243,7 +248,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                           ],
                         ),
                       ),
-                      const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 16),
+                      const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
                     ],
                   ),
                 ),
@@ -251,69 +256,97 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
 
               const SizedBox(height: 24),
 
-              // ── General Emergency Options ───────────────────────────
+              // ── Emergency & Rescue Services ─────────────────────────
               Text(
-                isMm ? 'အရေးပေါ်နှင့် ကျန်းမာရေး' : 'Emergency & Health',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                isMm ? 'အရေးပေါ်နှင့် ကယ်ဆယ်ရေး ဝန်ဆောင်မှုများ' : 'Emergency & Rescue Services',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textPrimary),
               ),
               const SizedBox(height: 12),
               _menuTile(
                 icon: Icons.medical_services_outlined,
                 color: AppTheme.primaryRed,
-                title: isMm ? 'အော့ဖ်လိုင်း ရှေးဦးပြုစုနည်းများ' : 'Offline First-Aid Guides',
-                subtitle: isMm ? '၁၀၀% အင်တာနက်မလိုဘဲ ဖတ်ရှုနိုင်သော နည်းလမ်းများ' : 'Survival protocols without internet',
+                title: isMm ? 'အရေးပေါ် ရှေးဦးသူနာပြုစုနည်း' : 'First Aid Guide',
+                subtitle: isMm ? 'အော့ဖ်လိုင်း အသုံးပြုနိုင်သော လမ်းညွှန်' : 'Offline emergency medical manual',
                 onTap: () => context.push('/first-aid'),
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
               ),
               _menuTile(
                 icon: Icons.business_outlined,
-                color: AppTheme.secondaryGreen,
-                title: isMm ? 'ကယ်ဆယ်ရေးအဖွဲ့များ' : 'Rescue Organizations',
-                subtitle: isMm ? 'ဒေသတွင်း အဖွဲ့များ ကြည့်ရှုရန်' : 'View all registered rescue organizations',
+                color: Colors.blue,
+                title: isMm ? 'ကယ်ဆယ်ရေး အဖွဲ့အစည်းများ' : 'Rescue Organizations',
+                subtitle: isMm ? 'အနီးဆုံး ကယ်ဆယ်ရေးအဖွဲ့များ စာရင်း' : 'Directory of nearby rescue units',
                 onTap: () => context.push('/organizations'),
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
               ),
               _menuTile(
-                icon: Icons.family_restroom,
-                color: Colors.purple,
-                title: isMm ? 'မိသားစု အဖွဲ့' : 'Family Emergency Network',
-                subtitle: isMm ? 'မိသားစုဝင်များ ချိတ်ဆက်စီမံရန်' : 'Link family members for instant SOS alerts',
+                icon: Icons.family_restroom_outlined,
+                color: Colors.teal,
+                title: isMm ? 'မိသားစု အဖွဲ့' : 'Family Safety Circle',
+                subtitle: isMm ? 'မိသားစုဝင်များနှင့် အရေးပေါ်ချိတ်ဆက်ရန်' : 'Emergency network with loved ones',
                 onTap: () => context.push('/family'),
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
               ),
               _menuTile(
                 icon: Icons.notifications_active_outlined,
-                color: Colors.deepOrange,
-                title: isMm ? 'အရေးပေါ် သတိပေးချက်များ' : 'Emergency SOS Alerts',
-                subtitle: isMm ? 'မိသားစုဝင်များထံမှ သတိပေးချက်မှတ်တမ်း' : 'Real-time alert messages & logs',
+                color: Colors.orange,
+                title: isMm ? 'မိသားစု အရေးပေါ် သတိပေးချက်များ' : 'Family Emergency Alerts',
+                subtitle: isMm ? 'မိသားစုဝင်များ၏ အရေးပေါ်အခြေအနေများ' : 'Active alerts from your circle',
                 onTap: () => context.push('/family-alerts'),
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
               ),
 
               const SizedBox(height: 24),
 
-              // ── App Settings & Security ─────────────────────────────
+              // ── Settings & Security ─────────────────────────────────
               Text(
                 isMm ? 'ဆက်တင်နှင့် လုံခြုံရေး' : 'Settings & Security',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textPrimary),
               ),
               const SizedBox(height: 12),
               _menuTile(
-                icon: Icons.person_outline,
-                color: Colors.blue,
-                title: isMm ? 'ကိုယ်ရေးအချက်အလက် ပြင်ဆင်ရန်' : 'My Profile & Medical Info',
-                subtitle: isMm ? 'ပရိုဖိုင်နှင့် ဆေးဘက်မှတ်တမ်းများ' : 'Update blood type, contacts & medical info',
+                icon: Icons.person_outline_rounded,
+                color: Colors.indigo,
+                title: isMm ? 'ပရိုဖိုင်နှင့် ဆေးမှတ်တမ်း' : 'My Profile & Medical Info',
+                subtitle: isMm ? 'သွေးအမျိုးအစားနှင့် အချက်အလက်များ ပြင်ဆင်ရန်' : 'Update blood type, contacts & medical info',
                 onTap: () => context.push('/profile'),
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
               ),
               _menuTile(
                 icon: Icons.language_rounded,
-                color: Colors.teal,
+                color: Colors.green,
                 title: isMm ? 'ဆက်တင်နှင့် ဘာသာစကား' : 'Settings & Language',
-                subtitle: isMm ? 'မြန်မာ / English ပြောင်းလဲရန်' : 'App language and notifications',
+                subtitle: isMm ? 'ဘာသာစကားနှင့် အပြင်အဆင် ပြောင်းလဲရန်' : 'Theme mode, app language and alerts',
                 onTap: () => context.push('/settings'),
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
               ),
               _menuTile(
-                icon: Icons.devices_outlined,
-                color: Colors.indigo,
-                title: isMm ? 'ချိတ်ဆက်ထားသော စက်များ' : 'Connected Devices',
-                subtitle: isMm ? 'စက်ပစ္စည်းများကို စီမံခန့်ခွဲရန်' : 'Manage active login sessions',
+                icon: Icons.devices_rounded,
+                color: Colors.deepPurple,
+                title: isMm ? 'ချိတ်ဆက်ထားသော စက်ပစ္စည်းများ' : 'Connected Devices',
+                subtitle: isMm ? 'လက်ရှိ အသုံးပြုနေသော ဖုန်းနှင့် ကွန်ပျူတာများ' : 'Manage active login sessions',
                 onTap: () => context.push('/settings/devices'),
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
               ),
               _menuTile(
                 icon: Icons.lock_reset_rounded,
@@ -321,6 +354,10 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 title: isMm ? 'စကားဝှက် ပြောင်းလဲရန်' : 'Change Password',
                 subtitle: isMm ? 'အကောင့်လုံခြုံရေးအတွက် စကားဝှက်အသစ်သတ်မှတ်ရန်' : 'Update account login password',
                 onTap: () => _showChangePasswordDialog(context, isMm),
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
               ),
               _menuTile(
                 icon: Icons.help_outline_rounded,
@@ -328,13 +365,21 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 title: isMm ? 'အသုံးပြုပုံ လမ်းညွှန်' : 'How to Use App',
                 subtitle: isMm ? 'အရေးပေါ် အသုံးပြုနည်း အဆင့်ဆင့်' : 'Step-by-step emergency user manual',
                 onTap: () => context.push('/how-to-use'),
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
               ),
               _menuTile(
                 icon: Icons.gavel_rounded,
                 color: Colors.blueGrey,
                 title: isMm ? 'စည်းမျဉ်းနှင့် ဥပဒေများ' : 'Rules & Legal Regulations',
                 subtitle: isMm ? 'တရားဝင် သဘောတူညီချက်များ' : 'Terms of service and privacy',
-                onTap: () => context.push('/legal'),
+                onTap: () => context.push('/rules-laws'),
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
               ),
               _menuTile(
                 icon: Icons.campaign_rounded,
@@ -342,6 +387,10 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 title: isMm ? 'သတင်းနှင့် ထုတ်ပြန်ချက်များ' : 'Announcements & News',
                 subtitle: isMm ? 'ဗဟိုဌာနချုပ်၏ တရားဝင် သတင်းလွှာများ' : 'Official emergency bulletins & news',
                 onTap: () => context.push('/announcements'),
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
               ),
               _menuTile(
                 icon: Icons.volunteer_activism_rounded,
@@ -349,6 +398,10 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 title: isMm ? 'လှူဒါန်းထောက်ပံ့ရန်' : 'Support Our Mission',
                 subtitle: isMm ? 'KBZPay, WavePay, MMQR ဖြင့် လှူဒါန်းရန်' : 'Donate via KBZPay, WavePay & Bank Transfer',
                 onTap: () => context.push('/support-us'),
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
               ),
 
               // ── Privileged Role Portals ─────────────────────────────
@@ -356,32 +409,44 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                 const SizedBox(height: 24),
                 Text(
                   isMm ? 'တာဝန်ကျ ကွန်ဆိုးလ်များ' : 'Privileged Portals',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textPrimary),
                 ),
                 const SizedBox(height: 12),
                 if (isVolunteer)
                   _menuTile(
                     icon: Icons.health_and_safety_outlined,
-                    color: Colors.green.shade700,
-                    title: 'Volunteer Mission Center',
-                    subtitle: 'Respond to nearby citizen emergency SOS calls',
+                    color: AppTheme.secondaryGreen,
+                    title: 'Volunteer Dashboard',
+                    subtitle: 'View and respond to assigned emergencies',
                     onTap: () => context.push('/volunteer-dashboard'),
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
                   ),
                 if (isOrg)
                   _menuTile(
                     icon: Icons.local_hospital_outlined,
-                    color: AppTheme.primaryRed,
-                    title: 'Organization Command Center',
-                    subtitle: 'Manage rescue fleet, dispatch & blood appointments',
+                    color: Colors.redAccent,
+                    title: 'Organization Console',
+                    subtitle: 'Manage rescue operations and dispatch',
                     onTap: () => context.push('/org-dashboard'),
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
                   ),
                 if (isAdmin)
                   _menuTile(
                     icon: Icons.admin_panel_settings_outlined,
-                    color: Colors.black87,
-                    title: 'Super Admin Control Panel',
-                    subtitle: 'Manage organizations and system data',
+                    color: isDark ? Colors.amber : Colors.black87,
+                    title: 'Super Admin Command Center',
+                    subtitle: 'Manage organizations, SOS radar & abuse',
                     onTap: () => context.push('/admin-dashboard'),
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
                   ),
               ],
 
@@ -402,25 +467,27 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.red.shade300, width: 1.5),
+                    side: BorderSide(color: Colors.red.shade400, width: 1.5),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   onPressed: () {
                     showDialog(
                       context: context,
                       builder: (ctx) => AlertDialog(
+                        backgroundColor: cardBg,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         title: Row(
                           children: [
                             const Icon(Icons.logout_rounded, color: AppTheme.primaryRed),
                             const SizedBox(width: 10),
-                            Text(isMm ? 'အကောင့်မှ ထွက်မည်' : 'Log Out'),
+                            Text(isMm ? 'အကောင့်မှ ထွက်မည်' : 'Log Out', style: TextStyle(color: textPrimary)),
                           ],
                         ),
                         content: Text(
                           isMm
                               ? 'အကောင့်မှ ထွက်ရန် သေချာပါသလား။'
                               : 'Are you sure you want to log out?',
+                          style: TextStyle(color: textSecondary),
                         ),
                         actions: [
                           TextButton(
@@ -465,7 +532,7 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     const SizedBox(height: 6),
                     Text(
                       'Khu Nyi Kal Sal • v1.0.0',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                      style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.grey.shade600, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -483,42 +550,39 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    required Color cardBg,
+    required Color cardBorder,
+    required Color textPrimary,
+    required Color textSecondary,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: cardBorder),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: color, size: 22),
         ),
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textPrimary),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          style: TextStyle(fontSize: 11, color: textSecondary),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+        trailing: Icon(Icons.chevron_right, color: textSecondary.withValues(alpha: 0.5), size: 20),
         onTap: onTap,
       ),
     );
@@ -535,10 +599,16 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
     bool isSubmitting = false;
     String? errorMessage;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sheetBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final inputBg = isDark ? const Color(0xFF0F172A) : Colors.grey.shade100;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade600;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: sheetBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -563,10 +633,10 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.amber.shade50,
+                            color: Colors.amber.withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(Icons.lock_reset_rounded, color: Colors.amber.shade900, size: 24),
+                          child: Icon(Icons.lock_reset_rounded, color: isDark ? Colors.amber : Colors.amber.shade900, size: 24),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -575,32 +645,32 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                             children: [
                               Text(
                                 isMm ? 'စကားဝှက် ပြောင်းလဲရန်' : 'Change Password',
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary),
                               ),
                               Text(
                                 isMm ? 'အကောင့်လုံခြုံရေးအတွက် စကားဝှက်အသစ်သတ်မှတ်ပါ' : 'Set a new secure login password',
-                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                style: TextStyle(fontSize: 12, color: textSecondary),
                               ),
                             ],
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, color: Colors.grey),
+                          icon: Icon(Icons.close, color: textSecondary),
                           onPressed: () => Navigator.pop(ctx),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Divider(height: 1),
+                    Divider(height: 1, color: isDark ? const Color(0xFF334155) : Colors.grey.shade200),
                     const SizedBox(height: 16),
 
                     if (errorMessage != null) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
-                          color: Colors.red.shade50,
+                          color: Colors.red.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.red.shade200),
+                          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
@@ -621,17 +691,20 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     // Current Password
                     Text(
                       isMm ? 'လက်ရှိ စကားဝှက်' : 'Current Password',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textPrimary),
                     ),
                     const SizedBox(height: 6),
                     TextField(
                       controller: currentPassController,
                       obscureText: obscureCurrent,
+                      style: TextStyle(color: textPrimary),
                       decoration: InputDecoration(
+                        fillColor: inputBg,
+                        filled: true,
                         hintText: isMm ? 'လက်ရှိ စကားဝှက် ရိုက်ထည့်ပါ' : 'Enter current password',
-                        prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                        prefixIcon: Icon(Icons.lock_outline, size: 20, color: textSecondary),
                         suffixIcon: IconButton(
-                          icon: Icon(obscureCurrent ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+                          icon: Icon(obscureCurrent ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20, color: textSecondary),
                           onPressed: () => setModalState(() => obscureCurrent = !obscureCurrent),
                         ),
                       ),
@@ -641,17 +714,20 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     // New Password
                     Text(
                       isMm ? 'စကားဝှက် အသစ်' : 'New Password',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textPrimary),
                     ),
                     const SizedBox(height: 6),
                     TextField(
                       controller: newPassController,
                       obscureText: obscureNew,
+                      style: TextStyle(color: textPrimary),
                       decoration: InputDecoration(
+                        fillColor: inputBg,
+                        filled: true,
                         hintText: isMm ? 'အနည်းဆုံး ၆ လုံး (စာလုံးကြီး၊ စာလုံးသေး၊ ဂဏန်း)' : 'At least 6 chars (A-Z, a-z, 0-9)',
-                        prefixIcon: const Icon(Icons.key_outlined, size: 20),
+                        prefixIcon: Icon(Icons.key_outlined, size: 20, color: textSecondary),
                         suffixIcon: IconButton(
-                          icon: Icon(obscureNew ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+                          icon: Icon(obscureNew ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20, color: textSecondary),
                           onPressed: () => setModalState(() => obscureNew = !obscureNew),
                         ),
                       ),
@@ -661,17 +737,20 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     // Confirm New Password
                     Text(
                       isMm ? 'စကားဝှက် အသစ် ထပ်မံရိုက်ထည့်ပါ' : 'Confirm New Password',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textPrimary),
                     ),
                     const SizedBox(height: 6),
                     TextField(
                       controller: confirmPassController,
                       obscureText: obscureConfirm,
+                      style: TextStyle(color: textPrimary),
                       decoration: InputDecoration(
+                        fillColor: inputBg,
+                        filled: true,
                         hintText: isMm ? 'စကားဝှက် အသစ် ပြန်ရိုက်ပါ' : 'Re-enter new password',
-                        prefixIcon: const Icon(Icons.check_circle_outline, size: 20),
+                        prefixIcon: Icon(Icons.check_circle_outline, size: 20, color: textSecondary),
                         suffixIcon: IconButton(
-                          icon: Icon(obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+                          icon: Icon(obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20, color: textSecondary),
                           onPressed: () => setModalState(() => obscureConfirm = !obscureConfirm),
                         ),
                       ),

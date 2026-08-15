@@ -135,18 +135,21 @@ class _OfflineSOSDialogState extends ConsumerState<OfflineSOSDialog> {
   @override
   Widget build(BuildContext context) {
     final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final typeUpper = widget.emergencyType.toUpperCase();
 
     final selectedOrgName = _selectedOrg?['org_name'] ?? (isMm ? 'ဒေသတွင်း ကယ်ဆယ်ရေးအဖွဲ့' : 'Local Rescue Org');
     final selectedOrgPhone = (_selectedOrg?['phone_number'] ?? _selectedOrg?['phone'] ?? '').toString();
 
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade200;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade700;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black87),
+          icon: Icon(Icons.close, color: textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
@@ -154,10 +157,10 @@ class _OfflineSOSDialogState extends ConsumerState<OfflineSOSDialog> {
           children: [
             Text(
               isMm ? 'အော့ဖ်လိုင်း အရေးပေါ် SOS' : 'Offline Emergency SOS',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: textPrimary,
               ),
             ),
             Text(
@@ -177,14 +180,14 @@ class _OfflineSOSDialogState extends ConsumerState<OfflineSOSDialog> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
+                  color: isDark ? const Color(0xFF422006) : Colors.amber.shade50,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.amber.shade300),
+                  border: Border.all(color: isDark ? const Color(0xFF78350F) : Colors.amber.shade300),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.wifi_off_rounded, color: Colors.amber.shade900, size: 24),
+                    Icon(Icons.wifi_off_rounded, color: isDark ? Colors.amber.shade400 : Colors.amber.shade900, size: 24),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -195,7 +198,7 @@ class _OfflineSOSDialogState extends ConsumerState<OfflineSOSDialog> {
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
-                              color: Colors.amber.shade900,
+                              color: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -206,7 +209,7 @@ class _OfflineSOSDialogState extends ConsumerState<OfflineSOSDialog> {
                             style: TextStyle(
                               fontSize: 12,
                               height: 1.4,
-                              color: Colors.amber.shade900,
+                              color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
                             ),
                           ),
                         ],
@@ -220,23 +223,16 @@ class _OfflineSOSDialogState extends ConsumerState<OfflineSOSDialog> {
               // ── Primary Action 1: Direct Call to Local Org ───────────
               Text(
                 isMm ? '၁။ ဒေသတွင်း ကယ်ဆယ်ရေးအဖွဲ့ထံ ဖုန်းခေါ်မည်' : '1. Call Local Rescue Organization',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textPrimary),
               ),
               const SizedBox(height: 10),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardBg,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade200),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  border: Border.all(color: cardBorder),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,7 +242,7 @@ class _OfflineSOSDialogState extends ConsumerState<OfflineSOSDialog> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.red.shade50,
+                            color: Colors.red.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(Icons.local_hospital, color: AppTheme.primaryRed, size: 24),
@@ -258,12 +254,12 @@ class _OfflineSOSDialogState extends ConsumerState<OfflineSOSDialog> {
                             children: [
                               Text(
                                 selectedOrgName,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textPrimary),
                               ),
                               if (selectedOrgPhone.isNotEmpty)
                                 Text(
                                   '📞 $selectedOrgPhone',
-                                  style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                                  style: TextStyle(color: textSecondary, fontSize: 13),
                                 ),
                             ],
                           ),
@@ -369,6 +365,7 @@ class _OfflineSOSDialogState extends ConsumerState<OfflineSOSDialog> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
                         onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
                           final success = await SMSDispatchService.dispatchBroadcastSMS(
                             emergencyType: widget.emergencyType,
                             lat: widget.lat,
@@ -376,7 +373,7 @@ class _OfflineSOSDialogState extends ConsumerState<OfflineSOSDialog> {
                             targetPhoneNumber: selectedOrgPhone.isNotEmpty ? selectedOrgPhone : null,
                           );
                           if (!success && mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(
                                 content: Text(isMm
                                     ? 'SMS အက်ပ်ကို ဖွင့်၍မရပါ သို့မဟုတ် ဖုန်းနံပါတ် မရှိပါ'
@@ -534,6 +531,7 @@ class _OfflineSOSDialogState extends ConsumerState<OfflineSOSDialog> {
                           tooltip: 'SMS',
                           icon: const Icon(Icons.sms, color: Colors.blue, size: 22),
                           onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
                             final ok = await SMSDispatchService.sendEmergencySMS(
                               phoneNumber: phone,
                               emergencyType: widget.emergencyType,
@@ -541,7 +539,7 @@ class _OfflineSOSDialogState extends ConsumerState<OfflineSOSDialog> {
                               lng: widget.lng,
                             );
                             if (!ok && mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              messenger.showSnackBar(
                                 SnackBar(
                                   content: Text(isMm
                                       ? 'SMS အက်ပ်ကို ဖွင့်၍မရပါ'

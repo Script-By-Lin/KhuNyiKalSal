@@ -25,6 +25,7 @@ class SupportInfoResponse(BaseModel):
     bank_account_number: str
     bank_account_name: str
     mmqr_payload: Optional[str] = None
+    mmqr_image_url: Optional[str] = None
     note_message: Optional[str] = None
     updated_at: Optional[datetime] = None
 
@@ -40,6 +41,7 @@ class UpdateSupportInfoRequest(BaseModel):
     bank_account_number: Optional[str] = None
     bank_account_name: Optional[str] = None
     mmqr_payload: Optional[str] = None
+    mmqr_image_url: Optional[str] = None
     note_message: Optional[str] = None
 
 
@@ -65,6 +67,7 @@ async def get_support_info(db: AsyncSession = Depends(get_db)):
         bank_account_number=info.bank_account_number,
         bank_account_name=info.bank_account_name,
         mmqr_payload=info.mmqr_payload,
+        mmqr_image_url=info.mmqr_image_url,
         note_message=info.note_message,
         updated_at=info.updated_at,
     )
@@ -100,6 +103,7 @@ async def update_support_info(
         bank_account_number=info.bank_account_number,
         bank_account_name=info.bank_account_name,
         mmqr_payload=info.mmqr_payload,
+        mmqr_image_url=info.mmqr_image_url,
         note_message=info.note_message,
         updated_at=info.updated_at,
     )

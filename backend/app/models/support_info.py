@@ -25,6 +25,7 @@ class SupportInfo(Base):
     bank_account_number: Mapped[str] = mapped_column(String(100), default="123-456-789012345")
     bank_account_name: Mapped[str] = mapped_column(String(100), default="Khu Nyi Kal Sal Emergency Response")
     mmqr_payload: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    mmqr_image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     note_message: Mapped[Optional[str]] = mapped_column(Text, default="All donations directly support emergency rescue operations, first aid kits, and blood drives.")
 
     updated_at: Mapped[datetime] = mapped_column(

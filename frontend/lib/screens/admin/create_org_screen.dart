@@ -148,6 +148,7 @@ class _CreateOrgScreenState extends ConsumerState<CreateOrgScreen> {
                           backgroundColor: Colors.white,
                           child: const Icon(Icons.my_location, color: AppTheme.primaryRed),
                           onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(ctx);
                             try {
                               final pos = await LocationService.getCurrentLocation();
                               final newPos = LatLng(pos.latitude, pos.longitude);
@@ -156,7 +157,7 @@ class _CreateOrgScreenState extends ConsumerState<CreateOrgScreen> {
                               });
                               mapController.move(newPos, 15.0);
                             } catch (e) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
+                              messenger.showSnackBar(
                                 SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.primaryRed),
                               );
                             }
@@ -173,9 +174,9 @@ class _CreateOrgScreenState extends ConsumerState<CreateOrgScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))
                       ],
                       borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
                     ),
@@ -332,9 +333,9 @@ class _CreateOrgScreenState extends ConsumerState<CreateOrgScreen> {
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: DropdownButtonFormField<String>(
-                        value: selectedCategory,
-                        dropdownColor: Colors.white,
-                        style: const TextStyle(color: Colors.black, fontSize: 15),
+                        initialValue: selectedCategory,
+                        dropdownColor: Theme.of(context).cardColor,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.grey.shade50,

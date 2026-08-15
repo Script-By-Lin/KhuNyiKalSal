@@ -140,7 +140,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           interactionOptions: const InteractionOptions(
                             flags: InteractiveFlag.all,
                           ),
-                          onTap: (_, __) => setState(() => _selectedOrg = null),
+                          onTap: (_, point) => setState(() => _selectedOrg = null),
                         ),
                         children: [
                           TileLayer(

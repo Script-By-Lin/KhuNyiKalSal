@@ -318,7 +318,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(
-              value: _selectedBloodType,
+              initialValue: _selectedBloodType,
               decoration: const InputDecoration(
                 labelText: 'Blood Type (Optional)',
                 hintText: 'Select your blood type',

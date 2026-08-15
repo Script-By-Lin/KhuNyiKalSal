@@ -8,114 +8,156 @@ class LegalAgreementScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade200;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1E293B);
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade700;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Terms & Conditions')),
+      appBar: AppBar(title: const Text('Terms & Legal Regulations', style: TextStyle(fontWeight: FontWeight.bold))),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'စည်းမျဉ်းစည်းကမ်းများ',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 16),
-            _section(
-              'ဝန်ဆောင်မှုအသုံးပြုခြင်းဆိုင်ရာ သဘောတူညီချက်',
-              'ဤအက်ပလီကေးရှင်းကို အသုံးပြုခြင်းဖြင့် '
-                  'အောက်ပါစည်းမျဉ်းစည်းကမ်းများကို သင်လက်ခံသဘောတူပါသည်။ '
-                  'ဤဝန်ဆောင်မှုသည် အရေးပေါ်အခြေအနေများတွင် '
-                  'ကူညီကယ်ဆယ်ရေးအဖွဲ့များနှင့် ချိတ်ဆက်ပေးရန် '
-                  'ရည်ရွယ်ပါသည်။',
-            ),
-            _section(
-              'အသုံးပြုသူ၏ တာဝန်များ',
-              '၁။ မှန်ကန်သောအချက်အလက်များ ဖြည့်သွင်းရမည်။\n'
-                  '၂။ အရေးပေါ်မဟုတ်သော SOS အချက်ပြမှုများ မလုပ်ရ။\n'
-                  '၃။ မမှန်ကန်သော SOS အချက်ပြမှု ပြုလုပ်ပါက '
-                  'ဥပဒေအရ အရေးယူခံရနိုင်ပါသည်။\n'
-                  '၄။ ကိုယ်ရေးအချက်အလက်များကို တိကျမှန်ကန်စွာ '
-                  'ဖြည့်သွင်းပေးရမည်။',
-            ),
-            _section(
-              'ကိုယ်ရေးအချက်အလက် ကာကွယ်ရေး',
-              'သင်၏ကိုယ်ရေးအချက်အလက်များကို အရေးပေါ်'
-                  'ကယ်ဆယ်ရေးလုပ်ငန်းများအတွက်သာ '
-                  'အသုံးပြုမည်ဖြစ်ပြီး သင့်ခွင့်ပြုချက်မရှိဘဲ '
-                  'အခြားမည်သည့်‌ကိစ္စများတွင်မျှ အသုံးပြုမည်မဟုတ်ပါ။',
-            ),
-            _section(
-              'ဥပဒေရေးရာ သတိပေးချက်',
-              'အရေးပေါ်မဟုတ်ဘဲ SOS ခလုတ်ကို နှိပ်ခြင်းသည် '
-                  'ဥပဒေအရ ပြစ်မှုကျူးလွန်ရာ ကျရောက်နိုင်ပါသည်။ '
-                  'မမှန်ကန်သော အချက်ပြမှုများအတွက် '
-                  'အကောင့်ပိတ်သိမ်းခြင်း အပါအဝင် တရားနှောက်ယှက်မှု ဥပဒေများဖြင့် တရားစွဲခံရနိုင်ပါသည်။',
-            ),
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 16),
-            Text(
-              'Terms of Service (English)',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 16),
-            _section(
-              'Service Agreement',
-              'By using Khu Nyi Kal Sal, you agree to these terms. '
-                  'This app connects users to nearby rescue organizations '
-                  'during emergencies.',
-            ),
-            _section(
-              'User Responsibilities',
-              '• Provide accurate personal and medical information.\n'
-                  '• Only use SOS for genuine emergencies.\n'
-                  '• False alerts may result in account suspension and legal action.\n'
-                  '• Keep your location services enabled for accurate response.',
-            ),
-            _section(
-              'Privacy',
-              'Your data is used solely for emergency response and is not '
-                  'shared with third parties without consent.',
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
+            // ── Top Header ──────────────────────────────────────────
+            Container(
               width: double.infinity,
-              height: 54,
-              child: ElevatedButton(
-                onPressed: () => context.pop(),
-                child: const Text('I Understand'),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFB71C1C), AppTheme.primaryRed],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.gavel_rounded, color: Colors.white, size: 24),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Khu Nyi Kal Sal — Terms of Service',
+                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'အရေးပေါ် ကူညီကယ်ဆယ်ရေး ကွန်ရက် အသုံးပြုခြင်းဆိုင်ရာ တရားဝင် သဘောတူညီချက်များ',
+                    style: TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
+
+            const SizedBox(height: 20),
+
+            _card(
+              icon: Icons.warning_amber_rounded,
+              iconColor: Colors.orange,
+              title: '၁။ အရေးပေါ် SOS စနစ် အလွဲသုံးစားမှု တားမြစ်ချက်',
+              body: '• မမှန်ကန်သော အရေးပေါ် SOS အချက်ပြမှုများ ပြုလုပ်ခြင်းသည် ဥပဒေအရ ပြစ်ဒဏ်ကျခံရနိုင်သော ပြစ်မှုဖြစ်ပါသည်။\n'
+                  '• စနစ်မှ အလွဲသုံးစားပြုလုပ်သော အသုံးပြုသူများကို အကောင့်ပိတ်သိမ်း (Ban) မည်ဖြစ်ပြီး တည်ဆဲဥပဒေများဖြင့် အရေးယူမည်။',
+              cardBg: cardBg,
+              cardBorder: cardBorder,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+            ),
+
+            _card(
+              icon: Icons.security_rounded,
+              iconColor: AppTheme.secondaryGreen,
+              title: '၂။ အချက်အလက် လုံခြုံရေးနှင့် ခြေရာမကျန် GPS စနစ်',
+              body: '• သင်၏ ကိုယ်ရေးအချက်အလက်များကို Salted Fernet AES-256 ဖြင့် လုံခြုံစွာ သိမ်းဆည်းပါသည်။\n'
+                  '• GPS တည်နေရာကို ကယ်ဆယ်ရေးလုပ်ငန်းအတွင်း၌သာ အသုံးပြုပြီး ပြီးဆုံးသည်နှင့် ချက်ချင်း ဖျက်ဆီးပါသည်။',
+              cardBg: cardBg,
+              cardBorder: cardBorder,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+            ),
+
+            _card(
+              icon: Icons.favorite_rounded,
+              iconColor: Colors.redAccent,
+              title: '၃။ စေတနာ့ဝန်ထမ်းနှင့် ကယ်ဆယ်ရေးအဖွဲ့များ အကာအကွယ်ပေးမှု',
+              body: '• အရေးပေါ် အသက်ကယ်ဆယ်ရေး လုပ်ငန်းများတွင် စေတနာအပြည့်ဖြင့် ကူညီဆောင်ရွက်သော စေတနာ့ဝန်ထမ်းများသည် ဥပဒေအရ အကာအကွယ် ရရှိပါသည်။',
+              cardBg: cardBg,
+              cardBorder: cardBorder,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+            ),
+
+            _card(
+              icon: Icons.water_drop_rounded,
+              iconColor: Colors.deepPurple,
+              title: '၄။ သွေးလှူဒါန်းခြင်းဆိုင်ရာ စည်းမျဉ်းများ',
+              body: '• သွေးလှူဒါန်းမှုနှင့် သွေးတောင်းခံမှုများသည် ပရဟိတ သန့်သန့် ဖြစ်ပြီး စီးပွားဖြစ် ရောင်းဝယ်ဖောက်ကားခြင်း လုံးဝ မပြုလုပ်ရပါ။',
+              cardBg: cardBg,
+              cardBorder: cardBorder,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+            ),
+
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () => context.pop(),
+                child: const Text('သဘောတူလက်ခံပါသည် (I Agree)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _section(String title, String body) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+  Widget _card({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String body,
+    required Color cardBg,
+    required Color cardBorder,
+    required Color textPrimary,
+    required Color textSecondary,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBorder),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textDark,
-            ),
+          Row(
+            children: [
+              Icon(icon, color: iconColor, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textPrimary),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            body,
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.6,
-              color: Color(0xFF555555),
-            ),
-          ),
+          const SizedBox(height: 10),
+          Text(body, style: TextStyle(fontSize: 13, height: 1.5, color: textSecondary)),
         ],
       ),
     );

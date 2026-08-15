@@ -186,11 +186,15 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
 
     if (!mounted) return;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setMapState) => Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           insetPadding: const EdgeInsets.all(16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: SizedBox(
@@ -200,19 +204,19 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  decoration: BoxDecoration(
+                    color: dialogBg,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Pick Hospital Location',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textPrimary),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close),
+                        icon: Icon(Icons.close, color: textPrimary),
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
@@ -430,12 +434,18 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
     required String title,
     required String subtitle,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.grey.shade50;
+    final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade200;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade700;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: cardBorder),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,10 +465,10 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
-                    color: Colors.black87,
+                    color: textPrimary,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -466,7 +476,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                   subtitle,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey.shade700,
+                    color: textSecondary,
                     height: 1.3,
                   ),
                 ),
@@ -479,18 +489,19 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
   }
 
   Widget _buildFullScreenGuidelines(bool isMm) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bottomBarBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           isMm ? 'သွေးမလှူမီ သိကောင်းစရာများ' : 'Blood Donor Preparation Guide',
-          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
         ),
         centerTitle: true,
       ),
@@ -560,10 +571,10 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
 
                     Text(
                       isMm ? 'အဓိက သတ်မှတ်ချက်များ' : 'Key Preparation Rules',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: textPrimary,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -631,10 +642,10 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: bottomBarBg,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
                     blurRadius: 10,
                     offset: const Offset(0, -3),
                   ),
@@ -684,7 +695,6 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: Text(
           isMm ? 'သွေးလှူဒါန်းခြင်းနှင့် ရယူခြင်း' : 'Blood Bank & Donation Hub',
@@ -845,13 +855,12 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: DropdownButtonFormField<String>(
-              value: _selectedBloodType,
-              dropdownColor: Colors.white,
+              initialValue: _selectedBloodType,
+              dropdownColor: Theme.of(context).cardColor,
               decoration: InputDecoration(
                 labelText: isMm ? 'သွေးအမျိုးအစား' : 'Blood Type',
                 prefixIcon: const Icon(Icons.bloodtype_outlined, color: AppTheme.primaryRed),
                 filled: true,
-                fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
@@ -882,12 +891,11 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: DropdownButtonFormField<String>(
-                    value: _selectedGender,
-                    dropdownColor: Colors.white,
+                    initialValue: _selectedGender,
+                    dropdownColor: Theme.of(context).cardColor,
                     decoration: InputDecoration(
                       labelText: isMm ? 'ကျား/မ' : 'Gender',
                       filled: true,
-                      fillColor: Colors.white,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -938,14 +946,13 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: DropdownButtonFormField<Map<String, dynamic>>(
-                value: _selectedOrg,
-                dropdownColor: Colors.white,
+                initialValue: _selectedOrg,
+                dropdownColor: Theme.of(context).cardColor,
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: isMm ? 'ဆေးရုံ/ကယ်ဆယ်ရေးအဖွဲ့ ရွေးချယ်ပါ' : 'Select Target Hospital / Org',
                   prefixIcon: const Icon(Icons.local_hospital, color: AppTheme.secondaryGreen),
                   filled: true,
-                  fillColor: Colors.white,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -983,13 +990,12 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: DropdownButtonFormField<String>(
-                    value: _preferredDate,
-                    dropdownColor: Colors.white,
+                    initialValue: _preferredDate,
+                    dropdownColor: Theme.of(context).cardColor,
                     decoration: InputDecoration(
                       labelText: isMm ? 'ဦးစားပေး အချိန်' : 'Preferred Time',
                       prefixIcon: const Icon(Icons.access_time, color: Colors.blue),
                       filled: true,
-                      fillColor: Colors.white,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -1148,13 +1154,12 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: DropdownButtonFormField<String>(
-                    value: _reqBloodType,
-                    dropdownColor: Colors.white,
+                    initialValue: _reqBloodType,
+                    dropdownColor: Theme.of(context).cardColor,
                     decoration: InputDecoration(
                       labelText: isMm ? 'လိုအပ်သော သွေး' : 'Blood Needed',
                       prefixIcon: const Icon(Icons.water_drop, color: AppTheme.primaryRed),
                       filled: true,
-                      fillColor: Colors.white,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -1185,13 +1190,12 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: DropdownButtonFormField<String>(
-              value: _reqUrgency,
-              dropdownColor: Colors.white,
+              initialValue: _reqUrgency,
+              dropdownColor: Theme.of(context).cardColor,
               decoration: InputDecoration(
                 labelText: isMm ? 'အရေးတကြီး လိုအပ်မှု အဆင့်' : 'Urgency Level',
                 prefixIcon: const Icon(Icons.timer_outlined, color: Colors.deepOrange),
                 filled: true,
-                fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),

@@ -113,6 +113,7 @@ async def create_tables(drop: bool = False):
                 await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(100);"))
                 await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS bank_account_name VARCHAR(100);"))
                 await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS mmqr_payload TEXT;"))
+                await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS mmqr_image_url TEXT;"))
                 await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS note_message TEXT;"))
                 await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
 

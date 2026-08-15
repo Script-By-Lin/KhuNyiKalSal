@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../providers/settings_provider.dart';
-import '../../providers/auth_provider.dart';
 import '../../config/theme.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -13,6 +11,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final settingsNotifier = ref.read(settingsProvider.notifier);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final isMm = settings.locale.languageCode == 'my';
     
@@ -23,6 +22,11 @@ class SettingsScreen extends ConsumerWidget {
     final langDesc = isMm 
         ? 'သင်အသုံးပြုလိုသော ဘာသာစကားကို ရွေးချယ်ပါ။' 
         : 'Choose your preferred language.';
+
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade300;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1E293B);
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade600;
 
     return Scaffold(
       appBar: AppBar(
@@ -37,59 +41,60 @@ class SettingsScreen extends ConsumerWidget {
               // ── Theme / Appearance Section ────────────────────────
               Text(
                 themeTitle,
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textPrimary),
               ),
               const SizedBox(height: 4),
               Text(
                 themeDesc,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 13, color: textSecondary),
               ),
               const SizedBox(height: 12),
               Card(
+                color: cardBg,
                 margin: EdgeInsets.zero,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: Colors.grey.shade300),
+                  side: BorderSide(color: cardBorder),
                 ),
-                child: Column(
-                  children: [
-                    RadioListTile<ThemeMode>(
-                      secondary: const Icon(Icons.light_mode_outlined, color: Colors.amber),
-                      title: Text(
-                        isMm ? 'အလင်းမုဒ် (Light Mode)' : 'Light Mode',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                child: RadioGroup<ThemeMode>(
+                  groupValue: settings.themeMode,
+                  onChanged: (val) {
+                    if (val != null) settingsNotifier.setThemeMode(val);
+                  },
+                  child: Column(
+                    children: [
+                      RadioListTile<ThemeMode>(
+                        secondary: const Icon(Icons.light_mode_outlined, color: Colors.amber),
+                        title: Text(
+                          isMm ? 'အလင်းမုဒ် (Light Mode)' : 'Light Mode',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary),
+                        ),
+                        value: ThemeMode.light,
+                        activeColor: AppTheme.primaryRed,
                       ),
-                      value: ThemeMode.light,
-                      groupValue: settings.themeMode,
-                      onChanged: (val) => settingsNotifier.setThemeMode(val!),
-                      activeColor: AppTheme.primaryRed,
-                    ),
-                    const Divider(height: 1),
-                    RadioListTile<ThemeMode>(
-                      secondary: const Icon(Icons.dark_mode_outlined, color: Colors.indigo),
-                      title: Text(
-                        isMm ? 'အမှောင်မုဒ် (Dark Mode)' : 'Dark Mode',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      Divider(height: 1, color: cardBorder),
+                      RadioListTile<ThemeMode>(
+                        secondary: const Icon(Icons.dark_mode_outlined, color: Colors.indigoAccent),
+                        title: Text(
+                          isMm ? 'အမှောင်မုဒ် (Dark Mode)' : 'Dark Mode',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary),
+                        ),
+                        value: ThemeMode.dark,
+                        activeColor: AppTheme.primaryRed,
                       ),
-                      value: ThemeMode.dark,
-                      groupValue: settings.themeMode,
-                      onChanged: (val) => settingsNotifier.setThemeMode(val!),
-                      activeColor: AppTheme.primaryRed,
-                    ),
-                    const Divider(height: 1),
-                    RadioListTile<ThemeMode>(
-                      secondary: const Icon(Icons.settings_brightness_outlined, color: Colors.blueGrey),
-                      title: Text(
-                        isMm ? 'စနစ်သုံး မုဒ် (System Default)' : 'System Default',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      Divider(height: 1, color: cardBorder),
+                      RadioListTile<ThemeMode>(
+                        secondary: Icon(Icons.settings_brightness_outlined, color: textSecondary),
+                        title: Text(
+                          isMm ? 'စနစ်သုံး မုဒ် (System Default)' : 'System Default',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary),
+                        ),
+                        value: ThemeMode.system,
+                        activeColor: AppTheme.primaryRed,
                       ),
-                      value: ThemeMode.system,
-                      groupValue: settings.themeMode,
-                      onChanged: (val) => settingsNotifier.setThemeMode(val!),
-                      activeColor: AppTheme.primaryRed,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
@@ -98,41 +103,44 @@ class SettingsScreen extends ConsumerWidget {
               // ── Language Section ──────────────────────────────────
               Text(
                 langTitle,
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textPrimary),
               ),
               const SizedBox(height: 4),
               Text(
                 langDesc,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 13, color: textSecondary),
               ),
               const SizedBox(height: 12),
               Card(
+                color: cardBg,
                 margin: EdgeInsets.zero,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: Colors.grey.shade300),
+                  side: BorderSide(color: cardBorder),
                 ),
-                child: Column(
-                  children: [
-                    RadioListTile<String>(
-                      secondary: const Text('🇬🇧', style: TextStyle(fontSize: 22)),
-                      title: const Text('English', style: TextStyle(fontWeight: FontWeight.w600)),
-                      value: 'en',
-                      groupValue: settings.locale.languageCode,
-                      onChanged: (val) => settingsNotifier.setLocale(val!),
-                      activeColor: AppTheme.primaryRed,
-                    ),
-                    const Divider(height: 1),
-                    RadioListTile<String>(
-                      secondary: const Text('🇲🇲', style: TextStyle(fontSize: 22)),
-                      title: const Text('မြန်မာ', style: TextStyle(fontWeight: FontWeight.w600)),
-                      value: 'my',
-                      groupValue: settings.locale.languageCode,
-                      onChanged: (val) => settingsNotifier.setLocale(val!),
-                      activeColor: AppTheme.primaryRed,
-                    ),
-                  ],
+                child: RadioGroup<String>(
+                  groupValue: settings.locale.languageCode,
+                  onChanged: (val) {
+                    if (val != null) settingsNotifier.setLocale(val);
+                  },
+                  child: Column(
+                    children: [
+                      RadioListTile<String>(
+                        secondary: const Text('🇬🇧', style: TextStyle(fontSize: 22)),
+                        title: Text('English', style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary)),
+                        value: 'en',
+                        activeColor: AppTheme.primaryRed,
+                      ),
+                      Divider(height: 1, color: cardBorder),
+                      RadioListTile<String>(
+                        secondary: const Text('🇲🇲', style: TextStyle(fontSize: 22)),
+                        title: Text('မြန်မာ', style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary)),
+                        value: 'my',
+                        activeColor: AppTheme.primaryRed,
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -153,102 +161,20 @@ class SettingsScreen extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Colors.grey.shade700,
+                        color: textSecondary,
                         letterSpacing: 0.5,
                       ),
                     ),
                     Text(
-                      'v1.0.0 • Myanmar Emergency Response',
+                      'Version 2.2.0 (Build 2026.08)',
                       style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
+                        fontSize: 12,
+                        color: textSecondary.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-
-              // ── Logout Button ────────────────────────────────────
-              Container(
-                width: double.infinity,
-                height: 54,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 22),
-                  label: Text(
-                    isMm ? 'အကောင့်မှ ထွက်မည်' : 'Log Out',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.3,
-                      height: 1.3,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD32F2F),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        title: Row(
-                          children: [
-                            const Icon(Icons.logout_rounded, color: AppTheme.primaryRed),
-                            const SizedBox(width: 10),
-                            Text(isMm ? 'အကောင့်မှ ထွက်မည်' : 'Log Out'),
-                          ],
-                        ),
-                        content: Text(
-                          isMm
-                              ? 'အကောင့်မှ ထွက်ရန် သေချာပါသလား။'
-                              : 'Are you sure you want to log out?',
-                          style: const TextStyle(fontSize: 14, height: 1.4),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: Text(isMm ? 'မလုပ်တော့ပါ' : 'Cancel'),
-                          ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryRed,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            onPressed: () async {
-                              Navigator.pop(ctx);
-                              await ref.read(authProvider.notifier).logout();
-                              if (context.mounted) {
-                                context.go('/login');
-                              }
-                            },
-                            child: Text(
-                              isMm ? 'ထွက်မည်' : 'Log Out',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 20),
             ],
           ),
         ),

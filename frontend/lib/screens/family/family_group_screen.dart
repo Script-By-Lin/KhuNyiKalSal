@@ -145,7 +145,7 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
-                value: _selectedRelationship,
+                initialValue: _selectedRelationship,
                 decoration: const InputDecoration(
                   labelText: 'Relationship Title',
                   prefixIcon: Icon(Icons.family_restroom),
@@ -511,7 +511,7 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: 3,
-            itemBuilder: (_, __) => Padding(
+            itemBuilder: (_, index) => Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: Shimmer.fromColors(
                 baseColor: Colors.grey[300]!,

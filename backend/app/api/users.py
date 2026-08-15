@@ -156,6 +156,9 @@ async def update_profile(
             org.registration_number = data.registration_number
         if data.coverage_radius_km is not None:
             org.coverage_radius_km = data.coverage_radius_km
+        if data.location_lat is not None and data.location_lng is not None:
+            org.geo_lat = data.location_lat
+            org.geo_lng = data.location_lng
 
         await db.commit()
         await db.refresh(org)

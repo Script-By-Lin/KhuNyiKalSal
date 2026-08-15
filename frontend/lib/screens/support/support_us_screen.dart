@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,6 +56,14 @@ class _SupportUsScreenState extends ConsumerState<SupportUsScreen> {
   @override
   Widget build(BuildContext context) {
     final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade200;
+    final innerBoxBg = isDark ? const Color(0xFF0F172A) : Colors.grey.shade50;
+    final innerBoxBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade300;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1E293B);
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade600;
 
     final kbzName = _info?['kbz_pay_name'] ?? 'Khu Nyi Kal Sal Relief Fund';
     final kbzPhone = _info?['kbz_pay_phone'] ?? '09789123456';
@@ -63,6 +72,8 @@ class _SupportUsScreenState extends ConsumerState<SupportUsScreen> {
     final bankName = _info?['bank_name'] ?? 'KBZ Bank';
     final bankAccNum = _info?['bank_account_number'] ?? '123-456-789012345';
     final bankAccName = _info?['bank_account_name'] ?? 'Khu Nyi Kal Sal Emergency Response';
+    final mmqrPayload = _info?['mmqr_payload'] as String?;
+    final mmqrImageUrl = _info?['mmqr_image_url'] as String?;
     final noteMessage = _info?['note_message'] ?? 'All donations directly support emergency rescue operations, first aid kits, and blood drives.';
 
     return Scaffold(
@@ -148,66 +159,82 @@ class _SupportUsScreenState extends ConsumerState<SupportUsScreen> {
                   const SizedBox(height: 24),
 
                   Text(
-                    isMm ? 'တရားဝင် လှူဒါန်းနိုင်သော လမ်းကြောင်းများ' : 'Official Donation Channels',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    isMm ? 'လှူဒါန်းနိုင်သော လမ်းကြောင်းများ' : 'Official Donation Channels',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: textPrimary,
+                      letterSpacing: 0.3,
+                    ),
                   ),
                   const SizedBox(height: 14),
 
-                  // ── KBZPay Card ──────────────────────────────────────
+                  // ── 1. KBZPay ──────────────────────────────────────
                   _paymentCard(
                     icon: Icons.account_balance_wallet_rounded,
-                    color: const Color(0xFF003399),
+                    color: const Color(0xFF0056B3),
                     title: 'KBZPay',
                     accountNumber: kbzPhone,
                     accountName: kbzName,
-                    badgeText: 'INSTANT TRANSFER',
+                    badgeText: 'KPay Instant Transfer',
                     onCopy: () => _copyToClipboard(kbzPhone, 'KBZPay', isMm),
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                    innerBoxBg: innerBoxBg,
+                    innerBoxBorder: innerBoxBorder,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
                   ),
 
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
 
-                  // ── WavePay Card ─────────────────────────────────────
+                  // ── 2. WavePay ─────────────────────────────────────
                   _paymentCard(
                     icon: Icons.phone_android_rounded,
-                    color: const Color(0xFFFFCC00),
+                    color: const Color(0xFFFBBF24),
                     iconColor: Colors.black87,
                     title: 'WavePay',
                     accountNumber: wavePhone,
                     accountName: waveName,
-                    badgeText: 'INSTANT TRANSFER',
+                    badgeText: 'Wave Money Transfer',
                     onCopy: () => _copyToClipboard(wavePhone, 'WavePay', isMm),
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                    innerBoxBg: innerBoxBg,
+                    innerBoxBorder: innerBoxBorder,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
                   ),
 
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
 
-                  // ── Bank Transfer Card ───────────────────────────────
+                  // ── 3. Bank Account ────────────────────────────────
                   _paymentCard(
                     icon: Icons.account_balance_rounded,
-                    color: Colors.teal.shade800,
+                    color: const Color(0xFF0D9488),
                     title: bankName,
                     accountNumber: bankAccNum,
                     accountName: bankAccName,
-                    badgeText: 'BANK TRANSFER',
-                    onCopy: () => _copyToClipboard(bankAccNum, bankName, isMm),
+                    badgeText: 'Direct Bank Transfer',
+                    onCopy: () => _copyToClipboard(bankAccNum, '$bankName Account', isMm),
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                    innerBoxBg: innerBoxBg,
+                    innerBoxBorder: innerBoxBorder,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
                   ),
 
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
 
-                  // ── MMQR National Standard Card ──────────────────────
+                  // ── 4. MMQR National Standard ──────────────────────
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: cardBg,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: Colors.grey.shade200),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
+                      border: Border.all(color: cardBorder),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -217,51 +244,84 @@ class _SupportUsScreenState extends ConsumerState<SupportUsScreen> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.purple.withValues(alpha: 0.1),
+                                color: Colors.purple.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.purple, size: 24),
+                              child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.purpleAccent, size: 24),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'MMQR National Standard',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textPrimary),
                                   ),
                                   Text(
                                     isMm ? 'မည်သည့် ဘဏ် / Pay App မဆို Scan ဖတ်၍ လှူဒါန်းနိုင်ပါသည်' : 'Scan & Pay via any Myanmar banking app',
-                                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                    style: TextStyle(fontSize: 11, color: textSecondary),
                                   ),
                                 ],
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
+
+                        // Center MMQR Image
+                        Center(
+                          child: Column(
+                            children: [
+                              _buildMmqrImageWidget(mmqrImageUrl, isDark, isMm),
+                              const SizedBox(height: 12),
+                            ],
+                          ),
+                        ),
+
+                        // Copy Payload / Instructions Row
+                        if (mmqrPayload != null && mmqrPayload.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.copy_rounded, size: 16, color: Colors.purpleAccent),
+                                label: Text(
+                                  isMm ? 'MMQR Payload စာသား ကူးယူမည်' : 'Copy MMQR Payload Data',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.purpleAccent),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: isDark ? Colors.purple.shade400 : Colors.purple.shade300),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () => _copyToClipboard(mmqrPayload, 'MMQR Payload', isMm),
+                              ),
+                            ),
+                          ),
+
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           decoration: BoxDecoration(
-                            color: Colors.purple.shade50,
+                            color: isDark ? const Color(0xFF2E1065) : Colors.purple.shade50,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.purple.shade200),
+                            border: Border.all(color: isDark ? const Color(0xFF581C87) : Colors.purple.shade200),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.check_circle_outline, color: Colors.purple.shade700, size: 18),
+                              Icon(Icons.check_circle_outline, color: isDark ? Colors.purple.shade300 : Colors.purple.shade700, size: 18),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   isMm
-                                      ? 'KBZ, Wave, AYA, CB, UAB, MAB စသည့် App များဖြင့် တိုက်ရိုက် လွှဲပြောင်းနိုင်ပါသည်'
+                                      ? r'KBZPay, Wave, AYA Pay, CB Pay, UABpay, OK$ စသည့် App များဖြင့် Scan ဖတ် လှူဒါန်းနိုင်ပါသည်'
                                       : 'Supported by KBZPay, Wave, AYA Pay, CB Pay, UABpay and all major banks',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.purple.shade900,
+                                    color: isDark ? Colors.purple.shade100 : Colors.purple.shade900,
                                   ),
                                 ),
                               ),
@@ -278,8 +338,9 @@ class _SupportUsScreenState extends ConsumerState<SupportUsScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: cardBorder),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -291,7 +352,7 @@ class _SupportUsScreenState extends ConsumerState<SupportUsScreen> {
                             noteMessage,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade700,
+                              color: textSecondary,
                               height: 1.4,
                             ),
                           ),
@@ -314,21 +375,20 @@ class _SupportUsScreenState extends ConsumerState<SupportUsScreen> {
     required String accountName,
     required String badgeText,
     required VoidCallback onCopy,
+    required Color cardBg,
+    required Color cardBorder,
+    required Color innerBoxBg,
+    required Color innerBoxBorder,
+    required Color textPrimary,
+    required Color textSecondary,
   }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,11 +410,11 @@ class _SupportUsScreenState extends ConsumerState<SupportUsScreen> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textPrimary),
                     ),
                     Text(
                       accountName,
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style: TextStyle(fontSize: 12, color: textSecondary),
                     ),
                   ],
                 ),
@@ -362,12 +422,12 @@ class _SupportUsScreenState extends ConsumerState<SupportUsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: innerBoxBg,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   badgeText,
-                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: textSecondary),
                 ),
               ),
             ],
@@ -376,19 +436,20 @@ class _SupportUsScreenState extends ConsumerState<SupportUsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: innerBoxBg,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: innerBoxBorder),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     accountNumber,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.2,
+                      color: textPrimary,
                     ),
                   ),
                 ),
@@ -408,6 +469,199 @@ class _SupportUsScreenState extends ConsumerState<SupportUsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMmqrImageWidget(String? src, bool isDark, bool isMm) {
+    if (src == null || src.trim().isEmpty) {
+      return Container(
+        height: 180,
+        width: 180,
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isDark ? const Color(0xFF334155) : Colors.grey.shade300),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.qr_code_2_rounded, size: 64, color: isDark ? Colors.purple.shade300 : Colors.purple.shade700),
+            const SizedBox(height: 8),
+            Text(
+              isMm ? 'MMQR National Code' : 'MMQR Standard',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget img;
+    final trimmed = src.trim();
+    if (trimmed.startsWith('data:image') || (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && trimmed.length > 100)) {
+      try {
+        final cleanBase64 = trimmed.contains(',') ? trimmed.split(',').last : trimmed;
+        final bytes = base64Decode(cleanBase64.trim());
+        img = Image.memory(bytes, fit: BoxFit.contain);
+      } catch (_) {
+        img = const Center(child: Text('Invalid QR Image', style: TextStyle(color: Colors.red, fontSize: 11)));
+      }
+    } else {
+      img = Image.network(
+        trimmed,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => const Center(
+          child: Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Text('Unable to load QR image', textAlign: TextAlign.center, style: TextStyle(color: Colors.red, fontSize: 11)),
+          ),
+        ),
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2, color: Colors.purple));
+        },
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => _openFullscreenQrDialog(trimmed, isMm),
+      child: Container(
+        height: 200,
+        width: 200,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.purple.shade400, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.purple.withValues(alpha: 0.2),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Stack(
+            alignment: Alignment.bottomCenter,
+            children: [
+              Positioned.fill(child: img),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                color: Colors.black.withValues(alpha: 0.6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.zoom_in, color: Colors.white, size: 12),
+                    const SizedBox(width: 4),
+                    Text(
+                      isMm ? 'ချဲ့ကြည့်ရန် နှိပ်ပါ' : 'Tap to Enlarge',
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openFullscreenQrDialog(String src, bool isMm) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black45, blurRadius: 24, offset: Offset(0, 10)),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.qr_code_2_rounded, color: Colors.purple.shade700, size: 24),
+                          const SizedBox(width: 8),
+                          Text(
+                            isMm ? 'MMQR ကုဒ်' : 'Official MMQR',
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.black54),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16),
+                  Container(
+                    height: 280,
+                    width: 280,
+                    padding: const EdgeInsets.all(8),
+                    child: InteractiveViewer(
+                      minScale: 1.0,
+                      maxScale: 4.0,
+                      child: src.startsWith('data:image') || (!src.startsWith('http://') && !src.startsWith('https://') && src.length > 100)
+                          ? Image.memory(
+                              base64Decode(src.contains(',') ? src.split(',').last : src),
+                              fit: BoxFit.contain,
+                            )
+                          : Image.network(src, fit: BoxFit.contain),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    isMm
+                        ? 'မည်သည့် မိုဘိုင်းဘဏ် App ဖြင့်မဆို Scan ဖတ်၍ တိုက်ရိုက် လှူဒါန်းနိုင်ပါသည်'
+                        : 'Pinch to zoom or scan directly with any mobile banking app',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.check, size: 18),
+                      label: Text(isMm ? 'ပိတ်မည်' : 'DONE', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple.shade700,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

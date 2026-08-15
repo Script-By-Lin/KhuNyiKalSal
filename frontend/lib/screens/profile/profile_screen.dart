@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 
 import '../../config/theme.dart';
 import '../../services/api_service.dart';
+import '../../services/location_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
 
@@ -38,6 +39,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _regionsCtrl = TextEditingController();
   final _radiusCtrl = TextEditingController();
   final _regNumCtrl = TextEditingController();
+  final _latCtrl = TextEditingController();
+  final _lngCtrl = TextEditingController();
 
   // Volunteer Specific Controllers
   final _nrcCtrl = TextEditingController();
@@ -79,6 +82,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _regionsCtrl.text = data['operating_regions'] ?? '';
           _radiusCtrl.text = data['coverage_radius_km'] != null ? '${data['coverage_radius_km']}' : '50.0';
           _regNumCtrl.text = data['registration_number'] ?? '';
+          _latCtrl.text = data['location_lat'] != null ? '${data['location_lat']}' : '';
+          _lngCtrl.text = data['location_lng'] != null ? '${data['location_lng']}' : '';
           
           if (cat != null && cat.isNotEmpty) {
             final matched = _orgCategories.firstWhere(
@@ -101,6 +106,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _medicalCtrl.dispose();
+    _orgNameCtrl.dispose();
+    _addressCtrl.dispose();
+    _regionsCtrl.dispose();
+    _radiusCtrl.dispose();
+    _regNumCtrl.dispose();
+    _latCtrl.dispose();
+    _lngCtrl.dispose();
+    _nrcCtrl.dispose();
+    _assignedRegionCtrl.dispose();
+    _emergencyContactCtrl.dispose();
+    super.dispose();
   }
 
   String? _validatePhone(String value) {
@@ -147,6 +170,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         final radius = double.tryParse(_radiusCtrl.text.trim());
         if (radius != null) {
           payload['coverage_radius_km'] = radius;
+        }
+        final lat = double.tryParse(_latCtrl.text.trim());
+        final lng = double.tryParse(_lngCtrl.text.trim());
+        if (lat != null && lng != null) {
+          payload['location_lat'] = lat;
+          payload['location_lng'] = lng;
         }
       } else if (role == 'volunteer') {
         payload['full_name'] = _nameCtrl.text.trim();
@@ -198,10 +227,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _showHistoryModal() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sheetBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final itemBg = isDark ? const Color(0xFF0F172A) : AppTheme.surfaceGrey;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1E293B);
+    final textSecondary = isDark ? Colors.white70 : AppTheme.subtleGrey;
+
     showModalBottomSheet(
       context: context,
       useRootNavigator: true,
-      backgroundColor: Colors.white,
+      backgroundColor: sheetBg,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -220,23 +255,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
+                    color: isDark ? Colors.grey[700] : Colors.grey[300],
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 '📜 SOS Emergency History Records',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: textPrimary),
               ),
               const SizedBox(height: 12),
               Expanded(
                 child: _history.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           'No past emergency records found.',
-                          style: TextStyle(color: AppTheme.subtleGrey),
+                          style: TextStyle(color: textSecondary),
                         ),
                       )
                     : ListView.builder(
@@ -259,7 +294,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             margin: const EdgeInsets.only(bottom: 10),
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: AppTheme.surfaceGrey,
+                              color: itemBg,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
@@ -282,13 +317,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     children: [
                                       Text(
                                         '$type Emergency',
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w700, fontSize: 14),
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w700, fontSize: 14, color: textPrimary),
                                       ),
                                       Text(
                                         'Date: $date',
-                                        style: const TextStyle(
-                                            fontSize: 12, color: AppTheme.subtleGrey),
+                                        style: TextStyle(
+                                            fontSize: 12, color: textSecondary),
                                       ),
                                     ],
                                   ),
@@ -322,21 +357,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _phoneCtrl.dispose();
-    _medicalCtrl.dispose();
-    _orgNameCtrl.dispose();
-    _addressCtrl.dispose();
-    _regionsCtrl.dispose();
-    _radiusCtrl.dispose();
-    _regNumCtrl.dispose();
-    _nrcCtrl.dispose();
-    _assignedRegionCtrl.dispose();
-    _emergencyContactCtrl.dispose();
-    super.dispose();
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -470,7 +491,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
                       child: DropdownButtonFormField<String>(
-                        value: _selectedOrgCategory,
+                        initialValue: _selectedOrgCategory,
                         decoration: InputDecoration(
                           labelText: isMm ? 'အဖွဲ့အစည်း အမျိုးအစား' : 'Organization Category',
                           prefixIcon: Icon(
@@ -509,6 +530,69 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       _regNumCtrl,
                       Icons.verified_outlined,
                     ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _field(
+                            'Latitude',
+                            _latCtrl,
+                            Icons.my_location,
+                            helperText: 'e.g. 16.8409',
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _field(
+                            'Longitude',
+                            _lngCtrl,
+                            Icons.location_searching,
+                            helperText: 'e.g. 96.1735',
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_editing)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.gps_fixed, size: 16),
+                          label: Text(
+                            isMm ? 'လက်ရှိ GPS တည်နေရာ အသုံးပြုမည်' : 'Set to Current GPS Location',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.primaryRed,
+                            side: const BorderSide(color: AppTheme.primaryRed),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () async {
+                            try {
+                              final pos = await LocationService.getCurrentLocation();
+                              setState(() {
+                                _latCtrl.text = pos.latitude.toStringAsFixed(6);
+                                _lngCtrl.text = pos.longitude.toStringAsFixed(6);
+                              });
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Updated to current GPS location!'),
+                                    backgroundColor: AppTheme.secondaryGreen,
+                                  ),
+                                );
+                              }
+                            } catch (_) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Failed to retrieve GPS location. Check permissions.'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ),
                   ] else if (isVolunteer) ...[
                     // Volunteer Form
                     _field(
@@ -553,7 +637,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
                       child: DropdownButtonFormField<String>(
-                        value: _selectedBloodType,
+                        initialValue: _selectedBloodType,
                         decoration: InputDecoration(
                           labelText: isMm ? 'သွေးအမျိုးအစား' : 'Blood Type',
                           hintText: isMm ? 'သွေးအမျိုးအစား ရွေးချယ်ပါ' : 'Select Blood Type',
@@ -663,8 +747,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         icon: const Icon(Icons.edit_outlined),
                         label: Text(isMm ? 'အချက်အလက် ပြင်ဆင်ရန်' : 'Edit Profile Info'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.textDark,
-                          side: const BorderSide(color: Colors.grey, width: 1.5),
+                          foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.textDark,
+                          side: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.white54 : Colors.grey, width: 1.5),
                         ),
                         onPressed: () => setState(() => _editing = true),
                       ),

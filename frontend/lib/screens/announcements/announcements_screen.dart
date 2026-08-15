@@ -56,10 +56,15 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     final date = (item['created_at'] ?? '').toString().split('T').first;
     final isPinned = item['is_pinned'] == true;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sheetBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1E293B);
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade700;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: sheetBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -76,17 +81,17 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.amber.shade100,
+                        color: Colors.amber.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.push_pin, color: Colors.amber.shade900, size: 14),
+                          Icon(Icons.push_pin, color: isDark ? Colors.amber : Colors.amber.shade900, size: 14),
                           const SizedBox(width: 4),
                           Text(
                             'PINNED',
                             style: TextStyle(
-                              color: Colors.amber.shade900,
+                              color: isDark ? Colors.amber : Colors.amber.shade900,
                               fontWeight: FontWeight.bold,
                               fontSize: 10,
                             ),
@@ -113,7 +118,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.grey),
+                    icon: Icon(Icons.close, color: textSecondary),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
@@ -121,32 +126,32 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
               const SizedBox(height: 12),
               Text(
                 title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.3),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.3, color: textPrimary),
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.admin_panel_settings_outlined, size: 16, color: Colors.grey.shade600),
+                  Icon(Icons.admin_panel_settings_outlined, size: 16, color: textSecondary),
                   const SizedBox(width: 4),
                   Text(
                     author,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 12, color: textSecondary, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(width: 12),
-                  Icon(Icons.calendar_today_outlined, size: 14, color: Colors.grey.shade600),
+                  Icon(Icons.calendar_today_outlined, size: 14, color: textSecondary),
                   const SizedBox(width: 4),
                   Text(
                     date,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: textSecondary),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              const Divider(height: 1),
+              Divider(height: 1, color: isDark ? const Color(0xFF334155) : Colors.grey.shade200),
               const SizedBox(height: 16),
               Text(
                 content,
-                style: const TextStyle(fontSize: 14, height: 1.6, color: Colors.black87),
+                style: TextStyle(fontSize: 14, height: 1.6, color: textSecondary),
               ),
               const SizedBox(height: 24),
             ],
@@ -161,7 +166,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
       case 'urgent':
         return AppTheme.primaryRed;
       case 'weather/disaster':
-        return Colors.blue.shade700;
+        return Colors.blue.shade600;
       case 'blood drive':
         return Colors.redAccent;
       default:
@@ -172,6 +177,13 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
   @override
   Widget build(BuildContext context) {
     final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade200;
+    final chipBg = isDark ? const Color(0xFF1E293B) : Colors.grey.shade100;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1E293B);
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade600;
 
     return Scaffold(
       appBar: AppBar(
@@ -196,7 +208,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: _categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, index) => const SizedBox(width: 8),
               itemBuilder: (ctx, i) {
                 final cat = _categories[i];
                 final isSelected = _selectedCategory == cat;
@@ -205,13 +217,14 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                     cat == 'ALL' ? (isMm ? 'အားလုံး' : 'ALL') : cat,
                     style: TextStyle(
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? Colors.white : Colors.black87,
+                      color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
                       fontSize: 12,
                     ),
                   ),
                   selected: isSelected,
                   selectedColor: AppTheme.primaryRed,
-                  backgroundColor: Colors.grey.shade100,
+                  backgroundColor: chipBg,
+                  side: BorderSide(color: isSelected ? AppTheme.primaryRed : cardBorder),
                   showCheckmark: false,
                   onSelected: (selected) {
                     if (selected) {
@@ -233,11 +246,11 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.campaign_outlined, size: 56, color: Colors.grey.shade400),
+                            Icon(Icons.campaign_outlined, size: 56, color: isDark ? Colors.white24 : Colors.grey.shade400),
                             const SizedBox(height: 12),
                             Text(
                               isMm ? 'ထုတ်ပြန်ချက်အသစ် မရှိသေးပါ' : 'No announcements available',
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
+                              style: TextStyle(color: textSecondary, fontSize: 15),
                             ),
                           ],
                         ),
@@ -260,19 +273,12 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                             return Container(
                               margin: const EdgeInsets.only(bottom: 12),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: cardBg,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: isPinned ? Colors.amber.shade300 : Colors.grey.shade200,
+                                  color: isPinned ? (isDark ? Colors.amber.shade700 : Colors.amber.shade300) : cardBorder,
                                   width: isPinned ? 1.5 : 1,
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.03),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
                               ),
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(16),
@@ -288,17 +294,17 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: Colors.amber.shade50,
+                                                color: Colors.amber.withValues(alpha: 0.2),
                                                 borderRadius: BorderRadius.circular(6),
                                               ),
                                               child: Row(
                                                 children: [
-                                                  Icon(Icons.push_pin, color: Colors.amber.shade900, size: 12),
+                                                  Icon(Icons.push_pin, color: isDark ? Colors.amber : Colors.amber.shade900, size: 12),
                                                   const SizedBox(width: 3),
                                                   Text(
                                                     'PINNED',
                                                     style: TextStyle(
-                                                      color: Colors.amber.shade900,
+                                                      color: isDark ? Colors.amber : Colors.amber.shade900,
                                                       fontWeight: FontWeight.bold,
                                                       fontSize: 9,
                                                     ),
@@ -326,17 +332,18 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                                           const Spacer(),
                                           Text(
                                             date,
-                                            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                                            style: TextStyle(fontSize: 11, color: textSecondary),
                                           ),
                                         ],
                                       ),
                                       const SizedBox(height: 10),
                                       Text(
                                         title,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.bold,
                                           height: 1.3,
+                                          color: textPrimary,
                                         ),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
@@ -346,7 +353,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                                         content,
                                         style: TextStyle(
                                           fontSize: 13,
-                                          color: Colors.grey.shade700,
+                                          color: textSecondary,
                                           height: 1.4,
                                         ),
                                         maxLines: 2,

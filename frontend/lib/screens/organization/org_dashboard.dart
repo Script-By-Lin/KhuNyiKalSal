@@ -258,9 +258,11 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                     ),
                   ),
                   _topAction(Icons.people_outline, () => context.push('/manage-volunteers')),
+                  _topAction(Icons.edit_note_rounded, _openEditOrgProfileModal),
                   _topAction(Icons.refresh, () {
                     _loadAlerts();
                     _loadHistory();
+                    _loadBloodDonations();
                   }),
                   _topAction(Icons.logout, () {
                     ref.read(authProvider.notifier).logout();
@@ -344,6 +346,330 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ── Edit Organization Profile Modal ────────────────────────────────
+  Future<void> _openEditOrgProfileModal() async {
+    Map<String, dynamic>? profile;
+    try {
+      final res = await ApiService().getProfile();
+      profile = res.data;
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    final nameCtrl = TextEditingController(text: profile?['org_name'] ?? profile?['full_name'] ?? '');
+    final phoneCtrl = TextEditingController(text: profile?['phone_number'] ?? '');
+    final addressCtrl = TextEditingController(text: profile?['headquarters_address'] ?? '');
+    final regionsCtrl = TextEditingController(text: profile?['operating_regions'] ?? '');
+    final radiusCtrl = TextEditingController(text: profile?['coverage_radius_km'] != null ? '${profile!['coverage_radius_km']}' : '50.0');
+    final regNumCtrl = TextEditingController(text: profile?['registration_number'] ?? '');
+    final latCtrl = TextEditingController(text: profile?['location_lat'] != null ? '${profile!['location_lat']}' : '');
+    final lngCtrl = TextEditingController(text: profile?['location_lng'] != null ? '${profile!['location_lng']}' : '');
+
+    String selectedCategory = 'Medical';
+    final existingCat = profile?['category'] as String?;
+    if (existingCat != null && existingCat.isNotEmpty) {
+      if (existingCat.toLowerCase().contains('fire')) {
+        selectedCategory = 'Fire';
+      } else if (existingCat.toLowerCase().contains('volunt')) {
+        selectedCategory = 'Local Voluntary Org';
+      } else {
+        selectedCategory = 'Medical';
+      }
+    }
+
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.apartment_rounded, color: AppTheme.primaryRed, size: 22),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Edit Organization Profile',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.black54),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const Divider(height: 20),
+
+                // Org Name
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Organization Name',
+                    prefixIcon: Icon(Icons.business_outlined),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Hotline
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Hotline Phone Number',
+                    helperText: 'Must start with +959 or 09 (e.g. 09123456789)',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Category Dropdown
+                DropdownButtonFormField<String>(
+                  initialValue: selectedCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'Organization Category',
+                    prefixIcon: Icon(Icons.category_outlined),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Medical', child: Text('Medical & Ambulance')),
+                    DropdownMenuItem(value: 'Fire', child: Text('Fire & Disaster Rescue')),
+                    DropdownMenuItem(value: 'Local Voluntary Org', child: Text('Local Voluntary Org')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setModalState(() => selectedCategory = val);
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Headquarters Address
+                TextField(
+                  controller: addressCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Headquarters Address',
+                    prefixIcon: Icon(Icons.location_city_outlined),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Operating Regions
+                TextField(
+                  controller: regionsCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Operating Regions',
+                    helperText: 'e.g. Kamaryut, Hledan, Sanchaung, Bahan',
+                    prefixIcon: Icon(Icons.map_outlined),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Coverage & Registration
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: radiusCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Coverage (KM)',
+                          prefixIcon: Icon(Icons.radar_outlined),
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: regNumCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Reg Number',
+                          prefixIcon: Icon(Icons.verified_outlined),
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Coordinates Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: latCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Latitude',
+                          prefixIcon: Icon(Icons.my_location, size: 18),
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: lngCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Longitude',
+                          prefixIcon: Icon(Icons.location_searching, size: 18),
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Get Current GPS Location button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.gps_fixed, size: 16),
+                    label: const Text('Use Current GPS Coordinates', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primaryRed,
+                      side: const BorderSide(color: AppTheme.primaryRed),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () async {
+                      try {
+                        final pos = await LocationService.getCurrentLocation();
+                        setModalState(() {
+                          latCtrl.text = pos.latitude.toStringAsFixed(6);
+                          lngCtrl.text = pos.longitude.toStringAsFixed(6);
+                        });
+                      } catch (_) {
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(content: Text('Failed to get GPS location'), backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Save button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryRed,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: isSaving
+                        ? null
+                        : () async {
+                            final name = nameCtrl.text.trim();
+                            final phone = phoneCtrl.text.trim().replaceAll(' ', '').replaceAll('-', '');
+
+                            if (name.isEmpty) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(content: Text('Organization name is required'), backgroundColor: Colors.red),
+                              );
+                              return;
+                            }
+
+                            if (phone.isNotEmpty && !RegExp(r'^(?:\+959|09)\d{7,10}$').hasMatch(phone)) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(content: Text('Invalid phone format (must start with +959 or 09)'), backgroundColor: Colors.red),
+                              );
+                              return;
+                            }
+
+                            setModalState(() => isSaving = true);
+
+                            final payload = <String, dynamic>{
+                              'org_name': name,
+                              'full_name': name,
+                              'phone_number': phone,
+                              'category': selectedCategory,
+                              'operating_regions': regionsCtrl.text.trim(),
+                              'headquarters_address': addressCtrl.text.trim(),
+                              'registration_number': regNumCtrl.text.trim(),
+                            };
+
+                            final rad = double.tryParse(radiusCtrl.text.trim());
+                            if (rad != null) payload['coverage_radius_km'] = rad;
+
+                            final lat = double.tryParse(latCtrl.text.trim());
+                            final lng = double.tryParse(lngCtrl.text.trim());
+                            if (lat != null && lng != null) {
+                              payload['location_lat'] = lat;
+                              payload['location_lng'] = lng;
+                            }
+
+                            try {
+                              await ApiService().updateProfile(payload);
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              _snack('Organization profile updated successfully!', AppTheme.secondaryGreen);
+                              _loadAlerts();
+                            } catch (e) {
+                              setModalState(() => isSaving = false);
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  const SnackBar(content: Text('Failed to update organization profile'), backgroundColor: Colors.red),
+                                );
+                              }
+                            }
+                          },
+                    child: isSaving
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('SAVE ORGANIZATION PROFILE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
