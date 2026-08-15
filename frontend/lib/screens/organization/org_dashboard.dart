@@ -11,6 +11,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/location_service.dart';
 import '../../services/notification_service.dart';
@@ -55,6 +56,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
   Map<String, dynamic>? _orgProfile;
 
   final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   final _regionsCtrl = TextEditingController();
@@ -223,6 +225,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
       if (mounted) {
         _orgProfile = res.data;
         _nameCtrl.text = _orgProfile?['org_name'] ?? _orgProfile?['full_name'] ?? '';
+        _emailCtrl.text = _orgProfile?['email'] ?? ref.read(authProvider).email ?? '';
         _phoneCtrl.text = _orgProfile?['phone_number'] ?? '';
         _addressCtrl.text = _orgProfile?['headquarters_address'] ?? '';
         _regionsCtrl.text = _orgProfile?['operating_regions'] ?? '';
@@ -428,12 +431,19 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
       return;
     }
 
+    final email = _emailCtrl.text.trim();
+    if (email.isNotEmpty && (!email.contains('@') || !email.contains('.'))) {
+      _snack('Please enter a valid email address', Colors.red);
+      return;
+    }
+
     setState(() => _savingProfile = true);
 
     final payload = <String, dynamic>{
       'org_name': name,
       'full_name': name,
       'phone_number': phone,
+      if (email.isNotEmpty) 'email': email,
       'category': _selectedCategory,
       'operating_regions': _regionsCtrl.text.trim(),
       'headquarters_address': _addressCtrl.text.trim(),
@@ -608,6 +618,8 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
     final activeCount = _emergencies.where((e) => e['status'] == 'accepted').length;
     final pendingBloodCount = _bloodDonations.where((b) => (b['status'] ?? '').toString().toLowerCase() == 'pending').length;
 
+    final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
+
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.grey.shade50,
       appBar: AppBar(
@@ -632,7 +644,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      _nameCtrl.text.isNotEmpty ? _nameCtrl.text : 'COMMAND CENTER',
+                      _nameCtrl.text.isNotEmpty ? _nameCtrl.text : (isMm ? 'အဖွဲ့အစည်း ကွပ်ကဲရေး' : 'ORGANIZATION CONSOLE'),
                       style: const TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 16,
@@ -642,7 +654,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                     ),
                   ),
                   Text(
-                    _getTabSubtitle(),
+                    _getTabSubtitle(isMm),
                     style: TextStyle(
                       fontSize: 11,
                       color: isDark ? Colors.white60 : Colors.grey.shade600,
@@ -656,39 +668,6 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh Data',
-            onPressed: _fetchAllData,
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent),
-            tooltip: 'Log Out',
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  backgroundColor: cardBg,
-                  title: const Text('Log Out Organization?'),
-                  content: const Text('Are you sure you want to log out of the command console?'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryRed),
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        ref.read(authProvider.notifier).logout();
-                        context.go('/login');
-                      },
-                      child: const Text('LOG OUT', style: TextStyle(color: Colors.white)),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
       ),
       body: IndexedStack(
         index: _currentTabIndex,
@@ -697,6 +676,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
           _buildBloodHubTab(),
           _buildVolunteersTab(),
           _buildCoverageSettingsTab(),
+          _buildOrgServicesTab(),
         ],
       ),
       bottomNavigationBar: Container(
@@ -713,35 +693,41 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             child: Row(
               children: [
                 _buildNavItem(
                   index: 0,
                   icon: Icons.radar_outlined,
                   activeIcon: Icons.radar_rounded,
-                  label: 'SOS Radar',
+                  label: isMm ? 'အရေးပေါ်' : 'SOS Radar',
                   badgeCount: (pendingCount + activeCount) > 0 ? (pendingCount + activeCount) : null,
                 ),
                 _buildNavItem(
                   index: 1,
                   icon: Icons.water_drop_outlined,
                   activeIcon: Icons.water_drop_rounded,
-                  label: 'Blood Hub',
+                  label: isMm ? 'သွေးလှူဒါန်း' : 'Blood Hub',
                   badgeCount: pendingBloodCount > 0 ? pendingBloodCount : null,
                 ),
                 _buildNavItem(
                   index: 2,
                   icon: Icons.people_outline_rounded,
                   activeIcon: Icons.people_alt_rounded,
-                  label: 'Volunteers',
+                  label: isMm ? 'စေတနာ့ဝန်ထမ်း' : 'Volunteers',
                   badgeCount: _volunteers.isNotEmpty ? _volunteers.length : null,
                 ),
                 _buildNavItem(
                   index: 3,
                   icon: Icons.tune_outlined,
                   activeIcon: Icons.tune_rounded,
-                  label: 'Coverage',
+                  label: isMm ? 'ဧရိယာ' : 'Coverage',
+                ),
+                _buildNavItem(
+                  index: 4,
+                  icon: Icons.grid_view_outlined,
+                  activeIcon: Icons.grid_view_rounded,
+                  label: isMm ? 'ဝန်ဆောင်မှု' : 'Services',
                 ),
               ],
             ),
@@ -806,18 +792,20 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
     );
   }
 
-  String _getTabSubtitle() {
+  String _getTabSubtitle(bool isMm) {
     switch (_currentTabIndex) {
       case 0:
-        return 'Live SOS Emergency Radar & Dispatch';
+        return isMm ? 'တိုက်ရိုက် SOS အရေးပေါ် ခေါ်ဆိုမှုများ' : 'Live SOS Emergency Radar & Dispatch';
       case 1:
-        return 'Emergency Blood Donation & Supply Hub';
+        return isMm ? 'သွေးလှူဒါန်းမှု စီမံခန့်ခွဲရေးစင်တာ' : 'Emergency Blood Donation & Supply Hub';
       case 2:
-        return 'First Responder & Volunteer Force';
+        return isMm ? 'ကယ်ဆယ်ရေး စေတနာ့ဝန်ထမ်း အဖွဲ့ဝင်များ' : 'First Responder & Volunteer Force';
       case 3:
-        return 'Coverage Radius & Organization Settings';
+        return isMm ? 'ကာကွယ်စောင့်ရှောက်မှု ဧရိယာ သတ်မှတ်ခြင်း' : 'Coverage Radius & Area Settings';
+      case 4:
+        return isMm ? 'အကောင့်၊ ဘာသာစကားနှင့် ဆက်တင်များ' : 'Profile, Settings & Security';
       default:
-        return 'Command Console';
+        return isMm ? 'ကွပ်ကဲရေးစင်တာ' : 'Command Console';
     }
   }
 
@@ -2219,6 +2207,18 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                 const SizedBox(height: 12),
 
                 TextField(
+                  controller: _emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'Official Email (Gmail)',
+                    helperText: 'Used for login and emergency broadcast records',
+                    prefixIcon: const Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                TextField(
                   controller: _phoneCtrl,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
@@ -2357,5 +2357,433 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
         ),
       ),
     );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // TAB 4: SERVICES, PROFILE, SETTINGS & LOGOUT
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildOrgServicesTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
+    final settingsNotifier = ref.read(settingsProvider.notifier);
+    final settings = ref.watch(settingsProvider);
+    final auth = ref.watch(authProvider);
+
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade300;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1E293B);
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade600;
+
+    final orgName = _nameCtrl.text.isNotEmpty ? _nameCtrl.text : (_orgProfile?['org_name'] ?? 'Rescue Organization');
+    final orgEmail = _emailCtrl.text.isNotEmpty ? _emailCtrl.text : (auth.email ?? '');
+    final orgPhone = _phoneCtrl.text.isNotEmpty ? _phoneCtrl.text : (_orgProfile?['phone_number'] ?? '');
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 140),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Organization Profile Banner ─────────────────────────────
+          GestureDetector(
+            onTap: () => setState(() => _currentTabIndex = 3), // Navigate to Coverage & Profile tab
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: cardBorder),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.3)),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.shield_rounded, color: AppTheme.primaryRed, size: 28),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                orgName,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryRed,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _selectedCategory.toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 9,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          orgEmail.isNotEmpty ? orgEmail : (orgPhone.isNotEmpty ? orgPhone : 'Organization Account'),
+                          style: TextStyle(color: textSecondary, fontSize: 13),
+                        ),
+                        if (orgPhone.isNotEmpty && orgEmail.isNotEmpty)
+                          Text(
+                            'Hotline: $orgPhone',
+                            style: TextStyle(color: textSecondary.withValues(alpha: 0.8), fontSize: 11),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: isDark ? Colors.white38 : Colors.grey),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Quick Organization Actions ──────────────────────────────
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _currentTabIndex = 3),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: cardBorder),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.edit_note_rounded, color: AppTheme.primaryRed, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          isMm ? 'အဖွဲ့အချက်အလက် ပြင်မည်' : 'Edit Profile & Email',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: textPrimary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _currentTabIndex = 3),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: cardBorder),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.radar_rounded, color: Colors.blueAccent, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${_coverageRadiusKm.toStringAsFixed(0)} KM Coverage',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: textPrimary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // ── Account & Security ──────────────────────────────────────
+          Text(
+            isMm ? 'အကောင့်နှင့် လုံခြုံရေး' : 'Account & Security',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
+          ),
+          const SizedBox(height: 10),
+          Card(
+            color: cardBg,
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: cardBorder),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.lock_reset_rounded, color: isDark ? Colors.amber : Colors.amber.shade900, size: 22),
+                  ),
+                  title: Text(
+                    isMm ? 'စကားဝှက် ပြောင်းလဲရန်' : 'Change Password',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    isMm ? 'စကားဝှက်အသစ် သတ်မှတ်ပါ' : 'Set a new secure password',
+                    style: TextStyle(fontSize: 12, color: textSecondary),
+                  ),
+                  trailing: Icon(Icons.chevron_right, color: textSecondary.withValues(alpha: 0.5), size: 20),
+                  onTap: () => context.push('/change-password'),
+                ),
+                Divider(height: 1, color: cardBorder),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.devices_rounded, color: Colors.blue, size: 22),
+                  ),
+                  title: Text(
+                    isMm ? 'ချိတ်ဆက်ထားသော စက်ပစ္စည်းများ' : 'Logged-in Devices',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    isMm ? 'ဝင်ရောက်ထားသော စက်များ စီမံခန့်ခွဲရန်' : 'Manage active login sessions',
+                    style: TextStyle(fontSize: 12, color: textSecondary),
+                  ),
+                  trailing: Icon(Icons.chevron_right, color: textSecondary.withValues(alpha: 0.5), size: 20),
+                  onTap: () => context.push('/settings/devices'),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // ── App Appearance & Theme ──────────────────────────────────
+          Text(
+            isMm ? 'အသွင်အပြင် (Theme Mode)' : 'Appearance & Theme',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
+          ),
+          const SizedBox(height: 10),
+          Card(
+            color: cardBg,
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: cardBorder),
+            ),
+            child: Column(
+              children: [
+                RadioListTile<ThemeMode>(
+                  secondary: const Icon(Icons.light_mode_outlined, color: Colors.amber),
+                  title: Text(
+                    isMm ? 'အလင်းမုဒ် (Light Mode)' : 'Light Mode',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 14),
+                  ),
+                  value: ThemeMode.light,
+                  groupValue: settings.themeMode,
+                  activeColor: AppTheme.primaryRed,
+                  onChanged: (val) {
+                    if (val != null) settingsNotifier.setThemeMode(val);
+                  },
+                ),
+                Divider(height: 1, color: cardBorder),
+                RadioListTile<ThemeMode>(
+                  secondary: const Icon(Icons.dark_mode_outlined, color: Colors.indigoAccent),
+                  title: Text(
+                    isMm ? 'အမှောင်မုဒ် (Dark Mode)' : 'Dark Mode',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 14),
+                  ),
+                  value: ThemeMode.dark,
+                  groupValue: settings.themeMode,
+                  activeColor: AppTheme.primaryRed,
+                  onChanged: (val) {
+                    if (val != null) settingsNotifier.setThemeMode(val);
+                  },
+                ),
+                Divider(height: 1, color: cardBorder),
+                RadioListTile<ThemeMode>(
+                  secondary: Icon(Icons.settings_brightness_outlined, color: textSecondary),
+                  title: Text(
+                    isMm ? 'စနစ်သုံး မုဒ် (System Default)' : 'System Default',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 14),
+                  ),
+                  value: ThemeMode.system,
+                  groupValue: settings.themeMode,
+                  activeColor: AppTheme.primaryRed,
+                  onChanged: (val) {
+                    if (val != null) settingsNotifier.setThemeMode(val);
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // ── Language Preferences ────────────────────────────────────
+          Text(
+            isMm ? 'ဘာသာစကား (Language)' : 'Language Preferences',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
+          ),
+          const SizedBox(height: 10),
+          Card(
+            color: cardBg,
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: cardBorder),
+            ),
+            child: Column(
+              children: [
+                RadioListTile<String>(
+                  secondary: const Text('🇬🇧', style: TextStyle(fontSize: 22)),
+                  title: Text('English', style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 14)),
+                  value: 'en',
+                  groupValue: settings.locale.languageCode,
+                  activeColor: AppTheme.primaryRed,
+                  onChanged: (val) {
+                    if (val != null) settingsNotifier.setLocale(val);
+                  },
+                ),
+                Divider(height: 1, color: cardBorder),
+                RadioListTile<String>(
+                  secondary: const Text('🇲🇲', style: TextStyle(fontSize: 22)),
+                  title: Text('မြန်မာ (Myanmar)', style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 14)),
+                  value: 'my',
+                  groupValue: settings.locale.languageCode,
+                  activeColor: AppTheme.primaryRed,
+                  onChanged: (val) {
+                    if (val != null) settingsNotifier.setLocale(val);
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // ── Refresh Action ──────────────────────────────────────────
+          ListTile(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: BorderSide(color: cardBorder),
+            ),
+            tileColor: cardBg,
+            leading: const Icon(Icons.refresh_rounded, color: AppTheme.primaryRed),
+            title: Text(
+              isMm ? 'ဒေတာများ ပြန်လည်ရယူရန်' : 'Refresh All System Data',
+              style: TextStyle(fontWeight: FontWeight.bold, color: textPrimary, fontSize: 14),
+            ),
+            subtitle: Text(
+              isMm ? 'အရေးပေါ်၊ သွေးလှူဒါန်းမှုနှင့် စေတနာ့ဝန်ထမ်း ဒေတာများကို အသစ်ရယူပါ' : 'Reload all organization dispatch and volunteer records',
+              style: TextStyle(fontSize: 12, color: textSecondary),
+            ),
+            onTap: () {
+              _fetchAllData();
+              _snack('All organization data refreshed', AppTheme.secondaryGreen);
+            },
+          ),
+
+          const SizedBox(height: 28),
+
+          // ── Logout Button ───────────────────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.logout, color: Colors.red),
+              label: Text(
+                isMm ? 'အဖွဲ့အစည်း အကောင့်မှ ထွက်မည်' : 'SIGN OUT OF ORGANIZATION CONSOLE',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13, letterSpacing: 0.5),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.red, width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () => _confirmOrgLogout(isMm),
+            ),
+          ),
+          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmOrgLogout(bool isMm) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: dialogBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          isMm ? 'အဖွဲ့အစည်း အကောင့်မှ ထွက်ခွာမည်လား?' : 'Log Out Organization?',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          isMm
+              ? 'သင်သည် အဖွဲ့အစည်း ကွပ်ကဲရေးစနစ်မှ ထွက်ခွာရန် သေချာပါသလား?'
+              : 'Are you sure you want to end your organization command session?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(isMm ? 'မထွက်ပါ' : 'CANCEL'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(isMm ? 'ထွက်မည်' : 'LOG OUT'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      ref.read(authProvider.notifier).logout();
+      context.go('/login');
+    }
   }
 }

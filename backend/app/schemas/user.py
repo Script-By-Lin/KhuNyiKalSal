@@ -30,6 +30,7 @@ class UserProfileResponse(BaseModel):
 
 
 class UpdateProfileRequest(BaseModel):
+    email: Optional[str] = None
     full_name: Optional[str] = None
     phone_number: Optional[str] = None
     blood_type: Optional[str] = None

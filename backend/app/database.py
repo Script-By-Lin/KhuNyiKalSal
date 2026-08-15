@@ -45,126 +45,128 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 async def create_tables(drop: bool = False):
     """Create all tables on startup. Import all models so metadata is populated."""
+    from app.models import (  # noqa: F401
+        Account, UserProfile, Organization, Volunteer, Emergency,
+        FamilyGroup, FamilyMember, FamilyAlert, UserSession, BloodDonation,
+        Announcement, SupportInfo,
+    )
+
+    # 1. Base Metadata table creation in isolated connection
     async with engine.begin() as conn:
-        from app.models import (  # noqa: F401
-            Account, UserProfile, Organization, Volunteer, Emergency,
-            FamilyGroup, FamilyMember, FamilyAlert, UserSession, BloodDonation,
-            Announcement, SupportInfo,
-        )
         if drop:
             try:
                 await conn.run_sync(Base.metadata.drop_all)
             except Exception as e:
                 logger.warning(f"Drop all tables note: {e}")
 
-        # Safe metadata table creation
         try:
             await conn.run_sync(Base.metadata.create_all)
         except Exception as e:
             logger.warning(f"Metadata create_all notice (safe concurrent handling): {e}")
 
-        # Self-healing column, table, and index additions for live production databases
-        try:
-            from sqlalchemy import text
-            if not settings.async_database_url.startswith("sqlite"):
-                # 1. Announcements self-healing table & columns
-                await conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS announcements (
-                        id UUID PRIMARY KEY,
-                        title VARCHAR(255) NOT NULL,
-                        content TEXT NOT NULL,
-                        category VARCHAR(50) DEFAULT 'General',
-                        author_name VARCHAR(100) DEFAULT 'Emergency Command Center',
-                        is_pinned BOOLEAN DEFAULT FALSE,
-                        is_active BOOLEAN DEFAULT TRUE,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-                """))
-                await conn.execute(text("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS content TEXT;"))
-                await conn.execute(text("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'General';"))
-                await conn.execute(text("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS author_name VARCHAR(100) DEFAULT 'Emergency Command Center';"))
-                await conn.execute(text("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;"))
-                await conn.execute(text("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;"))
-                await conn.execute(text("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
-                await conn.execute(text("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
+    # 2. Self-healing column, enum, and index additions for live production databases
+    # Each DDL statement runs in its own AUTOCOMMIT connection to prevent transaction abort cascades
+    if not settings.async_database_url.startswith("sqlite"):
+        from sqlalchemy import text
+        ddl_statements = [
+            # 1. Announcements table & columns
+            """
+            CREATE TABLE IF NOT EXISTS announcements (
+                id UUID PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                content TEXT NOT NULL,
+                category VARCHAR(50) DEFAULT 'General',
+                author_name VARCHAR(100) DEFAULT 'Emergency Command Center',
+                is_pinned BOOLEAN DEFAULT FALSE,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+            """,
+            "ALTER TABLE announcements ADD COLUMN IF NOT EXISTS content TEXT;",
+            "ALTER TABLE announcements ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'General';",
+            "ALTER TABLE announcements ADD COLUMN IF NOT EXISTS author_name VARCHAR(100) DEFAULT 'Emergency Command Center';",
+            "ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;",
+            "ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;",
+            "ALTER TABLE announcements ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;",
+            "ALTER TABLE announcements ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;",
 
-                # 2. Support Info self-healing table & columns
-                await conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS support_info (
-                        id UUID PRIMARY KEY,
-                        kbz_pay_name VARCHAR(100) DEFAULT 'Khu Nyi Kal Sal Relief Fund',
-                        kbz_pay_phone VARCHAR(50) DEFAULT '09789123456',
-                        wave_pay_name VARCHAR(100) DEFAULT 'Khu Nyi Kal Sal Relief Fund',
-                        wave_pay_phone VARCHAR(50) DEFAULT '09789123456',
-                        bank_name VARCHAR(100) DEFAULT 'KBZ Bank',
-                        bank_account_number VARCHAR(100) DEFAULT '123-456-789012345',
-                        bank_account_name VARCHAR(100) DEFAULT 'Khu Nyi Kal Sal Emergency Response',
-                        mmqr_payload TEXT,
-                        note_message TEXT,
-                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-                """))
-                await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS kbz_pay_name VARCHAR(100);"))
-                await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS kbz_pay_phone VARCHAR(50);"))
-                await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS wave_pay_name VARCHAR(100);"))
-                await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS wave_pay_phone VARCHAR(50);"))
-                await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS bank_name VARCHAR(100);"))
-                await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(100);"))
-                await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS bank_account_name VARCHAR(100);"))
-                await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS mmqr_payload TEXT;"))
-                await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS mmqr_image_url TEXT;"))
-                await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS note_message TEXT;"))
-                await conn.execute(text("ALTER TABLE support_info ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
+            # 2. Support Info table & columns
+            """
+            CREATE TABLE IF NOT EXISTS support_info (
+                id UUID PRIMARY KEY,
+                kbz_pay_name VARCHAR(100) DEFAULT 'Khu Nyi Kal Sal Relief Fund',
+                kbz_pay_phone VARCHAR(50) DEFAULT '09789123456',
+                wave_pay_name VARCHAR(100) DEFAULT 'Khu Nyi Kal Sal Relief Fund',
+                wave_pay_phone VARCHAR(50) DEFAULT '09789123456',
+                bank_name VARCHAR(100) DEFAULT 'KBZ Bank',
+                bank_account_number VARCHAR(100) DEFAULT '123-456-789012345',
+                bank_account_name VARCHAR(100) DEFAULT 'Khu Nyi Kal Sal Emergency Response',
+                mmqr_payload TEXT,
+                note_message TEXT,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+            """,
+            "ALTER TABLE support_info ADD COLUMN IF NOT EXISTS kbz_pay_name VARCHAR(100);",
+            "ALTER TABLE support_info ADD COLUMN IF NOT EXISTS kbz_pay_phone VARCHAR(50);",
+            "ALTER TABLE support_info ADD COLUMN IF NOT EXISTS wave_pay_name VARCHAR(100);",
+            "ALTER TABLE support_info ADD COLUMN IF NOT EXISTS wave_pay_phone VARCHAR(50);",
+            "ALTER TABLE support_info ADD COLUMN IF NOT EXISTS bank_name VARCHAR(100);",
+            "ALTER TABLE support_info ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(100);",
+            "ALTER TABLE support_info ADD COLUMN IF NOT EXISTS bank_account_name VARCHAR(100);",
+            "ALTER TABLE support_info ADD COLUMN IF NOT EXISTS mmqr_payload TEXT;",
+            "ALTER TABLE support_info ADD COLUMN IF NOT EXISTS mmqr_image_url TEXT;",
+            "ALTER TABLE support_info ADD COLUMN IF NOT EXISTS note_message TEXT;",
+            "ALTER TABLE support_info ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;",
 
-                # 3. Sessions FCM token self-healing
-                await conn.execute(text("ALTER TABLE sessions ADD COLUMN IF NOT EXISTS fcm_token VARCHAR(500);"))
-                await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_sessions_fcm_token ON sessions (fcm_token);"))
-                
-                # 4. Organizations created_at & fields self-healing
-                await conn.execute(text("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;"))
-                await conn.execute(text("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'Medical';"))
-                await conn.execute(text("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS headquarters_address VARCHAR(500);"))
-                await conn.execute(text("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS operating_regions VARCHAR(255);"))
-                await conn.execute(text("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS registration_number VARCHAR(100);"))
-                await conn.execute(text("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS coverage_radius_km FLOAT DEFAULT 50.0;"))
-                
-                # 5. Blood Donations columns self-healing
-                await conn.execute(text("ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS request_type VARCHAR(20) DEFAULT 'donate';"))
-                await conn.execute(text("ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS patient_name VARCHAR(100);"))
-                await conn.execute(text("ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS hospital_name VARCHAR(200);"))
-                await conn.execute(text("ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS urgency_level VARCHAR(50);"))
-                await conn.execute(text("ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS accepted_org_id UUID REFERENCES accounts(id) ON DELETE SET NULL;"))
-                await conn.execute(text("ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS pickup_location_message TEXT;"))
-                await conn.execute(text("ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS appointment_date VARCHAR(100);"))
-                await conn.execute(text("ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS appointment_location VARCHAR(200);"))
-                await conn.execute(text("ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS appointment_notes TEXT;"))
-                
-                # 6. Emergency Types Enum & Indexes self-healing
-                try:
-                    await conn.execute(text("ALTER TYPE emergency_type_enum ADD VALUE IF NOT EXISTS 'accident';"))
-                except Exception as e:
-                    logger.debug(f"Enum add 'accident' note: {e}")
-                try:
-                    await conn.execute(text("ALTER TYPE emergency_type_enum ADD VALUE IF NOT EXISTS 'natural_disaster';"))
-                except Exception as e:
-                    logger.debug(f"Enum add 'natural_disaster' note: {e}")
-                try:
-                    await conn.execute(text("ALTER TYPE emergency_type_enum ADD VALUE IF NOT EXISTS 'crime';"))
-                except Exception as e:
-                    logger.debug(f"Enum add 'crime' note: {e}")
+            # 3. Sessions FCM token
+            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS fcm_token VARCHAR(500);",
+            "CREATE INDEX IF NOT EXISTS ix_sessions_fcm_token ON sessions (fcm_token);",
 
-                try:
-                    await conn.execute(text("UPDATE emergencies SET type = lower(type::text)::emergency_type_enum WHERE type::text != lower(type::text);"))
-                except Exception as e:
-                    logger.debug(f"Enum case normalization note: {e}")
+            # 4. Organizations fields
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'Medical';",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS headquarters_address VARCHAR(500);",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS operating_regions VARCHAR(255);",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS registration_number VARCHAR(100);",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS coverage_radius_km FLOAT DEFAULT 50.0;",
 
-                await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blood_req_status ON blood_donations (request_type, status);"))
-                await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blood_accepted_org ON blood_donations (accepted_org_id);"))
-                await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blood_type ON blood_donations (blood_type);"))
-                await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_emergency_type_status ON emergencies (type, status);"))
-                await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_emergency_assigned_org ON emergencies (assigned_org_id);"))
-                await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_emergency_user_created ON emergencies (user_id, created_at);"))
-                await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_announcements_pinned_created ON announcements (is_pinned, created_at);"))
-        except Exception as e:
-            logger.warning(f"Production schema self-healing check note: {e}")
+            # 5. Blood Donations columns
+            "ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS request_type VARCHAR(20) DEFAULT 'donate';",
+            "ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS patient_name VARCHAR(100);",
+            "ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS hospital_name VARCHAR(200);",
+            "ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS urgency_level VARCHAR(50);",
+            "ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS accepted_org_id UUID REFERENCES accounts(id) ON DELETE SET NULL;",
+            "ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS pickup_location_message TEXT;",
+            "ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS appointment_date VARCHAR(100);",
+            "ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS appointment_location VARCHAR(200);",
+            "ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS appointment_notes TEXT;",
+
+            # 6. Emergency Types Enum additions (PostgreSQL requires AUTOCOMMIT for ALTER TYPE)
+            "ALTER TYPE emergency_type_enum ADD VALUE IF NOT EXISTS 'accident';",
+            "ALTER TYPE emergency_type_enum ADD VALUE IF NOT EXISTS 'natural_disaster';",
+            "ALTER TYPE emergency_type_enum ADD VALUE IF NOT EXISTS 'crime';",
+
+            # 7. Normalize uppercase emergency types
+            "UPDATE emergencies SET type = lower(type::text)::emergency_type_enum WHERE type::text != lower(type::text);",
+
+            # 8. Performance Indexes
+            "CREATE INDEX IF NOT EXISTS ix_blood_req_status ON blood_donations (request_type, status);",
+            "CREATE INDEX IF NOT EXISTS ix_blood_accepted_org ON blood_donations (accepted_org_id);",
+            "CREATE INDEX IF NOT EXISTS ix_blood_type ON blood_donations (blood_type);",
+            "CREATE INDEX IF NOT EXISTS ix_emergency_type_status ON emergencies (type, status);",
+            "CREATE INDEX IF NOT EXISTS ix_emergency_assigned_org ON emergencies (assigned_org_id);",
+            "CREATE INDEX IF NOT EXISTS ix_emergency_user_created ON emergencies (user_id, created_at);",
+            "CREATE INDEX IF NOT EXISTS ix_announcements_pinned_created ON announcements (is_pinned, created_at);",
+        ]
+
+        for stmt in ddl_statements:
+            stmt = stmt.strip()
+            if not stmt:
+                continue
+            try:
+                async with engine.connect() as conn:
+                    conn = await conn.execution_options(isolation_level="AUTOCOMMIT")
+                    await conn.execute(text(stmt))
+            except Exception as e:
+                logger.debug(f"Self-healing DDL note ({stmt[:50]}...): {e}")

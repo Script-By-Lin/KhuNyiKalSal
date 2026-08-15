@@ -117,12 +117,16 @@ async def ensure_idempotent_schema():
             """CREATE INDEX IF NOT EXISTS ix_blood_donations_status ON blood_donations (status);"""
         ]
 
-        async with engine.begin() as conn:
-            for stmt in sql_statements:
-                try:
+        for stmt in sql_statements:
+            stmt = stmt.strip()
+            if not stmt:
+                continue
+            try:
+                async with engine.connect() as conn:
+                    conn = await conn.execution_options(isolation_level="AUTOCOMMIT")
                     await conn.execute(text(stmt))
-                except Exception as e:
-                    print(f"  [Notice] Schema check: {e}")
+            except Exception as e:
+                print(f"  [Notice] Schema check ({stmt[:40]}...): {e}")
 
         await engine.dispose()
         print("✅ Direct PostgreSQL schema verification completed.")

@@ -132,7 +132,19 @@ async def update_profile(
     db: AsyncSession = Depends(get_db),
 ):
     role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    role_upper = role_str.upper()
+    # If email update is requested, validate uniqueness and update account
+    if data.email and data.email.strip():
+        new_email = data.email.strip().lower()
+        if new_email != current_user.email.lower():
+            exist_res = await db.execute(
+                select(Account).where(Account.email == new_email, Account.id != current_user.id)
+            )
+            if exist_res.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="Email is already in use by another account")
+            current_user.email = new_email
+            db.add(current_user)
+            await db.commit()
+            await db.refresh(current_user)
 
     if role_upper == "ORGANIZATION":
         res = await db.execute(
