@@ -292,6 +292,9 @@ class ApiService {
   Future<Response> cancelEmergency(String id) =>
       dio.put('/emergency/$id/cancel');
 
+  Future<Response> cancelActiveEmergencies() =>
+      dio.post('/emergency/cancel-active');
+
   Future<Response> completeEmergency(String id) =>
       dio.put('/emergency/$id/complete');
 

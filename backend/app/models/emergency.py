@@ -41,7 +41,7 @@ class Emergency(Base):
         PG_UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False
     )
     type: Mapped[EmergencyType] = mapped_column(
-        SAEnum(EmergencyType, name="emergency_type_enum"), nullable=False, index=True
+        SAEnum(EmergencyType, name="emergency_type_enum", values_callable=lambda x: [e.value for e in x]), nullable=False, index=True
     )
     status: Mapped[EmergencyStatus] = mapped_column(
         SAEnum(EmergencyStatus, name="emergency_status_enum"),

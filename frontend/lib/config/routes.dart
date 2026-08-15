@@ -21,6 +21,7 @@ import '../screens/organization/orgs_list_screen.dart';
 import '../screens/shell_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/settings/device_management_screen.dart';
+import '../screens/settings/change_password_screen.dart';
 
 import '../screens/more/more_screen.dart';
 import '../screens/blood_donation/blood_donation_screen.dart';
@@ -94,6 +95,7 @@ final goRouter = GoRouter(
     GoRoute(path: '/rules-laws', builder: (_, _) => const RulesLawsScreen()),
     GoRoute(path: '/announcements', builder: (_, _) => const AnnouncementsScreen()),
     GoRoute(path: '/support-us', builder: (_, _) => const SupportUsScreen()),
+    GoRoute(path: '/change-password', builder: (_, _) => const ChangePasswordScreen()),
 
     // ── Role dashboards ──────────────────────────────────────────────────
     GoRoute(

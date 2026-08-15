@@ -323,29 +323,32 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
       ),
       bottomNavigationBar: SafeArea(
         bottom: true,
-        child: Container(
-          height: 68,
-          margin: const EdgeInsets.only(left: 10, right: 10, bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(36),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 24,
-                spreadRadius: 2,
-                offset: const Offset(0, 8),
+        child: Builder(
+          builder: (context) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            return Container(
+              height: 68,
+              margin: const EdgeInsets.only(left: 10, right: 10, bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(36),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                    blurRadius: 24,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : Colors.grey.withValues(alpha: 0.15),
+                  width: 1,
+                ),
               ),
-            ],
-            border: Border.all(
-              color: Colors.grey.withValues(alpha: 0.15),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
               // 1. Home
               _NavItem(
                 icon: Icons.home_outlined,
@@ -476,10 +479,12 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
+        );
+      },
+    ),
+  ),
+);
+}
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
@@ -509,6 +514,9 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unselectedColor = isDark ? Colors.white60 : AppTheme.subtleGrey;
+
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -518,7 +526,7 @@ class _NavItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
             color: isActive
-                ? AppTheme.primaryRed.withValues(alpha: 0.1)
+                ? AppTheme.primaryRed.withValues(alpha: isDark ? 0.2 : 0.1)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
           ),
@@ -528,7 +536,7 @@ class _NavItem extends StatelessWidget {
             children: [
               Icon(
                 isActive ? activeIcon : icon,
-                color: isActive ? AppTheme.primaryRed : AppTheme.subtleGrey,
+                color: isActive ? AppTheme.primaryRed : unselectedColor,
                 size: 20,
               ),
               const SizedBox(height: 2),
@@ -537,7 +545,7 @@ class _NavItem extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  color: isActive ? AppTheme.primaryRed : AppTheme.subtleGrey,
+                  color: isActive ? AppTheme.primaryRed : unselectedColor,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

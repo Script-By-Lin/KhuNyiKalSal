@@ -533,6 +533,8 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
   }
 
   Widget _buildNoGroupView(bool isMm) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 150),
       child: Column(
@@ -563,12 +565,14 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -756,16 +760,20 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
               chipColor = Colors.pink;
             }
 
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : Colors.grey.withValues(alpha: 0.2),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),

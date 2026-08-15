@@ -447,14 +447,18 @@ class _ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
+          color: isDark ? color.withValues(alpha: 0.16) : color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.15)),
+          border: Border.all(
+            color: isDark ? color.withValues(alpha: 0.35) : color.withValues(alpha: 0.15),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,7 +478,7 @@ class _ActionCard extends StatelessWidget {
               subtitle,
               style: TextStyle(
                 fontSize: 12,
-                color: color.withValues(alpha: 0.7),
+                color: isDark ? Colors.white70 : color.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -499,39 +503,54 @@ class _InfoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceGrey,
+          color: isDark ? const Color(0xFF1E293B) : AppTheme.surfaceGrey,
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isDark ? const Color(0xFF334155) : Colors.transparent,
+          ),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: AppTheme.textDark, size: 22),
+              child: Icon(icon, color: isDark ? Colors.white : AppTheme.textDark, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 15)),
-                  Text(subtitle,
-                      style: const TextStyle(
-                          fontSize: 12, color: AppTheme.subtleGrey)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: isDark ? Colors.white : AppTheme.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white60 : AppTheme.subtleGrey,
+                    ),
+                  ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppTheme.subtleGrey),
+            Icon(Icons.chevron_right, color: isDark ? Colors.white54 : AppTheme.subtleGrey),
           ],
         ),
       ),

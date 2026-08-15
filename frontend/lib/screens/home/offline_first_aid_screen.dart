@@ -30,6 +30,8 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
       return matchesCat && matchesQuery;
     }).toList();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -41,7 +43,7 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
           // ── Search & Filter Bar ─────────────────────────────────────────
           Container(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            color: Colors.grey.shade50,
+            color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade50,
             child: Column(
               children: [
                 TextField(
@@ -52,18 +54,22 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
                     prefixIcon: const Icon(Icons.search, size: 20),
                     isDense: true,
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 10,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+                      borderSide: BorderSide(
+                        color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+                      borderSide: BorderSide(
+                        color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                      ),
                     ),
                   ),
                   onChanged: (val) {
@@ -77,13 +83,13 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      _buildFilterChip('All', isMm ? 'အားလုံး' : 'All'),
+                      _buildFilterChip('All', isMm ? 'အားလုံး' : 'All', isDark),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Medical', isMm ? 'ဆေးဘက်ဆိုင်ရာ' : 'Medical'),
+                      _buildFilterChip('Medical', isMm ? 'ဆေးဘက်ဆိုင်ရာ' : 'Medical', isDark),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Fire', isMm ? 'မီးဘေး' : 'Fire'),
+                      _buildFilterChip('Fire', isMm ? 'မီးဘေး' : 'Fire', isDark),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Disaster', isMm ? 'သဘာဝဘေး' : 'Disaster'),
+                      _buildFilterChip('Disaster', isMm ? 'သဘာဝဘေး' : 'Disaster', isDark),
                     ],
                   ),
                 ),
@@ -94,24 +100,24 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
           // ── Emergency Hotlines Bar ──────────────────────────────────────
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: Colors.red.shade50,
+            color: isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.3) : Colors.red.shade50,
             child: Row(
               children: [
                 const Icon(Icons.phone_in_talk, color: AppTheme.primaryRed, size: 20),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    isMm ? 'အရေးပေါ် ဖုန်းနံပါတ်များ:' : 'Emergency Hotlines:',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
+                    isMm ? 'အရေးပေါ် ဖုန်းခေါ်ရန်:' : 'Direct Emergency Hotlines:',
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppTheme.primaryRed,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.red.shade200 : AppTheme.primaryRed,
                     ),
                   ),
                 ),
-                _buildQuickCallChip('191', '191'),
-                const SizedBox(width: 6),
                 _buildQuickCallChip('192', '192'),
+                const SizedBox(width: 6),
+                _buildQuickCallChip('191', '191'),
                 const SizedBox(width: 6),
                 _buildQuickCallChip('199', '199'),
               ],
@@ -126,7 +132,7 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
                       isMm
                           ? 'ရှာဖွေမှုရလဒ် မရှိပါ'
                           : 'No matching first-aid guides found',
-                      style: const TextStyle(color: Colors.grey),
+                      style: TextStyle(color: isDark ? Colors.white60 : Colors.grey),
                     ),
                   )
                 : ListView.builder(
@@ -134,7 +140,7 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
                     itemCount: guides.length,
                     itemBuilder: (context, index) {
                       final item = guides[index];
-                      return _buildGuideCard(item, isMm);
+                      return _buildGuideCard(item, isMm, isDark);
                     },
                   ),
           ),
@@ -143,13 +149,22 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
     );
   }
 
-  Widget _buildFilterChip(String cat, String label) {
+  Widget _buildFilterChip(String cat, String label, bool isDark) {
     final isSelected = _selectedCategory == cat;
     return ChoiceChip(
-      label: Text(label, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.black87)),
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+        ),
+      ),
       selected: isSelected,
       selectedColor: AppTheme.primaryRed,
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+      side: BorderSide(
+        color: isSelected ? AppTheme.primaryRed : (isDark ? const Color(0xFF334155) : Colors.grey.shade300),
+      ),
       onSelected: (val) {
         if (val) {
           setState(() {
@@ -188,7 +203,7 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
     );
   }
 
-  Widget _buildGuideCard(FirstAidGuideItem item, bool isMm) {
+  Widget _buildGuideCard(FirstAidGuideItem item, bool isMm, bool isDark) {
     final title = isMm ? item.titleMm : item.titleEn;
     final steps = isMm ? item.stepsMm : item.stepsEn;
     final cautions = isMm ? item.cautionsMm : item.cautionsEn;
@@ -202,23 +217,30 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(
+          color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
+        ),
       ),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.red.shade50,
+            color: isDark ? AppTheme.primaryRed.withValues(alpha: 0.2) : Colors.red.shade50,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(iconData, color: AppTheme.primaryRed, size: 24),
         ),
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
@@ -226,7 +248,7 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
             item.category,
             style: TextStyle(
               fontSize: 11,
-              color: Colors.grey.shade600,
+              color: isDark ? Colors.white60 : Colors.grey.shade600,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -237,11 +259,15 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Divider(),
+                Divider(color: isDark ? const Color(0xFF334155) : null),
                 const SizedBox(height: 8),
                 Text(
                   isMm ? 'လုပ်ဆောင်ရန် အဆင့်များ:' : 'Step-by-Step Instructions:',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 ...steps.map(
@@ -249,7 +275,11 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Text(
                       s,
-                      style: const TextStyle(fontSize: 13, height: 1.4),
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.4,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
                     ),
                   ),
                 ),
@@ -258,9 +288,11 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
+                      color: isDark ? const Color(0xFF78350F).withValues(alpha: 0.3) : Colors.amber.shade50,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.amber.shade200),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFFD97706) : Colors.amber.shade200,
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,7 +302,7 @@ class _OfflineFirstAidScreenState extends ConsumerState<OfflineFirstAidScreen> {
                               c,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.amber.shade900,
+                                color: isDark ? const Color(0xFFFDE68A) : Colors.amber.shade900,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),

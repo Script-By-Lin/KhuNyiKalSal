@@ -11,13 +11,15 @@ class EmergencyTypeSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SafeArea(
       top: false,
       child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: isDark ? const Border(top: BorderSide(color: Color(0xFF334155), width: 1)) : null,
         ),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: Column(
@@ -28,17 +30,17 @@ class EmergencyTypeSheet extends ConsumerWidget {
               width: 44,
               height: 5,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: isDark ? const Color(0xFF334155) : Colors.grey[300],
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
             const SizedBox(height: 18),
             Text(
               isMm ? 'အရေးပေါ် အမျိုးအစား ရွေးချယ်ပါ' : 'Select Emergency Type',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: Colors.black87,
+                color: isDark ? Colors.white : Colors.black87,
               ),
               textAlign: TextAlign.center,
             ),
@@ -47,7 +49,10 @@ class EmergencyTypeSheet extends ConsumerWidget {
               isMm
                   ? 'သင်ကြုံတွေ့နေရသော အရေးပေါ် အခြေအနေကို ရွေးချယ်ပေးပါ'
                   : 'Choose the type of emergency you are experiencing',
-              style: const TextStyle(color: AppTheme.subtleGrey, fontSize: 13),
+              style: TextStyle(
+                color: isDark ? Colors.white60 : AppTheme.subtleGrey,
+                fontSize: 13,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 22),

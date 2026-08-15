@@ -70,7 +70,7 @@ async def create_sos(
             user_id=str(current_user.id),
             lat=data.location_lat,
             lng=data.location_lng,
-            emergency_type=data.type,
+            emergency_type=normalized_type,
         )
     )
 

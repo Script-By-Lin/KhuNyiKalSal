@@ -163,16 +163,20 @@ class _OrgCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : Colors.grey.withValues(alpha: 0.2),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -186,7 +190,7 @@ class _OrgCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryGreen.withValues(alpha: 0.1),
+                  color: AppTheme.secondaryGreen.withValues(alpha: isDark ? 0.2 : 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -202,20 +206,20 @@ class _OrgCard extends StatelessWidget {
                   children: [
                     Text(
                       org.orgName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
-                        color: AppTheme.textDark,
+                        color: isDark ? Colors.white : AppTheme.textDark,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.phone_outlined, size: 14, color: AppTheme.subtleGrey),
+                        Icon(Icons.phone_outlined, size: 14, color: isDark ? Colors.white60 : AppTheme.subtleGrey),
                         const SizedBox(width: 4),
                         Text(
                           org.phoneNumber,
-                          style: const TextStyle(fontSize: 13, color: AppTheme.subtleGrey),
+                          style: TextStyle(fontSize: 13, color: isDark ? Colors.white60 : AppTheme.subtleGrey),
                         ),
                       ],
                     ),
@@ -226,7 +230,7 @@ class _OrgCard extends StatelessWidget {
                 icon: const Icon(Icons.map_outlined, color: Colors.blue),
                 tooltip: isMm ? 'မြေပုံပေါ်တွင် ကြည့်မည်' : 'View on Map',
                 style: IconButton.styleFrom(
-                  backgroundColor: Colors.blue.withValues(alpha: 0.12),
+                  backgroundColor: Colors.blue.withValues(alpha: isDark ? 0.2 : 0.12),
                 ),
                 onPressed: () => context.go('/map', extra: org),
               ),
@@ -235,14 +239,14 @@ class _OrgCard extends StatelessWidget {
                 icon: const Icon(Icons.call, color: AppTheme.secondaryGreen),
                 tooltip: isMm ? 'ဖုန်းခေါ်မည်' : 'Call',
                 style: IconButton.styleFrom(
-                  backgroundColor: AppTheme.secondaryGreen.withValues(alpha: 0.12),
+                  backgroundColor: AppTheme.secondaryGreen.withValues(alpha: isDark ? 0.2 : 0.12),
                 ),
                 onPressed: () => _makeCall(org.phoneNumber),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          const Divider(height: 1),
+          Divider(height: 1, color: isDark ? const Color(0xFF334155) : null),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -255,7 +259,11 @@ class _OrgCard extends StatelessWidget {
                     isMm
                         ? 'လွှမ်းခြုံဧရိယာ: ${org.coverageRadiusKm.toStringAsFixed(0)} km'
                         : 'Coverage: ${org.coverageRadiusKm.toStringAsFixed(0)} km',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.white70 : Colors.black87,
+                    ),
                   ),
                 ],
               ),

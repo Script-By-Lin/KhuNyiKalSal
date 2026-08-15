@@ -140,7 +140,20 @@ async def create_tables(drop: bool = False):
                 await conn.execute(text("ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS appointment_location VARCHAR(200);"))
                 await conn.execute(text("ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS appointment_notes TEXT;"))
                 
-                # 6. Performance Composite Indexes
+                # 6. Emergency Types Enum & Indexes self-healing
+                try:
+                    await conn.execute(text("ALTER TYPE emergency_type_enum ADD VALUE IF NOT EXISTS 'accident';"))
+                except Exception as e:
+                    logger.debug(f"Enum add 'accident' note: {e}")
+                try:
+                    await conn.execute(text("ALTER TYPE emergency_type_enum ADD VALUE IF NOT EXISTS 'natural_disaster';"))
+                except Exception as e:
+                    logger.debug(f"Enum add 'natural_disaster' note: {e}")
+                try:
+                    await conn.execute(text("ALTER TYPE emergency_type_enum ADD VALUE IF NOT EXISTS 'crime';"))
+                except Exception as e:
+                    logger.debug(f"Enum add 'crime' note: {e}")
+
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blood_req_status ON blood_donations (request_type, status);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blood_accepted_org ON blood_donations (accepted_org_id);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blood_type ON blood_donations (blood_type);"))

@@ -817,27 +817,38 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
           const SizedBox(height: 14),
 
           // Form Note Badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blue.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.blue.shade800, size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    isMm
-                        ? 'ဤပုံစံရှိ အချက်အလက်များကို ပြင်ဆင်နိုင်ပြီး အကောင့်ပရိုဖိုင် အချက်အလက်ကို ထိခိုက်ခြင်း မရှိပါ။'
-                        : 'You can customize your details here for this request without affecting your registered account profile.',
-                    style: TextStyle(fontSize: 11, color: Colors.blue.shade900, height: 1.3),
+          Builder(
+            builder: (context) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.3) : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF3B82F6) : Colors.blue.shade200,
                   ),
                 ),
-              ],
-            ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: isDark ? Colors.blue.shade300 : Colors.blue.shade800, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        isMm
+                            ? 'ဤပုံစံရှိ အချက်အလက်များကို ပြင်ဆင်နိုင်ပြီး အကောင့်ပရိုဖိုင် အချက်အလက်ကို ထိခိုက်ခြင်း မရှိပါ။'
+                            : 'You can customize your details here for this request without affecting your registered account profile.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.blue.shade100 : Colors.blue.shade900,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           const SizedBox(height: 20),
 
@@ -922,25 +933,32 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
           const SizedBox(height: 10),
 
           if (_nearbyOrgs.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.location_searching, color: Colors.grey),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      isMm ? 'အနီးဆုံး ဆေးရုံ/အဖွဲ့များ ရှာဖွေနေပါသည်...' : 'Locating nearest rescue hospitals & centers...',
-                      style: const TextStyle(fontSize: 13, color: Colors.grey),
+            Builder(
+              builder: (context) {
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
                     ),
                   ),
-                ],
-              ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_searching, color: isDark ? Colors.white60 : Colors.grey),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          isMm ? 'အနီးဆုံး ဆေးရုံ/အဖွဲ့များ ရှာဖွေနေပါသည်...' : 'Locating nearest rescue hospitals & centers...',
+                          style: TextStyle(fontSize: 13, color: isDark ? Colors.white60 : Colors.grey),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             )
           else
             Padding(
@@ -1419,335 +1437,370 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
           if (isAccepted) badgeColor = AppTheme.secondaryGreen;
           if (isCompleted) badgeColor = Colors.blue;
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isAccepted
-                    ? AppTheme.secondaryGreen.withValues(alpha: 0.6)
-                    : isRequest
-                        ? Colors.red.shade200
-                        : Colors.grey.shade300,
-                width: isAccepted ? 2 : 1,
-              ),
-              boxShadow: [
-                BoxShadow(
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
                   color: isAccepted
-                      ? AppTheme.secondaryGreen.withValues(alpha: 0.1)
-                      : Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                      ? AppTheme.secondaryGreen.withValues(alpha: isDark ? 0.8 : 0.6)
+                      : (isDark
+                          ? const Color(0xFF334155)
+                          : (isRequest ? Colors.red.shade200 : Colors.grey.shade300)),
+                  width: isAccepted ? 2 : 1,
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header Bar
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isRequest
-                        ? (isAccepted ? AppTheme.secondaryGreen.withValues(alpha: 0.08) : Colors.red.shade50)
-                        : badgeColor.withValues(alpha: 0.08),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                boxShadow: [
+                  BoxShadow(
+                    color: isAccepted
+                        ? AppTheme.secondaryGreen.withValues(alpha: isDark ? 0.2 : 0.1)
+                        : Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryRed.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          bloodType,
-                          style: const TextStyle(
-                            color: AppTheme.primaryRed,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Wrap(
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 6,
-                              runSpacing: 4,
-                              children: [
-                                Text(
-                                  isRequest ? 'Blood Request' : 'Blood Donation',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 13,
-                                    color: isRequest ? AppTheme.primaryRed : Colors.black87,
-                                  ),
-                                ),
-                                if (urgency != null && urgency.toString().isNotEmpty)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.shade100,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      urgency.toString(),
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.red.shade900,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              isRequest
-                                  ? 'Patient: ${patientName ?? item['donor_name']} (${item['units'] ?? 1} Units)'
-                                  : 'Donor: ${item['donor_name']} (${item['units'] ?? 1} Units)',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isAccepted ? AppTheme.secondaryGreen : badgeColor,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          isAccepted
-                              ? (isMm ? 'လက်ခံပြီး' : 'ACCEPTED')
-                              : status.toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Body Info
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              isRequest ? 'Hospital: $loc' : 'Center: $loc',
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(Icons.phone_outlined, size: 15, color: Colors.grey),
-                          const SizedBox(width: 6),
-                          Text('Contact: ${item['donor_phone'] ?? ''}',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                        ],
-                      ),
-                      if (date.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            const Icon(Icons.calendar_today_outlined, size: 15, color: Colors.grey),
-                            const SizedBox(width: 6),
-                            Text('Time / Urgency: $date',
-                                style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                          ],
-                        ),
-                      ],
-
-                      // ── CONFIRMED / ACCEPTED BANNER ────
-                      if (isAccepted) ...[
-                        const SizedBox(height: 14),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header Bar
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isRequest
+                          ? (isAccepted
+                              ? AppTheme.secondaryGreen.withValues(alpha: isDark ? 0.2 : 0.08)
+                              : (isDark ? Colors.red.withValues(alpha: 0.2) : Colors.red.shade50))
+                          : (isDark ? badgeColor.withValues(alpha: 0.2) : badgeColor.withValues(alpha: 0.08)),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
+                          padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.green.shade300, width: 1.5),
+                            color: AppTheme.primaryRed.withValues(alpha: isDark ? 0.25 : 0.15),
+                            shape: BoxShape.circle,
                           ),
+                          child: Text(
+                            bloodType,
+                            style: const TextStyle(
+                              color: AppTheme.primaryRed,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
+                              Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 6,
+                                runSpacing: 4,
                                 children: [
-                                  const Icon(Icons.verified, color: AppTheme.secondaryGreen, size: 18),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      isRequest
-                                          ? (isMm ? 'လက်ခံပြီး • သွေးထုတ်ယူရန် အချက်အလက်' : 'Confirmed Pickup Details')
-                                          : (isMm ? 'အတည်ပြုပြီး ရက်ချိန်း အချက်အလက်' : 'Confirmed Appointment Details'),
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                        color: Colors.green.shade900,
-                                      ),
+                                  Text(
+                                    isRequest ? 'Blood Request' : 'Blood Donation',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                      color: isRequest ? AppTheme.primaryRed : (isDark ? Colors.white : Colors.black87),
                                     ),
                                   ),
+                                  if (urgency != null && urgency.toString().isNotEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? Colors.red.withValues(alpha: 0.3) : Colors.red.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: isDark ? Border.all(color: Colors.red.shade400) : null,
+                                      ),
+                                      child: Text(
+                                        urgency.toString(),
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.red.shade200 : Colors.red.shade900,
+                                        ),
+                                      ),
+                                    ),
                                 ],
                               ),
-                              const SizedBox(height: 10),
-                              if (isRequest && pickupMsg != null && pickupMsg.toString().isNotEmpty) ...[
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(Icons.location_on, size: 15, color: Colors.green),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        'Where to get blood: $pickupMsg',
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
-                                      ),
-                                    ),
-                                  ],
+                              const SizedBox(height: 4),
+                              Text(
+                                isRequest
+                                    ? 'Patient: ${patientName ?? item['donor_name']} (${item['units'] ?? 1} Units)'
+                                    : 'Donor: ${item['donor_name']} (${item['units'] ?? 1} Units)',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white70 : Colors.black87,
                                 ),
-                                const SizedBox(height: 6),
-                              ],
-                              if (apptDate != null && apptDate.toString().isNotEmpty) ...[
-                                Row(
-                                  children: [
-                                    const Icon(Icons.access_time, size: 15, color: Colors.green),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        'Time: $apptDate',
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                  ],
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isAccepted ? AppTheme.secondaryGreen : badgeColor,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            isAccepted
+                                ? (isMm ? 'လက်ခံပြီး' : 'ACCEPTED')
+                                : status.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Body Info
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.location_on_outlined, size: 16, color: isDark ? Colors.white60 : Colors.grey),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                isRequest ? 'Hospital: $loc' : 'Center: $loc',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : Colors.black87,
                                 ),
-                                const SizedBox(height: 6),
-                              ],
-                              if (!isRequest && apptLoc != null && apptLoc.toString().isNotEmpty) ...[
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(Icons.phone_outlined, size: 15, color: isDark ? Colors.white60 : Colors.grey),
+                            const SizedBox(width: 6),
+                            Text('Contact: ${item['donor_phone'] ?? ''}',
+                                style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.grey)),
+                          ],
+                        ),
+                        if (date.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(Icons.calendar_today_outlined, size: 15, color: isDark ? Colors.white60 : Colors.grey),
+                              const SizedBox(width: 6),
+                              Text('Time / Urgency: $date',
+                                  style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.grey)),
+                            ],
+                          ),
+                        ],
+
+                        // ── CONFIRMED / ACCEPTED BANNER ────
+                        if (isAccepted) ...[
+                          const SizedBox(height: 14),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF064E3B).withValues(alpha: 0.3) : Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF059669) : Colors.green.shade300,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(Icons.location_on, size: 15, color: Colors.green),
-                                    const SizedBox(width: 6),
+                                    const Icon(Icons.verified, color: AppTheme.secondaryGreen, size: 18),
+                                    const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        'Where to come: $apptLoc',
-                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade900),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                              ],
-                              if (apptNotes != null && apptNotes.toString().isNotEmpty) ...[
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(Icons.note_alt_outlined, size: 15, color: Colors.green),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        'Notes: $apptNotes',
-                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                              ],
-                              if (orgName != null && orgName.toString().isNotEmpty) ...[
-                                Row(
-                                  children: [
-                                    const Icon(Icons.local_hospital, size: 15, color: AppTheme.secondaryGreen),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        'Organization: $orgName',
+                                        isRequest
+                                            ? (isMm ? 'လက်ခံပြီး • သွေးထုတ်ယူရန် အချက်အလက်' : 'Confirmed Pickup Details')
+                                            : (isMm ? 'အတည်ပြုပြီး ရက်ချိန်း အချက်အလက်' : 'Confirmed Appointment Details'),
                                         style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.green.shade800,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: isDark ? const Color(0xFF6EE7B7) : Colors.green.shade900,
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
+                                const SizedBox(height: 10),
+                                if (isRequest && pickupMsg != null && pickupMsg.toString().isNotEmpty) ...[
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.location_on, size: 15, color: Colors.green),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Where to get blood: $pickupMsg',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? Colors.white : Colors.black87,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                ],
+                                if (apptDate != null && apptDate.toString().isNotEmpty) ...[
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.access_time, size: 15, color: Colors.green),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Time: $apptDate',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark ? Colors.white70 : Colors.black87,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                ],
+                                if (!isRequest && apptLoc != null && apptLoc.toString().isNotEmpty) ...[
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.location_on, size: 15, color: Colors.green),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Where to come: $apptLoc',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark ? Colors.white70 : Colors.grey.shade900,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                ],
+                                if (apptNotes != null && apptNotes.toString().isNotEmpty) ...[
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.note_alt_outlined, size: 15, color: Colors.green),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Notes: $apptNotes',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark ? Colors.white60 : Colors.grey.shade700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                ],
+                                if (orgName != null && orgName.toString().isNotEmpty) ...[
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.local_hospital, size: 15, color: AppTheme.secondaryGreen),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Organization: $orgName',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark ? const Color(0xFF6EE7B7) : Colors.green.shade800,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
-                        ),
-                        if (orgPhone != null && orgPhone.toString().isNotEmpty) ...[
+                          if (orgPhone != null && orgPhone.toString().isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                icon: const Icon(Icons.phone, size: 18),
+                                label: Text(
+                                  isMm ? 'ဆေးရုံ/အဖွဲ့သို့ ဖုန်းခေါ်မည် ($orgPhone)' : 'Call Hospital / Org ($orgPhone)',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.secondaryGreen,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                onPressed: () => _makeCall(orgPhone),
+                              ),
+                            ),
+                          ],
+                        ] else if (status.toLowerCase() == 'pending') ...[
                           const SizedBox(height: 10),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.phone, size: 18),
-                              label: Text(
-                                isMm ? 'ဆေးရုံ/အဖွဲ့သို့ ဖုန်းခေါ်မည် ($orgPhone)' : 'Call Hospital / Org ($orgPhone)',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF78350F).withValues(alpha: 0.3) : Colors.amber.shade50,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFFD97706) : Colors.amber.shade200,
                               ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.secondaryGreen,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                              onPressed: () => _makeCall(orgPhone),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.hourglass_top, color: isDark ? const Color(0xFFFBBF24) : Colors.amber.shade800, size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    isRequest
+                                        ? (isMm
+                                            ? 'အနီးဆုံး ဆေးရုံများနှင့် ကယ်ဆယ်ရေးအဖွဲ့များထံမှ တုံ့ပြန်မှုကို စောင့်ဆိုင်းနေပါသည်...'
+                                            : 'Broadcasting to nearest hospitals & rescue groups... Waiting for response.')
+                                        : (isMm
+                                            ? 'ဆေးရုံမှ ရက်ချိန်းနှင့် လာရောက်ရမည့် နေရာကို အတည်ပြုရန် စောင့်ဆိုင်းနေပါသည်...'
+                                            : 'Waiting for hospital to confirm appointment date & room location...'),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? const Color(0xFFFDE68A) : Colors.amber.shade900,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ] else if (status.toLowerCase() == 'pending') ...[
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.shade50,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.amber.shade200),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.hourglass_top, color: Colors.amber.shade800, size: 16),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  isRequest
-                                      ? (isMm
-                                          ? 'အနီးဆုံး ဆေးရုံများနှင့် ကယ်ဆယ်ရေးအဖွဲ့များထံမှ တုံ့ပြန်မှုကို စောင့်ဆိုင်းနေပါသည်...'
-                                          : 'Broadcasting to nearest hospitals & rescue groups... Waiting for response.')
-                                      : (isMm
-                                          ? 'ဆေးရုံမှ ရက်ချိန်းနှင့် လာရောက်ရမည့် နေရာကို အတည်ပြုရန် စောင့်ဆိုင်းနေပါသည်...'
-                                          : 'Waiting for hospital to confirm appointment date & room location...'),
-                                  style: TextStyle(fontSize: 11, color: Colors.amber.shade900),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
-                    ],
                   ),
                 ),
               ],
@@ -1766,13 +1819,17 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
     required VoidCallback? onMinus,
     required VoidCallback? onPlus,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       height: 56,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1787,13 +1844,17 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: onMinus != null ? AppTheme.primaryRed.withValues(alpha: 0.1) : Colors.grey.shade100,
+                  color: onMinus != null
+                      ? AppTheme.primaryRed.withValues(alpha: isDark ? 0.2 : 0.1)
+                      : (isDark ? const Color(0xFF0F172A) : Colors.grey.shade100),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.remove,
                   size: 18,
-                  color: onMinus != null ? AppTheme.primaryRed : Colors.grey.shade400,
+                  color: onMinus != null
+                      ? AppTheme.primaryRed
+                      : (isDark ? Colors.white30 : Colors.grey.shade400),
                 ),
               ),
             ),
@@ -1805,17 +1866,17 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
             children: [
               Text(
                 '$units',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w900,
-                  color: Colors.black87,
+                  color: isDark ? Colors.white : Colors.black87,
                 ),
               ),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.grey.shade600,
+                  color: isDark ? Colors.white60 : Colors.grey.shade600,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1832,13 +1893,17 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: onPlus != null ? AppTheme.primaryRed.withValues(alpha: 0.1) : Colors.grey.shade100,
+                  color: onPlus != null
+                      ? AppTheme.primaryRed.withValues(alpha: isDark ? 0.2 : 0.1)
+                      : (isDark ? const Color(0xFF0F172A) : Colors.grey.shade100),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.add,
                   size: 18,
-                  color: onPlus != null ? AppTheme.primaryRed : Colors.grey.shade400,
+                  color: onPlus != null
+                      ? AppTheme.primaryRed
+                      : (isDark ? Colors.white30 : Colors.grey.shade400),
                 ),
               ),
             ),
@@ -1850,26 +1915,32 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
 
   Widget _input(TextEditingController ctrl, String hint, IconData icon,
       {int maxLines = 1, TextInputType keyboardType = TextInputType.text}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextField(
         controller: ctrl,
         maxLines: maxLines,
         keyboardType: keyboardType,
-        style: const TextStyle(fontSize: 14),
+        style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
         decoration: InputDecoration(
           labelText: hint,
           prefixIcon: Icon(icon, color: AppTheme.primaryRed, size: 20),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderSide: BorderSide(
+              color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderSide: BorderSide(
+              color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+            ),
           ),
         ),
       ),

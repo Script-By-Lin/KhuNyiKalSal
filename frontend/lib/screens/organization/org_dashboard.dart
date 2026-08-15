@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
@@ -19,31 +22,72 @@ class OrgDashboard extends ConsumerStatefulWidget {
   ConsumerState<OrgDashboard> createState() => _OrgDashboardState();
 }
 
-class _OrgDashboardState extends ConsumerState<OrgDashboard>
-    with SingleTickerProviderStateMixin {
+class _OrgDashboardState extends ConsumerState<OrgDashboard> {
+  int _currentTabIndex = 0; // 0: SOS Radar, 1: Blood Hub, 2: Volunteers, 3: Coverage & Profile
+
+  // ── SOS Emergencies State ──────────────────────────────────────────
   final List<Map<String, dynamic>> _emergencies = [];
   final List<Map<String, dynamic>> _history = [];
+  bool _loadingEmergencies = true;
+  bool _loadingHistory = true;
+  String _sosSearchQuery = '';
+  final _sosSearchCtrl = TextEditingController();
+  String _selectedSosFilter = 'ALL'; // 'ALL', 'PENDING', 'ACTIVE', 'COMPLETED'
+  String _selectedSosType = 'ALL'; // 'ALL', 'FIRE', 'MEDICAL', 'ACCIDENT', 'NATURAL_DISASTER'
+  int _sosSubTab = 0; // 0: Live Calls, 1: Mission History
+
+  // ── Blood Donations State ──────────────────────────────────────────
   final List<Map<String, dynamic>> _bloodDonations = [];
-  bool _loading = true;
-  bool _historyLoading = true;
-  bool _bloodLoading = true;
+  bool _loadingBlood = true;
+  String _bloodSearchQuery = '';
+  String _selectedBloodFilter = 'ALL'; // 'ALL', 'PENDING', 'ACCEPTED', 'COMPLETED'
+  final _bloodSearchCtrl = TextEditingController();
+
+  // ── Volunteers State ───────────────────────────────────────────────
+  final List<Map<String, dynamic>> _volunteers = [];
+  bool _loadingVolunteers = true;
+  String _volunteerSearchQuery = '';
+  final _volunteerSearchCtrl = TextEditingController();
+
+  // ── Organization Profile & Coverage State ──────────────────────────
+  bool _loadingProfile = true;
+  bool _savingProfile = false;
+  Map<String, dynamic>? _orgProfile;
+
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+  final _regionsCtrl = TextEditingController();
+  final _radiusCtrl = TextEditingController(text: '50.0');
+  final _regNumCtrl = TextEditingController();
+  final _latCtrl = TextEditingController();
+  final _lngCtrl = TextEditingController();
+  double _coverageRadiusKm = 50.0;
+  String _selectedCategory = 'Medical';
+
+  // Bank & MMQR fields
+  final _bankNameCtrl = TextEditingController();
+  final _bankAccNumCtrl = TextEditingController();
+  final _bankAccNameCtrl = TextEditingController();
+  final _kbzPhoneCtrl = TextEditingController();
+  final _wavePhoneCtrl = TextEditingController();
+  final _mmqrPayloadCtrl = TextEditingController();
+  final _mmqrImageUrlCtrl = TextEditingController();
+
   StreamSubscription? _wsSub;
   StreamSubscription? _locSub;
   Timer? _pollTimer;
-  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
     _initRealtimeTracking();
-    _loadAlerts();
-    _loadHistory();
-    _loadBloodDonations();
+    _fetchAllData();
     _listenForEvents();
+
     _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      _loadAlerts();
-      _loadBloodDonations();
+      _fetchEmergencies(silent: true);
+      _fetchBloodDonations(silent: true);
     });
   }
 
@@ -62,53 +106,153 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
     _locSub?.cancel();
     _wsSub?.cancel();
     _pollTimer?.cancel();
-    _tabController.dispose();
+    _sosSearchCtrl.dispose();
     _bloodSearchCtrl.dispose();
+    _volunteerSearchCtrl.dispose();
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _addressCtrl.dispose();
+    _regionsCtrl.dispose();
+    _radiusCtrl.dispose();
+    _regNumCtrl.dispose();
+    _latCtrl.dispose();
+    _lngCtrl.dispose();
+    _bankNameCtrl.dispose();
+    _bankAccNumCtrl.dispose();
+    _bankAccNameCtrl.dispose();
+    _kbzPhoneCtrl.dispose();
+    _wavePhoneCtrl.dispose();
+    _mmqrPayloadCtrl.dispose();
+    _mmqrImageUrlCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loadAlerts() async {
+  Future<void> _fetchAllData() async {
+    _fetchEmergencies();
+    _fetchHistory();
+    _fetchBloodDonations();
+    _fetchVolunteers();
+    _fetchOrgProfile();
+  }
+
+  void _snack(String msg, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg, style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DATA FETCHING & WEBSOCKETS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Future<void> _fetchEmergencies({bool silent = false}) async {
+    if (!silent) setState(() => _loadingEmergencies = true);
     try {
       final res = await ApiService().getVolunteerAlerts();
       if (mounted) {
         setState(() {
           _emergencies.clear();
           _emergencies.addAll(List<Map<String, dynamic>>.from(res.data));
-          _loading = false;
+          _loadingEmergencies = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && !silent) setState(() => _loadingEmergencies = false);
     }
   }
 
-  Future<void> _loadHistory() async {
+  Future<void> _fetchHistory() async {
+    setState(() => _loadingHistory = true);
     try {
       final res = await ApiService().getResponderHistory();
       if (mounted) {
         setState(() {
           _history.clear();
           _history.addAll(List<Map<String, dynamic>>.from(res.data));
-          _historyLoading = false;
+          _loadingHistory = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _historyLoading = false);
+      if (mounted) setState(() => _loadingHistory = false);
     }
   }
 
-  Future<void> _loadBloodDonations() async {
+  Future<void> _fetchBloodDonations({bool silent = false}) async {
+    if (!silent) setState(() => _loadingBlood = true);
     try {
       final res = await ApiService().getOrgBloodDonations();
       if (mounted) {
         setState(() {
           _bloodDonations.clear();
           _bloodDonations.addAll(List<Map<String, dynamic>>.from(res.data));
-          _bloodLoading = false;
+          _loadingBlood = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _bloodLoading = false);
+      if (mounted && !silent) setState(() => _loadingBlood = false);
+    }
+  }
+
+  Future<void> _fetchVolunteers() async {
+    setState(() => _loadingVolunteers = true);
+    try {
+      final res = await ApiService().listVolunteers();
+      if (mounted) {
+        setState(() {
+          _volunteers.clear();
+          _volunteers.addAll(List<Map<String, dynamic>>.from(res.data));
+          _loadingVolunteers = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingVolunteers = false);
+    }
+  }
+
+  Future<void> _fetchOrgProfile() async {
+    setState(() => _loadingProfile = true);
+    try {
+      final res = await ApiService().getProfile();
+      if (mounted) {
+        _orgProfile = res.data;
+        _nameCtrl.text = _orgProfile?['org_name'] ?? _orgProfile?['full_name'] ?? '';
+        _phoneCtrl.text = _orgProfile?['phone_number'] ?? '';
+        _addressCtrl.text = _orgProfile?['headquarters_address'] ?? '';
+        _regionsCtrl.text = _orgProfile?['operating_regions'] ?? '';
+        _regNumCtrl.text = _orgProfile?['registration_number'] ?? '';
+
+        final rad = (_orgProfile?['coverage_radius_km'] as num?)?.toDouble() ?? 50.0;
+        _coverageRadiusKm = rad.clamp(5.0, 100.0);
+        _radiusCtrl.text = _coverageRadiusKm.toStringAsFixed(1);
+
+        if (_orgProfile?['location_lat'] != null) {
+          _latCtrl.text = '${_orgProfile!['location_lat']}';
+        }
+        if (_orgProfile?['location_lng'] != null) {
+          _lngCtrl.text = '${_orgProfile!['location_lng']}';
+        }
+
+        final cat = (_orgProfile?['category'] ?? '').toString().toLowerCase();
+        if (cat.contains('fire')) {
+          _selectedCategory = 'Fire';
+        } else if (cat.contains('volunt')) {
+          _selectedCategory = 'Local Voluntary Org';
+        } else {
+          _selectedCategory = 'Medical';
+        }
+
+        _loadingProfile = false;
+        setState(() {});
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingProfile = false);
     }
   }
 
@@ -118,7 +262,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
       if (!mounted) return;
       final eventType = event['event'];
       if (eventType == 'SOS_CREATED') {
-        _loadAlerts();
+        _fetchEmergencies(silent: true);
         NotificationService().triggerUrgentHapticAlarm();
         final typeStr = (event['type'] ?? 'EMERGENCY').toString().toUpperCase();
         final victimName = (event['user_info']?['full_name'] ?? 'Citizen').toString();
@@ -129,22 +273,26 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
           payload: json.encode(event),
         );
       } else if (eventType == 'VOLUNTEER_ACCEPTED' || eventType == 'EMERGENCY_ACCEPTED') {
-        _loadAlerts();
+        _fetchEmergencies(silent: true);
       } else if (eventType == 'NEW_BLOOD_DONATION_REQUEST') {
-        _loadBloodDonations();
+        _fetchBloodDonations(silent: true);
         NotificationService().showEmergencyAlert(
           id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
           title: '🩸 New Blood Donation Request!',
-          body: 'Donor ${event['donor_name']} (${event['blood_type']}) has requested a blood donation appointment.',
+          body: 'Donor ${event['donor_name']} (${event['blood_type']}) requested appointment.',
         );
       } else if (eventType == 'EMERGENCY_COMPLETED' || eventType == 'SOS_CANCELLED') {
         setState(() {
           _emergencies.removeWhere((e) => e['emergency_id'] == event['emergency_id']);
         });
-        _loadHistory();
+        _fetchHistory();
       }
     });
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SOS ACTIONS
+  // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> _respond(String emergencyId, String action) async {
     try {
@@ -155,12 +303,12 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
             final idx = _emergencies.indexWhere((e) => e['emergency_id'] == emergencyId);
             if (idx != -1) _emergencies[idx]['status'] = 'accepted';
           });
-          _snack('✅ Case Accepted — Rescue Team Dispatched!', AppTheme.primaryRed);
+          _snack('✅ Case Accepted — Rescue Dispatched!', AppTheme.secondaryGreen);
         } else {
           setState(() {
             _emergencies.removeWhere((e) => e['emergency_id'] == emergencyId);
           });
-          _snack('Emergency Rejected', Colors.orange);
+          _snack('Emergency Rejected / Dismissed', Colors.orange);
         }
       }
     } catch (_) {
@@ -175,496 +323,267 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
         setState(() {
           _emergencies.removeWhere((e) => e['emergency_id'] == emergencyId);
         });
-        _loadHistory();
-        _snack('Mission Completed. Record saved.', AppTheme.primaryRed);
+        _fetchHistory();
+        _snack('Mission Completed. Record archived.', AppTheme.secondaryGreen);
       }
     } catch (e) {
-      String errMsg = 'Failed to complete emergency';
-      try {
-        final dioErr = e as dynamic;
-        if (dioErr.response?.data != null) {
-          final data = dioErr.response.data;
-          if (data is Map && data.containsKey('detail')) {
-            errMsg = data['detail'].toString();
-          }
-        }
-      } catch (_) {}
-      _snack(errMsg, Colors.red);
+      _snack('Failed to complete emergency', Colors.red);
     }
   }
 
-  void _snack(String msg, Color color) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w700)),
-      backgroundColor: color,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.all(16),
-    ));
-  }
+  Future<void> _assignVolunteerModal(Map<String, dynamic> emergency) async {
+    final eid = emergency['emergency_id'] ?? '';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xFF1E293B) : Colors.white;
 
-  Future<void> _makeCall(String phoneNumber) async {
-    final Uri uri = Uri(scheme: 'tel', path: phoneNumber);
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
-  }
-
-
-
-
-
-  // ───────────────────────────────────────────────────────────────────────
-  // BUILD
-  // ───────────────────────────────────────────────────────────────────────
-  @override
-  Widget build(BuildContext context) {
-    final pending = _emergencies.where((e) => e['status'] != 'accepted').toList();
-    final active = _emergencies.where((e) => e['status'] == 'accepted').toList();
-
-    return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      body: SafeArea(
-        child: Column(
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: dialogBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
           children: [
-            // ── Top Bar ────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.4)),
-                    ),
-                    child: const Icon(Icons.shield_rounded, color: AppTheme.primaryRed, size: 24),
-                  ),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('COMMAND CENTER',
-                            style: TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 18,
-                                letterSpacing: 0.8)),
-                        SizedBox(height: 2),
-                        Text('Live Emergency Dispatch & GPS Radar',
-                            style: TextStyle(color: Colors.black54, fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                  _topAction(Icons.people_outline, () => context.push('/manage-volunteers')),
-                  _topAction(Icons.edit_note_rounded, _openEditOrgProfileModal),
-                  _topAction(Icons.refresh, () {
-                    _loadAlerts();
-                    _loadHistory();
-                    _loadBloodDonations();
-                  }),
-                  _topAction(Icons.logout, () {
-                    ref.read(authProvider.notifier).logout();
-                    context.go('/login');
-                  }),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Stat Counters Row ──────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  _counter('PENDING', pending.length, const Color(0xFFF59E0B)),
-                  const SizedBox(width: 10),
-                  _counter('ACTIVE', active.length, AppTheme.primaryRed),
-                  const SizedBox(width: 10),
-                  _counter('COMPLETED', _history.where((h) => h['status'] == 'completed').length, const Color(0xFF06B6D4)),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Light Tab Bar ───────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                height: 46,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.black12),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  labelPadding: EdgeInsets.zero,
-                  indicator: BoxDecoration(
-                    color: AppTheme.primaryRed,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  dividerHeight: 0,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.black54,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-                  tabs: [
-                    Tab(text: 'Pending (${pending.length})'),
-                    Tab(text: 'Active (${active.length})'),
-                    Tab(text: 'Blood (${_bloodDonations.where((b) => b['status'] == 'Pending' || b['status'] == 'Accepted').length})'),
-                    Tab(text: 'History (${_history.length})'),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // ── Tab Content Container (Light Theme) ─────────────────────
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                  border: Border.all(color: Colors.black12),
-                ),
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildCardList(pending, isPending: true),
-                    _buildCardList(active, isPending: false),
-                    _buildBloodDonationsList(),
-                    _buildHistoryList(),
-                  ],
-                ),
-              ),
-            ),
+            const Icon(Icons.person_add_alt_1_rounded, color: AppTheme.primaryRed),
+            const SizedBox(width: 10),
+            const Text('Assign First Responder', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: _volunteers.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('No registered volunteers found for your organization.'),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _volunteers.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final v = _volunteers[i];
+                    final vid = v['account_id'] ?? v['id'] ?? '';
+                    final vName = v['full_name'] ?? 'Volunteer';
+                    final vPhone = v['phone_number'] ?? '';
+                    final isActive = v['is_active'] == true;
+
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      leading: CircleAvatar(
+                        backgroundColor: isActive ? Colors.green.shade100 : Colors.grey.shade200,
+                        child: Icon(Icons.person, color: isActive ? Colors.green.shade800 : Colors.grey),
+                      ),
+                      title: Text(vName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: Text(vPhone, style: const TextStyle(fontSize: 12)),
+                      trailing: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryRed,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          try {
+                            await ApiService().assignEmergencyToVolunteer(eid, vid);
+                            _snack('Assigned to $vName successfully!', AppTheme.secondaryGreen);
+                            _fetchEmergencies(silent: true);
+                          } catch (_) {
+                            _snack('Failed to assign volunteer', Colors.red);
+                          }
+                        },
+                        child: const Text('ASSIGN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+        ],
       ),
     );
   }
 
-  // ── Edit Organization Profile Modal ────────────────────────────────
-  Future<void> _openEditOrgProfileModal() async {
-    Map<String, dynamic>? profile;
-    try {
-      final res = await ApiService().getProfile();
-      profile = res.data;
-    } catch (_) {}
+  Future<void> _makeCall(String phoneNumber) async {
+    final cleanPhone = phoneNumber.replaceAll(' ', '').replaceAll('-', '');
+    final Uri uri = Uri(scheme: 'tel', path: cleanPhone);
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
 
-    if (!mounted) return;
+  // ══════════════════════════════════════════════════════════════════════════
+  // COVERAGE & PROFILE SAVE ACTION
+  // ══════════════════════════════════════════════════════════════════════════
 
-    final nameCtrl = TextEditingController(text: profile?['org_name'] ?? profile?['full_name'] ?? '');
-    final phoneCtrl = TextEditingController(text: profile?['phone_number'] ?? '');
-    final addressCtrl = TextEditingController(text: profile?['headquarters_address'] ?? '');
-    final regionsCtrl = TextEditingController(text: profile?['operating_regions'] ?? '');
-    final radiusCtrl = TextEditingController(text: profile?['coverage_radius_km'] != null ? '${profile!['coverage_radius_km']}' : '50.0');
-    final regNumCtrl = TextEditingController(text: profile?['registration_number'] ?? '');
-    final latCtrl = TextEditingController(text: profile?['location_lat'] != null ? '${profile!['location_lat']}' : '');
-    final lngCtrl = TextEditingController(text: profile?['location_lng'] != null ? '${profile!['location_lng']}' : '');
+  Future<void> _saveOrganizationProfile() async {
+    final name = _nameCtrl.text.trim();
+    final phone = _phoneCtrl.text.trim().replaceAll(' ', '').replaceAll('-', '');
 
-    String selectedCategory = 'Medical';
-    final existingCat = profile?['category'] as String?;
-    if (existingCat != null && existingCat.isNotEmpty) {
-      if (existingCat.toLowerCase().contains('fire')) {
-        selectedCategory = 'Fire';
-      } else if (existingCat.toLowerCase().contains('volunt')) {
-        selectedCategory = 'Local Voluntary Org';
-      } else {
-        selectedCategory = 'Medical';
-      }
+    if (name.isEmpty) {
+      _snack('Organization name is required', Colors.red);
+      return;
     }
 
-    bool isSaving = false;
+    if (phone.isNotEmpty && !RegExp(r'^(?:\+959|09)\d{7,10}$').hasMatch(phone)) {
+      _snack('Invalid phone format (must start with +959 or 09)', Colors.red);
+      return;
+    }
 
-    showModalBottomSheet(
+    setState(() => _savingProfile = true);
+
+    final payload = <String, dynamic>{
+      'org_name': name,
+      'full_name': name,
+      'phone_number': phone,
+      'category': _selectedCategory,
+      'operating_regions': _regionsCtrl.text.trim(),
+      'headquarters_address': _addressCtrl.text.trim(),
+      'registration_number': _regNumCtrl.text.trim(),
+      'coverage_radius_km': _coverageRadiusKm,
+    };
+
+    final lat = double.tryParse(_latCtrl.text.trim());
+    final lng = double.tryParse(_lngCtrl.text.trim());
+    if (lat != null && lng != null) {
+      payload['location_lat'] = lat;
+      payload['location_lng'] = lng;
+    }
+
+    try {
+      await ApiService().updateProfile(payload);
+      _snack('✅ Coverage & Profile updated! Radius: ${_coverageRadiusKm.toStringAsFixed(1)} KM is active for SOS routing.', AppTheme.secondaryGreen);
+      setState(() => _savingProfile = false);
+      _fetchOrgProfile();
+    } catch (e) {
+      setState(() => _savingProfile = false);
+      _snack('Failed to update organization profile', Colors.red);
+    }
+  }
+
+  Future<void> _pickLocationOnMap() async {
+    double? initLat = double.tryParse(_latCtrl.text);
+    double? initLng = double.tryParse(_lngCtrl.text);
+    LatLng pickedPoint = LatLng(initLat ?? 16.8661, initLng ?? 96.1951);
+    final mapController = MapController();
+
+    if (initLat == null || initLng == null) {
+      try {
+        final pos = await LocationService.getCurrentLocation();
+        pickedPoint = LatLng(pos.latitude, pos.longitude);
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
+    await showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: SingleChildScrollView(
+        builder: (context, setMapState) => Dialog(
+          backgroundColor: dialogBg,
+          insetPadding: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.75,
+            width: double.infinity,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryRed.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: const BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.pin_drop, color: AppTheme.primaryRed, size: 22),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '📍 Lat: ${pickedPoint.latitude.toStringAsFixed(5)}, Lng: ${pickedPoint.longitude.toStringAsFixed(5)}',
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: FlutterMap(
+                    mapController: mapController,
+                    options: MapOptions(
+                      initialCenter: pickedPoint,
+                      initialZoom: 13.5,
+                      onTap: (tapPos, latLng) {
+                        setMapState(() => pickedPoint = latLng);
+                      },
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.khunyikalsal.emergency',
+                      ),
+                      CircleLayer(
+                        circles: [
+                          CircleMarker(
+                            point: pickedPoint,
+                            radius: _coverageRadiusKm * 1000,
+                            useRadiusInMeter: true,
+                            color: AppTheme.primaryRed.withValues(alpha: 0.15),
+                            borderColor: AppTheme.primaryRed,
+                            borderStrokeWidth: 2,
                           ),
-                          child: const Icon(Icons.apartment_rounded, color: AppTheme.primaryRed, size: 22),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'Edit Organization Profile',
-                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
-                        ),
-                      ],
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.black54),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
-                const Divider(height: 20),
-
-                // Org Name
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Organization Name',
-                    prefixIcon: Icon(Icons.business_outlined),
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ],
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: pickedPoint,
+                            width: 50,
+                            height: 50,
+                            child: const Icon(
+                              Icons.location_pin,
+                              color: AppTheme.primaryRed,
+                              size: 46,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
-
-                // Hotline
-                TextField(
-                  controller: phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Hotline Phone Number',
-                    helperText: 'Must start with +959 or 09 (e.g. 09123456789)',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Category Dropdown
-                DropdownButtonFormField<String>(
-                  initialValue: selectedCategory,
-                  decoration: const InputDecoration(
-                    labelText: 'Organization Category',
-                    prefixIcon: Icon(Icons.category_outlined),
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'Medical', child: Text('Medical & Ambulance')),
-                    DropdownMenuItem(value: 'Fire', child: Text('Fire & Disaster Rescue')),
-                    DropdownMenuItem(value: 'Local Voluntary Org', child: Text('Local Voluntary Org')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setModalState(() => selectedCategory = val);
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // Headquarters Address
-                TextField(
-                  controller: addressCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Headquarters Address',
-                    prefixIcon: Icon(Icons.location_city_outlined),
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Operating Regions
-                TextField(
-                  controller: regionsCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Operating Regions',
-                    helperText: 'e.g. Kamaryut, Hledan, Sanchaung, Bahan',
-                    prefixIcon: Icon(Icons.map_outlined),
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Coverage & Registration
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: radiusCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Coverage (KM)',
-                          prefixIcon: Icon(Icons.radar_outlined),
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('CANCEL'),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: regNumCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Reg Number',
-                          prefixIcon: Icon(Icons.verified_outlined),
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Coordinates Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: latCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(
-                          labelText: 'Latitude',
-                          prefixIcon: Icon(Icons.my_location, size: 18),
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: lngCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(
-                          labelText: 'Longitude',
-                          prefixIcon: Icon(Icons.location_searching, size: 18),
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Get Current GPS Location button
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.gps_fixed, size: 16),
-                    label: const Text('Use Current GPS Coordinates', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.primaryRed,
-                      side: const BorderSide(color: AppTheme.primaryRed),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () async {
-                      try {
-                        final pos = await LocationService.getCurrentLocation();
-                        setModalState(() {
-                          latCtrl.text = pos.latitude.toStringAsFixed(6);
-                          lngCtrl.text = pos.longitude.toStringAsFixed(6);
-                        });
-                      } catch (_) {
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(content: Text('Failed to get GPS location'), backgroundColor: Colors.red),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Save button
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryRed,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: isSaving
-                        ? null
-                        : () async {
-                            final name = nameCtrl.text.trim();
-                            final phone = phoneCtrl.text.trim().replaceAll(' ', '').replaceAll('-', '');
-
-                            if (name.isEmpty) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(content: Text('Organization name is required'), backgroundColor: Colors.red),
-                              );
-                              return;
-                            }
-
-                            if (phone.isNotEmpty && !RegExp(r'^(?:\+959|09)\d{7,10}$').hasMatch(phone)) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(content: Text('Invalid phone format (must start with +959 or 09)'), backgroundColor: Colors.red),
-                              );
-                              return;
-                            }
-
-                            setModalState(() => isSaving = true);
-
-                            final payload = <String, dynamic>{
-                              'org_name': name,
-                              'full_name': name,
-                              'phone_number': phone,
-                              'category': selectedCategory,
-                              'operating_regions': regionsCtrl.text.trim(),
-                              'headquarters_address': addressCtrl.text.trim(),
-                              'registration_number': regNumCtrl.text.trim(),
-                            };
-
-                            final rad = double.tryParse(radiusCtrl.text.trim());
-                            if (rad != null) payload['coverage_radius_km'] = rad;
-
-                            final lat = double.tryParse(latCtrl.text.trim());
-                            final lng = double.tryParse(lngCtrl.text.trim());
-                            if (lat != null && lng != null) {
-                              payload['location_lat'] = lat;
-                              payload['location_lng'] = lng;
-                            }
-
-                            try {
-                              await ApiService().updateProfile(payload);
-                              if (ctx.mounted) Navigator.pop(ctx);
-                              _snack('Organization profile updated successfully!', AppTheme.secondaryGreen);
-                              _loadAlerts();
-                            } catch (e) {
-                              setModalState(() => isSaving = false);
-                              if (ctx.mounted) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  const SnackBar(content: Text('Failed to update organization profile'), backgroundColor: Colors.red),
-                                );
-                              }
-                            }
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.check, size: 18),
+                          label: const Text('SET LOCATION'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryRed,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _latCtrl.text = pickedPoint.latitude.toStringAsFixed(6);
+                              _lngCtrl.text = pickedPoint.longitude.toStringAsFixed(6);
+                            });
+                            Navigator.pop(ctx);
                           },
-                    child: isSaving
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('SAVE ORGANIZATION PROFILE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -675,153 +594,562 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
     );
   }
 
-  // ── Top Action Icon ────────────────────────────────────────────────
-  Widget _topAction(IconData icon, VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 6),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.black54, size: 20),
-        onPressed: onTap,
-        style: IconButton.styleFrom(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: Colors.black12),
+  // ══════════════════════════════════════════════════════════════════════════
+  // UI BUILD & BOTTOM NAVIGATION
+  // ══════════════════════════════════════════════════════════════════════════
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final borderCol = isDark ? const Color(0xFF334155) : Colors.grey.shade200;
+
+    final pendingCount = _emergencies.where((e) => e['status'] != 'accepted').length;
+    final activeCount = _emergencies.where((e) => e['status'] == 'accepted').length;
+    final pendingBloodCount = _bloodDonations.where((b) => (b['status'] ?? '').toString().toLowerCase() == 'pending').length;
+
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.grey.shade50,
+      appBar: AppBar(
+        elevation: 0.5,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.shield_rounded, color: AppTheme.primaryRed, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _nameCtrl.text.isNotEmpty ? _nameCtrl.text : 'COMMAND CENTER',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        letterSpacing: 0.3,
+                      ),
+                      maxLines: 1,
+                    ),
+                  ),
+                  Text(
+                    _getTabSubtitle(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.white60 : Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh Data',
+            onPressed: _fetchAllData,
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            tooltip: 'Log Out',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: cardBg,
+                  title: const Text('Log Out Organization?'),
+                  content: const Text('Are you sure you want to log out of the command console?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryRed),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        ref.read(authProvider.notifier).logout();
+                        context.go('/login');
+                      },
+                      child: const Text('LOG OUT', style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      body: IndexedStack(
+        index: _currentTabIndex,
+        children: [
+          _buildSosRadarTab(),
+          _buildBloodHubTab(),
+          _buildVolunteersTab(),
+          _buildCoverageSettingsTab(),
+        ],
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: cardBg,
+          border: Border(top: BorderSide(color: borderCol, width: 1)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              children: [
+                _buildNavItem(
+                  index: 0,
+                  icon: Icons.radar_outlined,
+                  activeIcon: Icons.radar_rounded,
+                  label: 'SOS Radar',
+                  badgeCount: (pendingCount + activeCount) > 0 ? (pendingCount + activeCount) : null,
+                ),
+                _buildNavItem(
+                  index: 1,
+                  icon: Icons.water_drop_outlined,
+                  activeIcon: Icons.water_drop_rounded,
+                  label: 'Blood Hub',
+                  badgeCount: pendingBloodCount > 0 ? pendingBloodCount : null,
+                ),
+                _buildNavItem(
+                  index: 2,
+                  icon: Icons.people_outline_rounded,
+                  activeIcon: Icons.people_alt_rounded,
+                  label: 'Volunteers',
+                  badgeCount: _volunteers.isNotEmpty ? _volunteers.length : null,
+                ),
+                _buildNavItem(
+                  index: 3,
+                  icon: Icons.tune_outlined,
+                  activeIcon: Icons.tune_rounded,
+                  label: 'Coverage',
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // ── Stat Counter Badge ─────────────────────────────────────────────
-  Widget _counter(String label, int count, Color color) {
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    int? badgeCount,
+  }) {
+    final isSelected = _currentTabIndex == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = AppTheme.primaryRed;
+    final inactiveColor = isDark ? Colors.white60 : Colors.grey.shade600;
+
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.1),
-              blurRadius: 10,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Text('$count',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _currentTabIndex = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? activeColor.withValues(alpha: isDark ? 0.15 : 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Badge(
+                isLabelVisible: badgeCount != null && badgeCount > 0,
+                label: Text('$badgeCount', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                backgroundColor: AppTheme.primaryRed,
+                child: Icon(
+                  isSelected ? activeIcon : icon,
+                  color: isSelected ? activeColor : inactiveColor,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                label,
                 style: TextStyle(
-                    color: color, fontWeight: FontWeight.w900, fontSize: 24)),
-            const SizedBox(height: 2),
-            Text(label,
-                style: TextStyle(
-                    color: color.withValues(alpha: 0.9),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8)),
-          ],
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                  color: isSelected ? activeColor : inactiveColor,
+                ),
+                maxLines: 1,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // ── Emergency Card List ────────────────────────────────────────────
-  Widget _buildCardList(List<Map<String, dynamic>> items, {required bool isPending}) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed));
+  String _getTabSubtitle() {
+    switch (_currentTabIndex) {
+      case 0:
+        return 'Live SOS Emergency Radar & Dispatch';
+      case 1:
+        return 'Emergency Blood Donation & Supply Hub';
+      case 2:
+        return 'First Responder & Volunteer Force';
+      case 3:
+        return 'Coverage Radius & Organization Settings';
+      default:
+        return 'Command Console';
     }
-    if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(isPending ? Icons.notifications_off_outlined : Icons.check_circle_outline,
-                size: 52, color: Colors.black38),
-            const SizedBox(height: 12),
-            Text(
-              isPending ? 'No pending emergency calls' : 'No active dispatches right now',
-              style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w700, fontSize: 14),
-            ),
-          ],
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // TAB 0: SOS RADAR & DISPATCH
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildSosRadarTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
+    final pending = _emergencies.where((e) => e['status'] != 'accepted').toList();
+    final active = _emergencies.where((e) => e['status'] == 'accepted').toList();
+    final completed = _history.where((h) => h['status'] == 'completed').toList();
+
+    List<Map<String, dynamic>> displayedList;
+    if (_sosSubTab == 1) {
+      displayedList = _history;
+    } else {
+      if (_selectedSosFilter == 'PENDING') {
+        displayedList = pending;
+      } else if (_selectedSosFilter == 'ACTIVE') {
+        displayedList = active;
+      } else {
+        displayedList = _emergencies;
+      }
+    }
+
+    // Type filter
+    if (_selectedSosType != 'ALL') {
+      displayedList = displayedList.where((e) {
+        final t = (e['type'] ?? '').toString().toUpperCase();
+        return t == _selectedSosType;
+      }).toList();
+    }
+
+    // Search filter
+    if (_sosSearchQuery.isNotEmpty) {
+      final q = _sosSearchQuery.toLowerCase();
+      displayedList = displayedList.where((e) {
+        final u = e['user_info'] as Map<String, dynamic>? ?? {};
+        final name = (u['full_name'] ?? '').toString().toLowerCase();
+        final phone = (u['phone_number'] ?? '').toString().toLowerCase();
+        final type = (e['type'] ?? '').toString().toLowerCase();
+        return name.contains(q) || phone.contains(q) || type.contains(q);
+      }).toList();
+    }
+
+    return Column(
+      children: [
+        // ── Stat Boxes Row ─────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: _statBox(
+                  'PENDING',
+                  '${pending.length}',
+                  const Color(0xFFF59E0B),
+                  isSelected: _sosSubTab == 0 && _selectedSosFilter == 'PENDING',
+                  onTap: () => setState(() {
+                    _sosSubTab = 0;
+                    _selectedSosFilter = _selectedSosFilter == 'PENDING' ? 'ALL' : 'PENDING';
+                  }),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _statBox(
+                  'ACTIVE',
+                  '${active.length}',
+                  AppTheme.primaryRed,
+                  isSelected: _sosSubTab == 0 && _selectedSosFilter == 'ACTIVE',
+                  onTap: () => setState(() {
+                    _sosSubTab = 0;
+                    _selectedSosFilter = _selectedSosFilter == 'ACTIVE' ? 'ALL' : 'ACTIVE';
+                  }),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _statBox(
+                  'HISTORY',
+                  '${completed.length}',
+                  const Color(0xFF06B6D4),
+                  isSelected: _sosSubTab == 1,
+                  onTap: () => setState(() {
+                    _sosSubTab = 1;
+                    _selectedSosFilter = 'ALL';
+                  }),
+                ),
+              ),
+            ],
+          ),
         ),
-      );
-    }
-    return RefreshIndicator(
-      backgroundColor: Colors.white,
-      color: AppTheme.primaryRed,
-      onRefresh: _loadAlerts,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
-        itemCount: items.length,
-        itemBuilder: (_, i) => _emergencyCard(items[i]),
-      ),
+
+        // ── Sub Tab Toggle (Live vs History) ───────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Container(
+            height: 38,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _sosSubTab = 0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _sosSubTab == 0 ? AppTheme.primaryRed : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Live Calls (${_emergencies.length})',
+                        style: TextStyle(
+                          color: _sosSubTab == 0 ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _sosSubTab = 1),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _sosSubTab == 1 ? AppTheme.primaryRed : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Mission History (${_history.length})',
+                        style: TextStyle(
+                          color: _sosSubTab == 1 ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // ── Search Field ───────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: TextField(
+            controller: _sosSearchCtrl,
+            decoration: InputDecoration(
+              hintText: 'Search victim, phone number, type...',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: _sosSearchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () {
+                        _sosSearchCtrl.clear();
+                        setState(() => _sosSearchQuery = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: cardBg,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+            onChanged: (val) => setState(() => _sosSearchQuery = val.trim()),
+          ),
+        ),
+
+        // ── Filter Chips ───────────────────────────────────────────────
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Row(
+            children: [
+              _typeChip('ALL', 'All Types', Icons.all_inclusive),
+              const SizedBox(width: 6),
+              _typeChip('FIRE', 'Fire', Icons.local_fire_department, const Color(0xFFFF6B35)),
+              const SizedBox(width: 6),
+              _typeChip('MEDICAL', 'Medical', Icons.medical_services, AppTheme.primaryRed),
+              const SizedBox(width: 6),
+              _typeChip('ACCIDENT', 'Accident', Icons.car_crash, const Color(0xFFE65100)),
+              const SizedBox(width: 6),
+              _typeChip('NATURAL_DISASTER', 'Disaster', Icons.flood, const Color(0xFF00897B)),
+            ],
+          ),
+        ),
+
+        // ── Cards List ─────────────────────────────────────────────────
+        Expanded(
+          child: _loadingEmergencies || (_sosSubTab == 1 && _loadingHistory)
+              ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed))
+              : displayedList.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _sosSubTab == 1 ? Icons.history_rounded : Icons.radar_outlined,
+                            size: 56,
+                            color: isDark ? Colors.white30 : Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _sosSubTab == 1 ? 'No mission history records' : 'No emergency calls in this view',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white70 : Colors.grey.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Incoming alerts within your ${_coverageRadiusKm.toStringAsFixed(0)} KM radius will ping here in real time.',
+                            style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.grey),
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _sosSubTab == 1 ? _fetchHistory : () => _fetchEmergencies(),
+                      color: AppTheme.primaryRed,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        itemCount: displayedList.length,
+                        itemBuilder: (_, i) => _buildEmergencyCard(displayedList[i], isHistory: _sosSubTab == 1),
+                      ),
+                    ),
+        ),
+      ],
     );
   }
 
-  // ── Emergency Card (Sleek Dark Theme) ──────────────────────────────
-  Widget _emergencyCard(Map<String, dynamic> e) {
+  Widget _typeChip(String typeKey, String label, IconData icon, [Color? color]) {
+    final isSelected = _selectedSosType == typeKey;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = color ?? AppTheme.primaryRed;
+
+    return FilterChip(
+      selected: isSelected,
+      avatar: Icon(icon, size: 14, color: isSelected ? Colors.white : accent),
+      label: Text(label),
+      labelStyle: TextStyle(
+        fontSize: 11,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+        color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+      ),
+      selectedColor: accent,
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      onSelected: (_) => setState(() => _selectedSosType = typeKey),
+    );
+  }
+
+  Widget _buildEmergencyCard(Map<String, dynamic> e, {bool isHistory = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade300;
+
     final info = e['user_info'] as Map<String, dynamic>? ?? {};
-    final typeStr = (e['type'] ?? 'emergency').toString().toUpperCase();
-    final isFire = typeStr == 'FIRE';
-    final isMedical = typeStr == 'MEDICAL';
+    final typeStr = (e['type'] ?? 'EMERGENCY').toString().toUpperCase();
+    final status = (e['status'] ?? 'pending').toString().toLowerCase();
+    final eid = e['emergency_id'] ?? e['id'] ?? '';
     final phone = info['phone_number'] ?? '';
-    final eid = e['emergency_id'] ?? '';
-    final isAccepted = e['status'] == 'accepted';
+    final isAccepted = status == 'accepted';
+    final isCompleted = status == 'completed';
 
-    final accent = isFire
-        ? const Color(0xFFF97316)
-        : isMedical
-            ? const Color(0xFFEF4444)
-            : const Color(0xFF3B82F6);
-    final icon = isFire
-        ? Icons.local_fire_department
-        : isMedical
-            ? Icons.local_hospital
-            : Icons.shield;
+    Color accentColor = const Color(0xFF3B82F6);
+    IconData icon = Icons.shield;
+    if (typeStr.contains('FIRE')) {
+      accentColor = const Color(0xFFFF6B35);
+      icon = Icons.local_fire_department;
+    } else if (typeStr.contains('MEDIC')) {
+      accentColor = AppTheme.primaryRed;
+      icon = Icons.medical_services;
+    } else if (typeStr.contains('ACCIDENT')) {
+      accentColor = const Color(0xFFE65100);
+      icon = Icons.car_crash_rounded;
+    } else if (typeStr.contains('DISASTER')) {
+      accentColor = const Color(0xFF00897B);
+      icon = Icons.flood_rounded;
+    }
 
-    // Estimate ETA based on sample distance (~4.2km -> ~6 mins)
-    const double sampleDist = 4.2;
-    final int etaMins = ((sampleDist / 40.0) * 60).round();
+    final lat = (e['location']?['lat'] ?? e['location_lat'] as num?)?.toDouble();
+    final lng = (e['location']?['lng'] ?? e['location_lng'] as num?)?.toDouble();
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: cardBg,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isAccepted ? AppTheme.primaryRed : accent.withValues(alpha: 0.4),
+          color: isAccepted ? AppTheme.primaryRed : (isCompleted ? AppTheme.secondaryGreen : cardBorder),
           width: isAccepted ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: (isAccepted ? AppTheme.primaryRed : accent).withValues(alpha: 0.1),
-            blurRadius: 16,
-            spreadRadius: 1,
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Card Header ────────────────────────────────────────────
+          // Header Bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: (isAccepted ? AppTheme.primaryRed : accent).withValues(alpha: 0.12),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+              color: accentColor.withValues(alpha: isDark ? 0.2 : 0.1),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
             ),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(7),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: isAccepted ? AppTheme.primaryRed : accent,
-                    borderRadius: BorderRadius.circular(10),
+                    color: accentColor,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(isAccepted ? Icons.airport_shuttle : icon,
-                      color: Colors.black, size: 18),
+                  child: Icon(icon, color: Colors.white, size: 16),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -831,200 +1159,171 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                       Text(
                         '$typeStr EMERGENCY',
                         style: TextStyle(
+                          color: accentColor,
                           fontWeight: FontWeight.w900,
-                          fontSize: 13,
-                          color: isAccepted ? AppTheme.primaryRed : accent,
+                          fontSize: 12.5,
                           letterSpacing: 0.5,
                         ),
                       ),
-                      if (isAccepted)
+                      if (e['created_at'] != null)
                         Text(
-                          '⏱️ ETA: ~$etaMins mins ($sampleDist km away)',
-                          style: const TextStyle(
-                              color: AppTheme.primaryRed,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700),
+                          DateFormat('MMM d, y • hh:mm a').format(DateTime.tryParse(e['created_at'])?.toLocal() ?? DateTime.now()),
+                          style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : Colors.grey.shade600),
                         ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: (isAccepted ? AppTheme.primaryRed : Colors.orange).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isAccepted ? AppTheme.primaryRed : Colors.orange,
-                    ),
+                    color: isAccepted
+                        ? AppTheme.primaryRed
+                        : (isCompleted ? AppTheme.secondaryGreen : Colors.orange),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    isAccepted ? 'EN ROUTE' : 'PENDING DISPATCH',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: isAccepted ? AppTheme.primaryRed : Colors.orangeAccent,
-                    ),
+                    isAccepted ? 'DISPATCHED' : status.toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
           ),
 
-          // ── Card Body ──────────────────────────────────────────────
+          // Body Content
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _darkField(Icons.person, info['full_name'] ?? 'Unknown Victim'),
-                _darkField(Icons.phone, phone.isNotEmpty ? phone : 'Not Provided'),
-                if (isMedical) ...[
-                  const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.person, size: 16, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Text(
+                      info['full_name'] ?? 'Citizen Victim',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const Spacer(),
+                    if (info['blood_type'] != null && info['blood_type'] != 'Unknown')
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Text(
+                          'Blood: ${info['blood_type']}',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade800),
+                        ),
+                      ),
+                  ],
+                ),
+                if (phone.isNotEmpty) ...[
+                  const SizedBox(height: 6),
                   Row(
                     children: [
-                      _darkBadge(Icons.bloodtype, info['blood_type'] ?? 'N/A', Colors.redAccent),
-                      const SizedBox(width: 8),
-                      _darkBadge(Icons.medical_information, info['medical_conditions'] ?? 'None', Colors.blueAccent),
+                      const Icon(Icons.phone, size: 16, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Text(phone, style: const TextStyle(fontSize: 13)),
+                    ],
+                  ),
+                ],
+                if (info['medical_conditions'] != null && info['medical_conditions'] != 'None') ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.medical_information, size: 16, color: Colors.blueGrey),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Condition: ${info['medical_conditions']}',
+                          style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                 ],
 
-                if (isAccepted) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1B4B),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF818CF8), width: 1.5),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.directions_run_rounded, color: Color(0xFF38BDF8), size: 22),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'HANDLED BY RESCUE VOLUNTEER',
-                                style: TextStyle(
-                                  color: Color(0xFF94A3B8),
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 10,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                e['assigned_volunteer_name'] != null 
-                                    ? e['assigned_volunteer_name'].toString()
-                                    : 'Assigned Volunteer',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF00E676).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFF00E676)),
-                          ),
-                          child: const Text(
-                            'EN ROUTE',
-                            style: TextStyle(
-                              color: Color(0xFF00E676),
-                              fontWeight: FontWeight.w900,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 10),
 
-                // ── Map Navigation Button ─────────────────────────────
-                Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F172A),
-                        foregroundColor: Colors.white,
-                        elevation: 3,
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: () {
-                        final loc = e['location'] as Map<String, dynamic>? ?? {};
-                        final lat = (loc['lat'] as num?)?.toDouble() ?? 16.8661;
-                        final lng = (loc['lng'] as num?)?.toDouble() ?? 96.1951;
-                        context.push('/mission-map', extra: {
-                          'lat': lat,
-                          'lng': lng,
-                          'title': '🚨 Emergency Target: ${info['full_name'] ?? 'Victim'} ($typeStr)',
-                          'returnRoute': '/org-dashboard',
-                        });
-                      },
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.map_rounded, color: Color(0xFF38BDF8), size: 19),
-                          SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              'VIEW ROAD ROUTE ON MAP',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.5,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // ── Primary Action Buttons ────────────────────────────
+                // Action Buttons Row
                 Row(
                   children: [
                     if (phone.isNotEmpty)
-                      _iconBtn(Icons.call, AppTheme.primaryRed, () => _makeCall(phone)),
-                    if (phone.isNotEmpty) const SizedBox(width: 8),
-                    if (isAccepted)
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.call, color: AppTheme.secondaryGreen, size: 18),
+                        style: IconButton.styleFrom(backgroundColor: AppTheme.secondaryGreen.withValues(alpha: 0.15)),
+                        onPressed: () => _makeCall(phone),
+                      ),
+                    if (lat != null && lng != null) ...[
+                      const SizedBox(width: 8),
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.map_rounded, color: Colors.blue, size: 18),
+                        style: IconButton.styleFrom(backgroundColor: Colors.blue.withValues(alpha: 0.15)),
+                        onPressed: () {
+                          context.push('/mission-map', extra: {
+                            'lat': lat,
+                            'lng': lng,
+                            'title': '$typeStr Emergency: ${info['full_name'] ?? 'Victim'}',
+                            'returnRoute': '/org-dashboard',
+                          });
+                        },
+                      ),
+                    ],
+                    const SizedBox(width: 8),
+                    if (!isHistory && !isAccepted) ...[
                       Expanded(
-                        child: _actionBtn(
-                          'MISSION COMPLETE',
-                          AppTheme.primaryRed,
-                          Icons.check_circle_rounded,
-                          () => _completeEmergency(eid),
-                        ),
-                      )
-                    else ...[
-                      Expanded(
-                        child: _actionBtn(
-                          'DISPATCH RESCUE',
-                          AppTheme.primaryRed,
-                          Icons.send_rounded,
-                          () => _respond(eid, 'accept'),
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.send_rounded, size: 16),
+                          label: const Text('DISPATCH', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryRed,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () => _respond(eid, 'accept'),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      _iconBtn(Icons.close, const Color(0xFFEF4444), () => _respond(eid, 'reject')),
+                      const SizedBox(width: 6),
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () => _respond(eid, 'reject'),
+                        child: const Text('DISMISS', style: TextStyle(fontSize: 11)),
+                      ),
+                    ] else if (!isHistory && isAccepted) ...[
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.person_add_alt, size: 16),
+                        label: const Text('VOLUNTEER', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryRed,
+                          side: const BorderSide(color: AppTheme.primaryRed),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () => _assignVolunteerModal(e),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.check_circle_rounded, size: 16),
+                          label: const Text('COMPLETE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.secondaryGreen,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () => _completeEmergency(eid),
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -1036,243 +1335,298 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
     );
   }
 
-  // ── History List (Scoped to this Org) ──────────────────────────────
-  Widget _buildHistoryList() {
-    if (_historyLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed));
+  // ══════════════════════════════════════════════════════════════════════════
+  // TAB 1: BLOOD REQUESTS HUB
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildBloodHubTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
+    final pending = _bloodDonations.where((b) => (b['status'] ?? '').toString().toLowerCase() == 'pending').toList();
+    final accepted = _bloodDonations.where((b) => (b['status'] ?? '').toString().toLowerCase() == 'accepted').toList();
+    final completed = _bloodDonations.where((b) => (b['status'] ?? '').toString().toLowerCase() == 'completed').toList();
+
+    List<Map<String, dynamic>> filteredList = _bloodDonations;
+    if (_selectedBloodFilter == 'PENDING') {
+      filteredList = pending;
+    } else if (_selectedBloodFilter == 'ACCEPTED') {
+      filteredList = accepted;
+    } else if (_selectedBloodFilter == 'COMPLETED') {
+      filteredList = completed;
     }
-    if (_history.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.history, size: 52, color: Colors.black38),
-            const SizedBox(height: 12),
-            const Text(
-              'No mission records for your organization',
-              style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w700, fontSize: 14),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Completed dispatches will be archived here',
-              style: TextStyle(color: Colors.black54, fontSize: 12),
-            ),
-          ],
-        ),
-      );
+
+    if (_bloodSearchQuery.isNotEmpty) {
+      final q = _bloodSearchQuery.toLowerCase();
+      filteredList = filteredList.where((b) {
+        final donor = (b['donor_name'] ?? '').toString().toLowerCase();
+        final patient = (b['patient_name'] ?? '').toString().toLowerCase();
+        final bType = (b['blood_type'] ?? '').toString().toLowerCase();
+        final hosp = (b['hospital_name'] ?? b['target_location_name'] ?? '').toString().toLowerCase();
+        return donor.contains(q) || patient.contains(q) || bType.contains(q) || hosp.contains(q);
+      }).toList();
     }
-    return RefreshIndicator(
-      backgroundColor: Colors.white,
-      color: AppTheme.primaryRed,
-      onRefresh: _loadHistory,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
-        itemCount: _history.length,
-        itemBuilder: (_, i) => _historyCard(_history[i]),
-      ),
-    );
-  }
 
-  Widget _historyCard(Map<String, dynamic> h) {
-    final info = h['user_info'] as Map<String, dynamic>? ?? {};
-    final typeStr = (h['type'] ?? 'emergency').toString().toUpperCase();
-    final status = h['status'] ?? '';
-    final isCompleted = status == 'completed';
-    final createdAt = h['created_at'] != null
-        ? DateFormat('MMM dd, yyyy – HH:mm').format(DateTime.parse(h['created_at']).toLocal())
-        : 'Unknown';
-
-    final accent = isCompleted ? AppTheme.primaryRed : Colors.black54;
-    final icon = isCompleted ? Icons.check_circle_rounded : Icons.cancel_outlined;
-
-    return GestureDetector(
-      onTap: () => _showUserDetails(info, typeStr, status),
-      child: Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accent.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: accent, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$typeStr — ${info['full_name'] ?? 'Unknown'}',
-                  style: const TextStyle(
-                      color: Colors.black, fontWeight: FontWeight.w800, fontSize: 13),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  createdAt,
-                  style: const TextStyle(color: Colors.black54, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: accent.withValues(alpha: 0.3)),
-            ),
-            child: Text(
-              isCompleted ? 'COMPLETED' : 'CANCELLED',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: accent,
-              ),
-            ),
-          ),
-        ],
-      ),
-      ),
-    );
-  }
-
-  void _showUserDetails(Map<String, dynamic> info, String typeStr, String status) {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      children: [
+        // Stat counters
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.person, color: Colors.blueAccent),
-                  const SizedBox(width: 10),
-                  const Text('Victim Details', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
-                ],
+              Expanded(
+                child: _statBox(
+                  'PENDING',
+                  '${pending.length}',
+                  Colors.orange,
+                  isSelected: _selectedBloodFilter == 'PENDING',
+                  onTap: () => setState(() => _selectedBloodFilter = _selectedBloodFilter == 'PENDING' ? 'ALL' : 'PENDING'),
+                ),
               ),
-              const Divider(color: Colors.black12, height: 30),
-              _darkField(Icons.person, info['full_name'] ?? 'Unknown'),
-              _darkField(Icons.phone, (info['phone_number']?.toString().isNotEmpty ?? false) ? info['phone_number'] : 'Not Provided'),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _darkBadge(Icons.bloodtype, info['blood_type'] ?? 'Unknown', Colors.redAccent),
-                  const SizedBox(width: 8),
-                  _darkBadge(Icons.medical_information, info['medical_conditions'] ?? 'None', Colors.blueAccent),
-                ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: _statBox(
+                  'SCHEDULED',
+                  '${accepted.length}',
+                  AppTheme.secondaryGreen,
+                  isSelected: _selectedBloodFilter == 'ACCEPTED',
+                  onTap: () => setState(() => _selectedBloodFilter = _selectedBloodFilter == 'ACCEPTED' ? 'ALL' : 'ACCEPTED'),
+                ),
               ),
-              const Divider(color: Colors.black12, height: 30),
-              _darkField(Icons.local_hospital, 'Emergency: $typeStr'),
-              _darkField(Icons.info_outline, 'Status: ${status.toUpperCase()}'),
-              const SizedBox(height: 20),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('CLOSE', style: TextStyle(color: Colors.grey)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _statBox(
+                  'COMPLETED',
+                  '${completed.length}',
+                  Colors.blue,
+                  isSelected: _selectedBloodFilter == 'COMPLETED',
+                  onTap: () => setState(() => _selectedBloodFilter = _selectedBloodFilter == 'COMPLETED' ? 'ALL' : 'COMPLETED'),
                 ),
               ),
             ],
           ),
         ),
-      ),
+
+        // Search Bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: TextField(
+            controller: _bloodSearchCtrl,
+            decoration: InputDecoration(
+              hintText: 'Search donor, patient, blood type or hospital...',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: _bloodSearchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () {
+                        _bloodSearchCtrl.clear();
+                        setState(() => _bloodSearchQuery = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: cardBg,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+            onChanged: (val) => setState(() => _bloodSearchQuery = val.trim()),
+          ),
+        ),
+
+        // List
+        Expanded(
+          child: _loadingBlood
+              ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed))
+              : filteredList.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.water_drop_outlined, size: 56, color: isDark ? Colors.white30 : Colors.grey.shade400),
+                          const SizedBox(height: 12),
+                          Text('No blood donation records', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.grey.shade700)),
+                          const SizedBox(height: 4),
+                          Text('Incoming blood donation pledges will appear here.', style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.grey)),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _fetchBloodDonations,
+                      color: AppTheme.primaryRed,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        itemCount: filteredList.length,
+                        itemBuilder: (_, i) => _buildBloodDonationCard(filteredList[i]),
+                      ),
+                    ),
+        ),
+      ],
     );
   }
 
-  // ── Reusable Dark Widgets ──────────────────────────────────────────
-  Widget _darkField(IconData icon, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: Colors.black54),
-          const SizedBox(width: 8),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w700, color: Colors.black)),
-        ],
-      ),
-    );
-  }
+  Widget _buildBloodDonationCard(Map<String, dynamic> d) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade300;
 
-  Widget _darkBadge(IconData icon, String label, Color color) {
+    final id = d['id'] ?? '';
+    final reqType = (d['request_type'] ?? 'donate').toString().toLowerCase();
+    final isRequest = reqType == 'request';
+    final donorName = d['donor_name'] ?? 'Citizen Donor';
+    final patientName = d['patient_name'];
+    final phone = d['donor_phone'] ?? '';
+    final bloodType = d['blood_type'] ?? '';
+    final preferredDate = d['preferred_date'] ?? 'ASAP';
+    final units = d['units'] ?? 1;
+    final status = (d['status'] ?? 'Pending').toString();
+    final isAccepted = status.toLowerCase() == 'accepted';
+    final isPending = status.toLowerCase() == 'pending';
+    final apptDate = d['appointment_date'];
+    final apptLoc = d['appointment_location'];
+    final hospital = d['hospital_name'] ?? d['target_location_name'] ?? '';
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 4),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w800, color: color)),
-        ],
-      ),
-    );
-  }
-
-  Widget _iconBtn(IconData icon, Color color, VoidCallback onTap) {
-    return SizedBox(
-      height: 44,
-      width: 44,
-      child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          padding: EdgeInsets.zero,
-          side: BorderSide(color: color.withValues(alpha: 0.6)),
-          backgroundColor: color.withValues(alpha: 0.1),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isRequest
+              ? (isAccepted ? AppTheme.secondaryGreen : Colors.red.shade300)
+              : (isPending ? Colors.orange.shade300 : cardBorder),
+          width: isPending ? 1.5 : 1.0,
         ),
-        onPressed: onTap,
-        child: Icon(icon, color: color, size: 20),
       ),
-    );
-  }
-
-  Widget _actionBtn(String label, Color bg, IconData icon, VoidCallback onTap) {
-    return SizedBox(
-      height: 44,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bg,
-          foregroundColor: Colors.white,
-          elevation: 2,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        onPressed: onTap,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 18),
-            const SizedBox(width: 6),
-            Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryRed.withValues(alpha: isDark ? 0.2 : 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    bloodType,
+                    style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primaryRed, fontSize: 13),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isRequest ? 'BLOOD SUPPLY REQUEST' : 'DONATION PLEDGE',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                          color: isRequest ? Colors.red.shade700 : (isDark ? Colors.white60 : Colors.black54),
+                        ),
+                      ),
+                      Text(
+                        isRequest ? 'Patient: ${patientName ?? donorName} ($units Units)' : 'Donor: $donorName ($units Units)',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isAccepted ? AppTheme.secondaryGreen : (isPending ? Colors.orange : Colors.blue),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    isAccepted ? 'SCHEDULED' : status.toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (phone.isNotEmpty) ...[
+              Row(
+                children: [
+                  const Icon(Icons.phone, size: 14, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Text(phone, style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+              const SizedBox(height: 4),
+            ],
+            Row(
+              children: [
+                const Icon(Icons.local_hospital_outlined, size: 14, color: Colors.grey),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    isRequest ? 'Hospital: $hospital' : 'Preferred Date: $preferredDate',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+            if (isAccepted && (apptDate != null || apptLoc != null)) ...[
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF064E3B).withValues(alpha: 0.3) : Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade300),
+                ),
                 child: Text(
-                  label,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+                  '📅 Appointment: ${apptDate ?? 'Confirmed'} at ${apptLoc ?? 'Center'}',
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF6EE7B7) : Colors.green.shade900),
                 ),
               ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (phone.isNotEmpty)
+                  IconButton.filledTonal(
+                    icon: const Icon(Icons.call, color: AppTheme.secondaryGreen, size: 18),
+                    style: IconButton.styleFrom(backgroundColor: AppTheme.secondaryGreen.withValues(alpha: 0.15)),
+                    onPressed: () => _makeCall(phone),
+                  ),
+                const SizedBox(width: 8),
+                if (isPending)
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.calendar_month, size: 16),
+                      label: const Text('ACCEPT & SCHEDULE APPOINTMENT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryRed,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () => _openScheduleAppointmentModal(d),
+                    ),
+                  )
+                else if (isAccepted)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.done_all, size: 16, color: Colors.blue),
+                      label: const Text('MARK FULFILLED / COMPLETED', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.blue)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.blue),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () async {
+                        await ApiService().updateBloodDonationStatus(id, 'Completed');
+                        _fetchBloodDonations(silent: true);
+                        _snack('Blood record marked as completed!', AppTheme.secondaryGreen);
+                      },
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
@@ -1280,396 +1634,12 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
     );
   }
 
-  // ── Blood Donation & Supply Request Management ─────────────────────────
-  final _bloodSearchCtrl = TextEditingController();
-  String _bloodFilterQuery = '';
-
-  Widget _buildBloodDonationsList() {
-    if (_bloodLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed));
-    }
-
-    final filteredDonations = _bloodDonations.where((d) {
-      if (_bloodFilterQuery.isEmpty) return true;
-      final q = _bloodFilterQuery.toLowerCase();
-      final pName = (d['patient_name'] ?? '').toString().toLowerCase();
-      final dName = (d['donor_name'] ?? '').toString().toLowerCase();
-      final bType = (d['blood_type'] ?? '').toString().toLowerCase();
-      final status = (d['status'] ?? '').toString().toLowerCase();
-      final hosp = (d['hospital_name'] ?? d['target_location_name'] ?? '').toString().toLowerCase();
-      return pName.contains(q) || dName.contains(q) || bType.contains(q) || status.contains(q) || hosp.contains(q);
-    }).toList();
-
-    return RefreshIndicator(
-      onRefresh: _loadBloodDonations,
-      color: AppTheme.primaryRed,
-      child: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          // Search Input Bar
-          Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: TextField(
-              controller: _bloodSearchCtrl,
-              decoration: InputDecoration(
-                hintText: 'Search patient, donor, blood type...',
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-                prefixIcon: const Icon(Icons.search, color: Colors.grey, size: 20),
-                suffixIcon: _bloodFilterQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          _bloodSearchCtrl.clear();
-                          setState(() => _bloodFilterQuery = '');
-                        },
-                      )
-                    : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              ),
-              onChanged: (val) => setState(() => _bloodFilterQuery = val.trim()),
-            ),
-          ),
-
-          if (filteredDonations.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.water_drop_outlined, size: 48, color: AppTheme.primaryRed),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _bloodFilterQuery.isNotEmpty ? 'No Matching Blood Records' : 'No Blood Records',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _bloodFilterQuery.isNotEmpty
-                          ? 'Try searching with a different term.'
-                          : 'Incoming blood donation pledges & emergency blood requests will appear here.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            ...filteredDonations.map((d) {
-              final id = d['id'] ?? '';
-              final reqType = (d['request_type'] ?? 'donate').toString().toLowerCase();
-              final isRequest = reqType == 'request';
-              final donorName = d['donor_name'] ?? 'Citizen Donor';
-              final patientName = d['patient_name'];
-              final phone = d['donor_phone'] ?? '';
-              final bloodType = d['blood_type'] ?? '';
-              final preferredDate = d['preferred_date'] ?? 'ASAP';
-              final units = d['units'] ?? 1;
-              final status = (d['status'] ?? 'Pending').toString();
-              final isAccepted = status.toLowerCase() == 'accepted';
-              final isPending = status.toLowerCase() == 'pending';
-              final apptDate = d['appointment_date'];
-              final apptLoc = d['appointment_location'];
-              final pickupMsg = d['pickup_location_message'];
-              final medNotes = d['medical_notes'];
-              final urgency = d['urgency_level'];
-              final hospital = d['hospital_name'] ?? d['target_location_name'] ?? '';
-
-              Color badgeColor = Colors.orange;
-              if (isAccepted) badgeColor = AppTheme.secondaryGreen;
-              if (status.toLowerCase() == 'completed') badgeColor = Colors.blue;
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isRequest
-                        ? (isAccepted ? AppTheme.secondaryGreen.withValues(alpha: 0.5) : Colors.red.shade300)
-                        : (isPending ? Colors.orange.shade300 : Colors.grey.shade200),
-                    width: (isPending || isRequest) ? 1.5 : 1.0,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header Row
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: isRequest
-                                  ? Colors.red.shade100
-                                  : AppTheme.primaryRed.withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Text(
-                              bloodType,
-                              style: TextStyle(
-                                color: isRequest ? const Color(0xFFB71C1C) : AppTheme.primaryRed,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Wrap(
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  spacing: 6,
-                                  runSpacing: 4,
-                                  children: [
-                                    Text(
-                                      isRequest ? 'BLOOD REQUEST' : 'DONATION PLEDGE',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 12,
-                                        color: isRequest ? const Color(0xFFB71C1C) : Colors.black87,
-                                      ),
-                                    ),
-                                    if (urgency != null && urgency.toString().isNotEmpty)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red.shade50,
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          urgency.toString(),
-                                          style: TextStyle(
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.red.shade900,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  isRequest
-                                      ? 'Patient: ${patientName ?? donorName} ($units Units)'
-                                      : 'Donor: $donorName ($units Units)',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (phone.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text('Contact: $phone', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                                ],
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isAccepted ? AppTheme.secondaryGreen : badgeColor,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              isAccepted ? 'ACCEPTED' : status.toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 10,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      const Divider(height: 1),
-                      const SizedBox(height: 10),
-
-                      Row(
-                        children: [
-                          const Icon(Icons.local_hospital_outlined, size: 15, color: Colors.grey),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              isRequest ? 'Hospital / Location: $hospital' : 'Preferred: $preferredDate',
-                              style: const TextStyle(fontSize: 12, color: Colors.black87),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (medNotes != null && medNotes.toString().isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.medical_information_outlined, size: 15, color: Colors.grey),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text('Notes: $medNotes',
-                                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                            ),
-                          ],
-                        ),
-                      ],
-
-                      if (isAccepted) ...[
-                        const SizedBox(height: 10),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.green.shade200),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (isRequest && pickupMsg != null && pickupMsg.toString().isNotEmpty)
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(Icons.location_on, size: 15, color: Colors.green),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text('Pickup at: $pickupMsg',
-                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
-                                    ),
-                                  ],
-                                ),
-                              if (apptDate != null && apptDate.toString().isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.access_time, size: 15, color: Colors.green),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text('Time: $apptDate',
-                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                              if (!isRequest && apptLoc != null) ...[
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.location_on, size: 15, color: Colors.green),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text('Where to come: $apptLoc',
-                                          style: const TextStyle(fontSize: 12, color: Colors.black87)),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          if (phone.isNotEmpty)
-                            IconButton.filledTonal(
-                              icon: const Icon(Icons.call, color: AppTheme.secondaryGreen, size: 18),
-                              style: IconButton.styleFrom(
-                                backgroundColor: AppTheme.secondaryGreen.withValues(alpha: 0.12),
-                              ),
-                              onPressed: () => _makePhoneCall(phone),
-                            ),
-                          const SizedBox(width: 8),
-                          if (isPending)
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.check_circle_outline, size: 18),
-                                label: Text(
-                                  isRequest ? 'PROVIDE BLOOD & SET PICKUP' : 'ACCEPT & SCHEDULE',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isRequest ? const Color(0xFFB71C1C) : AppTheme.primaryRed,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                                onPressed: () => _openAcceptAppointmentModal(d),
-                              ),
-                            )
-                          else if (isAccepted)
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                icon: const Icon(Icons.done_all, size: 18, color: Colors.blue),
-                                label: const Text('MARK COMPLETED',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blue)),
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: Colors.blue),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                                onPressed: () async {
-                                  await ApiService().updateBloodDonationStatus(id, 'Completed');
-                                  _loadBloodDonations();
-                                },
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-        ],
-      ),
-    );
-  }
-
-  void _openAcceptAppointmentModal(Map<String, dynamic> donation) {
+  void _openScheduleAppointmentModal(Map<String, dynamic> donation) {
     final reqType = (donation['request_type'] ?? 'donate').toString().toLowerCase();
     final isRequest = reqType == 'request';
-
-    final dateCtrl = TextEditingController(
-      text: isRequest ? 'Immediately available / Today' : 'Tomorrow at 10:00 AM',
-    );
-    final locCtrl = TextEditingController(
-      text: isRequest
-          ? 'Hospital Blood Bank Desk Room 102, 1st Floor'
-          : 'Blood Donation Center, Main Hospital Wing Room 102',
-    );
-    final notesCtrl = TextEditingController(
-      text: isRequest
-          ? 'Please bring patient crossmatch sample and hospital blood requisition form.'
-          : 'Please bring your NRC / ID card and arrive 15 minutes before your scheduled appointment.',
-    );
+    final dateCtrl = TextEditingController(text: 'Tomorrow at 10:00 AM');
+    final locCtrl = TextEditingController(text: 'Blood Donation Center, Main Hospital Wing Room 102');
+    final notesCtrl = TextEditingController(text: 'Please bring your NRC / ID card and arrive 15 minutes early.');
 
     showDialog(
       context: context,
@@ -1677,17 +1647,12 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Icon(
-              isRequest ? Icons.bloodtype : Icons.calendar_month,
-              color: AppTheme.primaryRed,
-            ),
+            const Icon(Icons.calendar_month_rounded, color: AppTheme.primaryRed),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                isRequest
-                    ? 'Provide Blood for ${donation['patient_name'] ?? donation['donor_name']}'
-                    : 'Schedule Appointment for ${donation['donor_name']}',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                isRequest ? 'Provide Blood Supply' : 'Confirm Blood Donation',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
           ],
@@ -1695,64 +1660,38 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                isRequest ? 'Blood Request Details:' : 'Donor Information:',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-              ),
-              Text(
-                'Blood Type: ${donation['blood_type']} • Units: ${donation['units']} • Location: ${donation['hospital_name'] ?? donation['target_location_name']}',
-                style: const TextStyle(fontSize: 12, color: Colors.black87),
-              ),
-              const SizedBox(height: 14),
-
               TextField(
                 controller: locCtrl,
-                decoration: InputDecoration(
-                  labelText: isRequest ? 'Where to Pick Up Blood (Room / Counter)' : 'Where to Come (Room / Location)',
-                  prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
-                  border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                decoration: const InputDecoration(
+                  labelText: 'Appointment Location / Counter',
+                  border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
-
               TextField(
                 controller: dateCtrl,
-                decoration: InputDecoration(
-                  labelText: isRequest ? 'Pickup Available Time' : 'Appointment Date & Time',
-                  prefixIcon: const Icon(Icons.access_time, size: 20),
-                  border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                decoration: const InputDecoration(
+                  labelText: 'Date & Time',
+                  border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
-
               TextField(
                 controller: notesCtrl,
                 maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: isRequest ? 'Instructions for Requester' : 'Hospital Notes / Instructions',
-                  prefixIcon: const Icon(Icons.note_alt_outlined, size: 20),
-                  border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                decoration: const InputDecoration(
+                  labelText: 'Instructions / Notes',
+                  border: OutlineInputBorder(),
                 ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isRequest ? const Color(0xFFB71C1C) : AppTheme.primaryRed,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryRed, foregroundColor: Colors.white),
             onPressed: () async {
               final id = donation['id'];
               if (id != null) {
@@ -1764,37 +1703,659 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                     'appointment_notes': notesCtrl.text.trim(),
                   });
                   if (ctx.mounted) Navigator.pop(ctx);
-                  _loadBloodDonations();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(isRequest
-                            ? 'Blood supply request accepted and pickup location sent to patient!'
-                            : 'Blood donation appointment confirmed and sent to donor!'),
-                        backgroundColor: AppTheme.secondaryGreen,
-                      ),
-                    );
-                  }
+                  _fetchBloodDonations(silent: true);
+                  _snack('Appointment confirmed and sent to user!', AppTheme.secondaryGreen);
                 } catch (_) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Failed to schedule appointment'), backgroundColor: Colors.red),
-                    );
-                  }
+                  _snack('Failed to schedule appointment', Colors.red);
                 }
               }
             },
-            child: Text(isRequest ? 'CONFIRM & SEND PICKUP LOCATION' : 'CONFIRM & NOTIFY DONOR'),
+            child: const Text('CONFIRM & NOTIFY'),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _makePhoneCall(String phoneNumber) async {
-    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
-    if (await canLaunchUrl(launchUri)) {
-      await launchUrl(launchUri);
+  // ══════════════════════════════════════════════════════════════════════════
+  // TAB 2: VOLUNTEERS MANAGEMENT
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildVolunteersTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
+    final onlineVolunteers = _volunteers.where((v) => v['is_active'] == true).length;
+
+    List<Map<String, dynamic>> filteredList = _volunteers;
+    if (_volunteerSearchQuery.isNotEmpty) {
+      final q = _volunteerSearchQuery.toLowerCase();
+      filteredList = filteredList.where((v) {
+        final name = (v['full_name'] ?? '').toString().toLowerCase();
+        final phone = (v['phone_number'] ?? '').toString().toLowerCase();
+        return name.contains(q) || phone.contains(q);
+      }).toList();
     }
+
+    return Column(
+      children: [
+        // Header stats & Add Volunteer button
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: _statBox('TOTAL SQUAD', '${_volunteers.length}', Colors.deepPurple),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _statBox('ACTIVE ON DUTY', '$onlineVolunteers', AppTheme.secondaryGreen),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _statBox('STANDBY', '${_volunteers.length - onlineVolunteers}', Colors.grey),
+              ),
+            ],
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'First Responders Team (${_volunteers.length})',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.person_add, size: 16),
+                label: const Text('ADD VOLUNTEER', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryRed,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: _openAddVolunteerDialog,
+              ),
+            ],
+          ),
+        ),
+
+        // Search Volunteer Field
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: TextField(
+            controller: _volunteerSearchCtrl,
+            decoration: InputDecoration(
+              hintText: 'Search volunteer name or phone...',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: _volunteerSearchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () {
+                        _volunteerSearchCtrl.clear();
+                        setState(() => _volunteerSearchQuery = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: cardBg,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+            onChanged: (val) => setState(() => _volunteerSearchQuery = val.trim()),
+          ),
+        ),
+
+        // Volunteers List
+        Expanded(
+          child: _loadingVolunteers
+              ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed))
+              : filteredList.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.people_outline_rounded, size: 56, color: isDark ? Colors.white30 : Colors.grey.shade400),
+                          const SizedBox(height: 12),
+                          Text('No volunteers in your team yet', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.grey.shade700)),
+                          const SizedBox(height: 4),
+                          const Text('Tap "+ ADD VOLUNTEER" above to recruit responders.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _fetchVolunteers,
+                      color: AppTheme.primaryRed,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        itemCount: filteredList.length,
+                        itemBuilder: (_, i) {
+                          final v = filteredList[i];
+                          final id = v['account_id'] ?? v['id'] ?? '';
+                          final name = v['full_name'] ?? 'Volunteer';
+                          final phone = v['phone_number'] ?? '';
+                          final isActive = v['is_active'] == true;
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isActive ? Colors.green.withValues(alpha: 0.4) : (isDark ? const Color(0xFF334155) : Colors.grey.shade300),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: isActive ? Colors.green.shade100 : Colors.grey.shade200,
+                                  child: Icon(Icons.person, color: isActive ? Colors.green.shade800 : Colors.grey),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                      Text(phone.isNotEmpty ? phone : 'No phone', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                    ],
+                                  ),
+                                ),
+                                if (phone.isNotEmpty)
+                                  IconButton(
+                                    icon: const Icon(Icons.call, color: AppTheme.secondaryGreen, size: 20),
+                                    onPressed: () => _makeCall(phone),
+                                  ),
+                                Switch(
+                                  value: isActive,
+                                  activeThumbColor: AppTheme.secondaryGreen,
+                                  onChanged: (_) async {
+                                    await ApiService().toggleVolunteerStatus(id);
+                                    _fetchVolunteers();
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+        ),
+      ],
+    );
+  }
+
+  void _openAddVolunteerDialog() {
+    final nameCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final passCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Add New Volunteer', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Full Name')),
+              const SizedBox(height: 10),
+              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email Address')),
+              const SizedBox(height: 10),
+              TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Password (min 6 chars)')),
+              const SizedBox(height: 10),
+              TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Phone Number (+959...)')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryRed, foregroundColor: Colors.white),
+            onPressed: () async {
+              if (emailCtrl.text.isEmpty || passCtrl.text.isEmpty || nameCtrl.text.isEmpty) {
+                _snack('Please fill in all required fields', Colors.red);
+                return;
+              }
+              try {
+                await ApiService().createVolunteer({
+                  'email': emailCtrl.text.trim(),
+                  'password': passCtrl.text,
+                  'full_name': nameCtrl.text.trim(),
+                  'phone_number': phoneCtrl.text.trim(),
+                });
+                if (ctx.mounted) Navigator.pop(ctx);
+                _fetchVolunteers();
+                _snack('Volunteer added to your team!', AppTheme.secondaryGreen);
+              } catch (_) {
+                _snack('Failed to create volunteer account', Colors.red);
+              }
+            },
+            child: const Text('CREATE'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // TAB 3: COVERAGE & ORGANIZATION SETTINGS (CORE REQUIREMENT)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildCoverageSettingsTab() {
+    if (_loadingProfile) {
+      return const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed));
+    }
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade300;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1E293B);
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade600;
+
+    final coverageAreaSqKm = math.pi * _coverageRadiusKm * _coverageRadiusKm;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── SOS Dispatch Impact Callout Banner ───────────────────────
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [const Color(0xFF7F1D1D).withValues(alpha: 0.4), const Color(0xFF1E293B)]
+                    : [Colors.red.shade50, Colors.orange.shade50],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.4), width: 1.5),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.radar_rounded, color: AppTheme.primaryRed, size: 26),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Live SOS Geolocation Coverage',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primaryRed),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'When citizens trigger SOS alerts within your coverage radius (${_coverageRadiusKm.toStringAsFixed(1)} KM), our geolocation dispatcher prioritizes and routes the emergency directly to your command console.',
+                        style: TextStyle(fontSize: 12.5, color: textSecondary, height: 1.35),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Interactive Coverage Radius Card ─────────────────────────
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: cardBorder),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Coverage Radius (KM)',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textPrimary),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryRed,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${_coverageRadiusKm.toStringAsFixed(1)} KM',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Total Protected Zone: ~${coverageAreaSqKm.toStringAsFixed(0)} sq km around headquarters',
+                  style: TextStyle(fontSize: 12, color: textSecondary),
+                ),
+                const SizedBox(height: 16),
+
+                // Slider
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: AppTheme.primaryRed,
+                    thumbColor: AppTheme.primaryRed,
+                    overlayColor: AppTheme.primaryRed.withValues(alpha: 0.2),
+                    valueIndicatorColor: AppTheme.primaryRed,
+                  ),
+                  child: Slider(
+                    value: _coverageRadiusKm,
+                    min: 5.0,
+                    max: 100.0,
+                    divisions: 19,
+                    label: '${_coverageRadiusKm.toStringAsFixed(0)} KM',
+                    onChanged: (val) {
+                      setState(() {
+                        _coverageRadiusKm = val;
+                        _radiusCtrl.text = val.toStringAsFixed(1);
+                      });
+                    },
+                  ),
+                ),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('5 KM (Local Hub)', style: TextStyle(fontSize: 11, color: textSecondary)),
+                    Text('50 KM (City)', style: TextStyle(fontSize: 11, color: textSecondary)),
+                    Text('100 KM (Regional)', style: TextStyle(fontSize: 11, color: textSecondary)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Headquarters Base GPS Coordinates ────────────────────────
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Base GPS Coordinates',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textPrimary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Exact latitude and longitude of your dispatch station',
+                  style: TextStyle(fontSize: 12, color: textSecondary),
+                ),
+                const SizedBox(height: 14),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _latCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Latitude',
+                          prefixIcon: const Icon(Icons.my_location, size: 18),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: _lngCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Longitude',
+                          prefixIcon: const Icon(Icons.location_searching, size: 18),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.gps_fixed, size: 16),
+                        label: const Text('Use Current GPS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryRed,
+                          side: const BorderSide(color: AppTheme.primaryRed),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () async {
+                          try {
+                            final pos = await LocationService.getCurrentLocation();
+                            setState(() {
+                              _latCtrl.text = pos.latitude.toStringAsFixed(6);
+                              _lngCtrl.text = pos.longitude.toStringAsFixed(6);
+                            });
+                            _snack('Updated with current GPS coordinates!', AppTheme.secondaryGreen);
+                          } catch (_) {
+                            _snack('Failed to fetch GPS coordinates', Colors.red);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.map_outlined, size: 16),
+                        label: const Text('Pick on Map', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueGrey,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: _pickLocationOnMap,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Organization Basic Information ───────────────────────────
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Organization Profile',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textPrimary),
+                ),
+                const SizedBox(height: 14),
+
+                TextField(
+                  controller: _nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Organization Name',
+                    prefixIcon: const Icon(Icons.business_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: _phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: 'Hotline Phone Number',
+                    helperText: 'Must start with +959 or 09 (e.g. 09123456789)',
+                    prefixIcon: const Icon(Icons.phone_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedCategory,
+                  decoration: InputDecoration(
+                    labelText: 'Organization Category',
+                    prefixIcon: const Icon(Icons.category_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Medical', child: Text('Medical & Ambulance')),
+                    DropdownMenuItem(value: 'Fire', child: Text('Fire & Disaster Rescue')),
+                    DropdownMenuItem(value: 'Local Voluntary Org', child: Text('Local Voluntary Org')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedCategory = val);
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: _addressCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Headquarters Address',
+                    prefixIcon: const Icon(Icons.location_city_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: _regionsCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Operating Regions / Townships',
+                    helperText: 'e.g. Kamaryut, Hledan, Sanchaung, Bahan, Yangon',
+                    prefixIcon: const Icon(Icons.map_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: _regNumCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Official Registration Number',
+                    prefixIcon: const Icon(Icons.verified_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          // ── Save Button ──────────────────────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              icon: _savingProfile
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.save_rounded, color: Colors.white),
+              label: Text(
+                _savingProfile ? 'SAVING PROFILE & COVERAGE...' : 'SAVE ORGANIZATION PROFILE & COVERAGE',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryRed,
+                foregroundColor: Colors.white,
+                elevation: 3,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: _savingProfile ? null : _saveOrganizationProfile,
+            ),
+          ),
+          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  // ── Stat Box Widget ────────────────────────────────────────────────
+  Widget _statBox(
+    String label,
+    String val,
+    Color color, {
+    bool isSelected = false,
+    VoidCallback? onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.15) : cardBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? color : color.withValues(alpha: 0.25),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                val,
+                style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isSelected ? color : (isDark ? Colors.white70 : Colors.black87),
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
