@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:intl/intl.dart';
 
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
@@ -231,7 +230,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     final regionCtrl = TextEditingController(text: org['operating_regions'] ?? '');
     final addressCtrl = TextEditingController(text: org['headquarters_address'] ?? '');
     String selectedCategory = org['category'] ?? 'Medical';
-    final categories = ['Medical', 'Fire', 'Crime'];
+    final categories = ['Medical', 'Fire', 'Local Voluntary Org'];
     bool isActive = org['is_active'] ?? true;
 
     showModalBottomSheet(

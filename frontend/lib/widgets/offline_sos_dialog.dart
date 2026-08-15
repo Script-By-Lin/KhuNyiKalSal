@@ -51,14 +51,15 @@ class _OfflineSOSDialogState extends ConsumerState<OfflineSOSDialog> {
             (o) {
               final cat = (o['category'] ?? '').toString().toLowerCase();
               final name = (o['org_name'] ?? '').toString().toLowerCase();
-              if (widget.emergencyType == 'fire') {
+              final etype = widget.emergencyType.toLowerCase().replaceAll(' ', '_');
+              if (etype == 'fire') {
                 return cat.contains('fire') || name.contains('fire') || name.contains('မီးသတ်');
               }
-              if (widget.emergencyType == 'medical') {
-                return cat.contains('medical') || name.contains('medical') || name.contains('ဆေး') || name.contains('hospital');
+              if (etype == 'medical' || etype == 'accident') {
+                return cat.contains('medical') || name.contains('medical') || name.contains('ဆေး') || name.contains('hospital') || name.contains('ambulance');
               }
-              if (widget.emergencyType == 'crime') {
-                return cat.contains('safety') || cat.contains('police') || name.contains('police') || name.contains('ရဲ');
+              if (etype == 'natural_disaster' || etype == 'disaster') {
+                return cat.contains('fire') || cat.contains('voluntary') || cat.contains('volunteer') || name.contains('ကယ်ဆယ်') || name.contains('rescue');
               }
               return true;
             },

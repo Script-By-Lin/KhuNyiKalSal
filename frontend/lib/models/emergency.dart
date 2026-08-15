@@ -45,11 +45,17 @@ class EmergencyModel {
   bool get isCompleted => status == 'completed';
 
   String get typeIcon {
-    switch (type) {
+    switch (type.toLowerCase()) {
       case 'fire':
         return '🔥';
       case 'medical':
         return '🏥';
+      case 'accident':
+        return '🚗';
+      case 'natural_disaster':
+      case 'natural disaster':
+      case 'disaster':
+        return '🌊';
       case 'crime':
         return '🚨';
       default:
@@ -58,11 +64,17 @@ class EmergencyModel {
   }
 
   String get typeLabel {
-    switch (type) {
+    switch (type.toLowerCase()) {
       case 'fire':
         return 'Fire';
       case 'medical':
         return 'Medical';
+      case 'accident':
+        return 'Accident';
+      case 'natural_disaster':
+      case 'natural disaster':
+      case 'disaster':
+        return 'Natural Disaster';
       case 'crime':
         return 'Crime';
       default:

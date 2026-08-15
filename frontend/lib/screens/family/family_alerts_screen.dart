@@ -230,8 +230,14 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
                 Color typeColor = AppTheme.primaryRed;
                 IconData typeIcon = Icons.medical_services;
                 if (type.contains('FIRE')) {
-                  typeColor = Colors.orange;
+                  typeColor = const Color(0xFFFF6B35);
                   typeIcon = Icons.local_fire_department;
+                } else if (type.contains('ACCIDENT')) {
+                  typeColor = const Color(0xFFE65100);
+                  typeIcon = Icons.car_crash_rounded;
+                } else if (type.contains('DISASTER')) {
+                  typeColor = const Color(0xFF00897B);
+                  typeIcon = Icons.flood_rounded;
                 } else if (type.contains('CRIME')) {
                   typeColor = Colors.purple;
                   typeIcon = Icons.shield;

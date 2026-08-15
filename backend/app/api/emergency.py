@@ -37,12 +37,16 @@ async def create_sos(
     """
     await check_sos_limit(current_user.id, db)
 
+    normalized_type = data.type.lower().strip().replace(" ", "_")
+    if normalized_type == "disaster":
+        normalized_type = "natural_disaster"
+
     try:
-        etype = EmergencyType(data.type)
+        etype = EmergencyType(normalized_type)
     except ValueError:
         raise HTTPException(
             status_code=400,
-            detail="Invalid emergency type. Use: fire, medical, crime",
+            detail="Invalid emergency type. Use: fire, medical, accident, natural_disaster",
         )
 
     emergency = Emergency(

@@ -22,6 +22,8 @@ import '../screens/shell_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/settings/device_management_screen.dart';
 
+import '../screens/more/more_screen.dart';
+import '../screens/blood_donation/blood_donation_screen.dart';
 import '../screens/admin/admin_dashboard.dart';
 import '../screens/admin/create_org_screen.dart';
 
@@ -75,6 +77,7 @@ final goRouter = GoRouter(
             );
           },
         ),
+        GoRoute(path: '/more', builder: (_, _) => const MoreScreen()),
         GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
         GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
         GoRoute(path: '/settings/devices', builder: (_, _) => const DeviceManagementScreen()),
@@ -82,6 +85,7 @@ final goRouter = GoRouter(
     ),
 
     // ── Sub-pages ────────────────────────────────────────────────────────
+    GoRoute(path: '/blood-donation', builder: (_, _) => const BloodDonationScreen()),
     GoRoute(path: '/first-aid', builder: (_, _) => const OfflineFirstAidScreen()),
     GoRoute(path: '/how-to-use', builder: (_, _) => const HowToUseScreen()),
     GoRoute(path: '/rules-laws', builder: (_, _) => const RulesLawsScreen()),

@@ -17,28 +17,32 @@ class EmergencyTypeSheet extends ConsumerWidget {
       child: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Handle bar
             Container(
-              width: 40,
-              height: 4,
+              width: 44,
+              height: 5,
               decoration: BoxDecoration(
                 color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
             Text(
               isMm ? 'အရေးပေါ် အမျိုးအစား ရွေးချယ်ပါ' : 'Select Emergency Type',
-              style: Theme.of(context).textTheme.headlineMedium,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Colors.black87,
+              ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               isMm
                   ? 'သင်ကြုံတွေ့နေရသော အရေးပေါ် အခြေအနေကို ရွေးချယ်ပေးပါ'
@@ -46,33 +50,52 @@ class EmergencyTypeSheet extends ConsumerWidget {
               style: const TextStyle(color: AppTheme.subtleGrey, fontSize: 13),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 22),
+
+            // 2x2 Grid of Emergency Types
             Row(
               children: [
                 Expanded(
                   child: _TypeButton(
                     icon: Icons.local_fire_department,
                     label: isMm ? 'မီးဘေး' : 'Fire',
+                    subtitle: isMm ? 'မီးလောင်မှု / ကယ်ဆယ်ရေး' : 'Fire & Rescue',
                     color: const Color(0xFFFF6B35),
                     onTap: () => onTypeSelected('fire'),
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: _TypeButton(
                     icon: Icons.medical_services,
                     label: isMm ? 'ဆေးဘက်' : 'Medical',
+                    subtitle: isMm ? 'လူနာတင်ယာဉ် / ဆေးကုသမှု' : 'Ambulance & Hospital',
                     color: AppTheme.primaryRed,
                     onTap: () => onTypeSelected('medical'),
                   ),
                 ),
-                const SizedBox(width: 14),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
                 Expanded(
                   child: _TypeButton(
-                    icon: Icons.shield,
-                    label: isMm ? 'ရာဇဝတ်' : 'Crime',
-                    color: const Color(0xFF5C6BC0),
-                    onTap: () => onTypeSelected('crime'),
+                    icon: Icons.car_crash_rounded,
+                    label: isMm ? 'ယာဉ်မတော်တဆ' : 'Accident',
+                    subtitle: isMm ? 'ယာဉ်တိုက်မှု / အရေးပေါ်' : 'Vehicle & Trauma',
+                    color: const Color(0xFFE65100),
+                    onTap: () => onTypeSelected('accident'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _TypeButton(
+                    icon: Icons.flood_rounded,
+                    label: isMm ? 'သဘာဝဘေး' : 'Natural Disaster',
+                    subtitle: isMm ? 'ရေဘေး / လေဘေး' : 'Flood, Storm & Relief',
+                    color: const Color(0xFF00897B),
+                    onTap: () => onTypeSelected('natural_disaster'),
                   ),
                 ),
               ],
@@ -87,12 +110,14 @@ class EmergencyTypeSheet extends ConsumerWidget {
 class _TypeButton extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String subtitle;
   final Color color;
   final VoidCallback onTap;
 
   const _TypeButton({
     required this.icon,
     required this.label,
+    required this.subtitle,
     required this.color,
     required this.onTap,
   });
@@ -102,30 +127,44 @@ class _TypeButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 28),
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
+          color: color.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.25), width: 1.5),
         ),
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 30),
+              child: Icon(icon, color: color, size: 28),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               label,
               style: TextStyle(
                 color: color,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
                 fontSize: 15,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: TextStyle(
+                color: color.withValues(alpha: 0.75),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

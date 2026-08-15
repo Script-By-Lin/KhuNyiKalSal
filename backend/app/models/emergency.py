@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 class EmergencyType(str, enum.Enum):
     FIRE = "fire"
     MEDICAL = "medical"
+    ACCIDENT = "accident"
+    NATURAL_DISASTER = "natural_disaster"
     CRIME = "crime"
 
 

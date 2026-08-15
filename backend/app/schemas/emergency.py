@@ -5,7 +5,7 @@ from datetime import datetime
 
 class SOSRequest(BaseModel):
     """Payload to trigger an SOS emergency."""
-    type: str  # "fire", "medical", "crime"
+    type: str  # "fire", "medical", "accident", "natural_disaster"
     location_lat: float
     location_lng: float
 

@@ -57,7 +57,41 @@ async def find_nearest_organizations(
     def _type_score(org: Organization) -> int:
         if not emergency_type:
             return 0
-        if org.category and org.category.lower() == emergency_type.lower():
+        
+        cat = (org.category or "").lower().strip()
+        etype = emergency_type.lower().strip().replace(" ", "_")
+
+        is_voluntary = "voluntary" in cat or "volunteer" in cat or "local" in cat
+        is_fire = "fire" in cat
+        is_medical = "medical" in cat or "hospital" in cat or "health" in cat
+
+        if etype in ["natural_disaster", "disaster"]:
+            # For natural disasters: Both Fire and Local Voluntary organizations are tier 0
+            if is_fire or is_voluntary:
+                return 0
+            if is_medical:
+                return 1
+            return 2
+
+        if etype == "fire":
+            # Primary: Fire (0), Secondary: Local Voluntary (1), Others: (2)
+            if is_fire:
+                return 0
+            if is_voluntary:
+                return 1
+            return 2
+
+        if etype in ["medical", "accident"]:
+            # Primary: Medical (0), Secondary: Local Voluntary (1), Others: (2)
+            if is_medical:
+                return 0
+            if is_voluntary:
+                return 1
+            if is_fire:
+                return 2
+            return 3
+
+        if is_voluntary:
             return 0
         return 1
 

@@ -64,7 +64,43 @@ async def ensure_idempotent_schema():
             ALTER TABLE emergencies 
             ADD COLUMN IF NOT EXISTS assigned_volunteer_id UUID REFERENCES volunteers(account_id) ON DELETE SET NULL;
             """,
-            """CREATE INDEX IF NOT EXISTS ix_emergencies_assigned_volunteer_id ON emergencies (assigned_volunteer_id);"""
+            """CREATE INDEX IF NOT EXISTS ix_emergencies_assigned_volunteer_id ON emergencies (assigned_volunteer_id);""",
+
+            # Update PostgreSQL emergency_type_enum values if enum is used
+            """ALTER TYPE emergency_type_enum ADD VALUE IF NOT EXISTS 'accident';""",
+            """ALTER TYPE emergency_type_enum ADD VALUE IF NOT EXISTS 'natural_disaster';""",
+
+            # Ensure blood_donations table exists
+            """
+            CREATE TABLE IF NOT EXISTS blood_donations (
+                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                user_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                donor_name VARCHAR(255) NOT NULL,
+                donor_phone VARCHAR(500) NOT NULL,
+                donor_phone_salt VARCHAR(64),
+                blood_type VARCHAR(10) NOT NULL,
+                age INTEGER,
+                gender VARCHAR(20),
+                medical_notes VARCHAR(500),
+                target_org_id UUID REFERENCES organizations(account_id) ON DELETE SET NULL,
+                target_location_name VARCHAR(255) NOT NULL,
+                target_lat DOUBLE PRECISION,
+                target_lng DOUBLE PRECISION,
+                preferred_date VARCHAR(100),
+                units INTEGER DEFAULT 1,
+                status VARCHAR(50) DEFAULT 'Pending',
+                appointment_date VARCHAR(100),
+                appointment_location VARCHAR(255),
+                appointment_notes VARCHAR(500),
+                notes VARCHAR(500),
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ
+            );
+            """,
+            """CREATE INDEX IF NOT EXISTS ix_blood_donations_user_id ON blood_donations (user_id);""",
+            """CREATE INDEX IF NOT EXISTS ix_blood_donations_target_org_id ON blood_donations (target_org_id);""",
+            """CREATE INDEX IF NOT EXISTS ix_blood_donations_blood_type ON blood_donations (blood_type);""",
+            """CREATE INDEX IF NOT EXISTS ix_blood_donations_status ON blood_donations (status);"""
         ]
 
         async with engine.begin() as conn:

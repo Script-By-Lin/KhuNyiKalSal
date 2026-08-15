@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -24,8 +23,10 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
     with SingleTickerProviderStateMixin {
   final List<Map<String, dynamic>> _emergencies = [];
   final List<Map<String, dynamic>> _history = [];
+  final List<Map<String, dynamic>> _bloodDonations = [];
   bool _loading = true;
   bool _historyLoading = true;
+  bool _bloodLoading = true;
   StreamSubscription? _wsSub;
   StreamSubscription? _locSub;
   Timer? _pollTimer;
@@ -34,12 +35,16 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _initRealtimeTracking();
     _loadAlerts();
     _loadHistory();
+    _loadBloodDonations();
     _listenForEvents();
-    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) => _loadAlerts());
+    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      _loadAlerts();
+      _loadBloodDonations();
+    });
   }
 
   Future<void> _initRealtimeTracking() async {
@@ -91,6 +96,21 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
     }
   }
 
+  Future<void> _loadBloodDonations() async {
+    try {
+      final res = await ApiService().getOrgBloodDonations();
+      if (mounted) {
+        setState(() {
+          _bloodDonations.clear();
+          _bloodDonations.addAll(List<Map<String, dynamic>>.from(res.data));
+          _bloodLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _bloodLoading = false);
+    }
+  }
+
   void _listenForEvents() {
     final auth = ref.read(authProvider.notifier);
     _wsSub = auth.ws.events.listen((event) {
@@ -109,6 +129,13 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
         );
       } else if (eventType == 'VOLUNTEER_ACCEPTED' || eventType == 'EMERGENCY_ACCEPTED') {
         _loadAlerts();
+      } else if (eventType == 'NEW_BLOOD_DONATION_REQUEST') {
+        _loadBloodDonations();
+        NotificationService().showEmergencyAlert(
+          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          title: '🩸 New Blood Donation Request!',
+          body: 'Donor ${event['donor_name']} (${event['blood_type']}) has requested a blood donation appointment.',
+        );
       } else if (eventType == 'EMERGENCY_COMPLETED' || eventType == 'SOS_CANCELLED') {
         setState(() {
           _emergencies.removeWhere((e) => e['emergency_id'] == event['emergency_id']);
@@ -286,6 +313,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                   tabs: [
                     Tab(text: 'Pending (${pending.length})'),
                     Tab(text: 'Active (${active.length})'),
+                    Tab(text: 'Blood (${_bloodDonations.where((b) => b['status'] == 'Pending' || b['status'] == 'Accepted').length})'),
                     Tab(text: 'History (${_history.length})'),
                   ],
                 ),
@@ -308,6 +336,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
                   children: [
                     _buildCardList(pending, isPending: true),
                     _buildCardList(active, isPending: false),
+                    _buildBloodDonationsList(),
                     _buildHistoryList(),
                   ],
                 ),
@@ -922,5 +951,355 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard>
         ),
       ),
     );
+  }
+
+  // ── Blood Donation Management ──────────────────────────────────────────
+  Widget _buildBloodDonationsList() {
+    if (_bloodLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed));
+    }
+
+    if (_bloodDonations.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.water_drop_outlined, size: 48, color: AppTheme.primaryRed),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'No Blood Donation Requests',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Incoming blood donation pledges will appear here for scheduling.',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadBloodDonations,
+      color: AppTheme.primaryRed,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: _bloodDonations.length,
+        itemBuilder: (ctx, i) {
+          final d = _bloodDonations[i];
+          final id = d['id'] ?? '';
+          final donorName = d['donor_name'] ?? 'Citizen Donor';
+          final phone = d['donor_phone'] ?? '';
+          final bloodType = d['blood_type'] ?? '';
+          final preferredDate = d['preferred_date'] ?? 'ASAP';
+          final units = d['units'] ?? 1;
+          final status = (d['status'] ?? 'Pending').toString();
+          final isAccepted = status.toLowerCase() == 'accepted';
+          final isPending = status.toLowerCase() == 'pending';
+          final apptDate = d['appointment_date'];
+          final apptLoc = d['appointment_location'];
+          final medNotes = d['medical_notes'];
+
+          Color badgeColor = Colors.orange;
+          if (isAccepted) badgeColor = AppTheme.secondaryGreen;
+          if (status.toLowerCase() == 'completed') badgeColor = Colors.blue;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isPending ? Colors.orange.shade300 : Colors.grey.shade200,
+                width: isPending ? 1.5 : 1.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryRed.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          bloodType,
+                          style: const TextStyle(
+                            color: AppTheme.primaryRed,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              donorName,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            ),
+                            if (phone.isNotEmpty)
+                              Text('📞 $phone', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: badgeColor,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          status.toUpperCase(),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  const Divider(height: 1),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Text('Preferred: $preferredDate • $units Unit(s)',
+                          style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                    ],
+                  ),
+                  if (medNotes != null && medNotes.toString().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.medical_information, size: 14, color: Colors.grey),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text('Medical Note: $medNotes',
+                              style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  if (isAccepted && apptDate != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.green.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('📅 Appointment: $apptDate',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          if (apptLoc != null)
+                            Text('📍 Where to come: $apptLoc',
+                                style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      if (phone.isNotEmpty)
+                        IconButton.filledTonal(
+                          icon: const Icon(Icons.call, color: AppTheme.secondaryGreen, size: 18),
+                          style: IconButton.styleFrom(
+                            backgroundColor: AppTheme.secondaryGreen.withValues(alpha: 0.12),
+                          ),
+                          onPressed: () => _makePhoneCall(phone),
+                        ),
+                      const SizedBox(width: 8),
+                      if (isPending)
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.check, size: 18),
+                            label: const Text('ACCEPT & SCHEDULE',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryRed,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: () => _openAcceptAppointmentModal(d),
+                          ),
+                        )
+                      else if (isAccepted)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.done_all, size: 18, color: Colors.blue),
+                            label: const Text('MARK COMPLETED',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blue)),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Colors.blue),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: () async {
+                              await ApiService().updateBloodDonationStatus(id, 'Completed');
+                              _loadBloodDonations();
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _openAcceptAppointmentModal(Map<String, dynamic> donation) {
+    final dateCtrl = TextEditingController(
+      text: 'Tomorrow at 10:00 AM',
+    );
+    final locCtrl = TextEditingController(
+      text: 'Blood Donation Center, Main Hospital Wing Room 102',
+    );
+    final notesCtrl = TextEditingController(
+      text: 'Please bring your NRC / ID card and arrive 15 minutes before your scheduled appointment.',
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.calendar_month, color: AppTheme.primaryRed),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Schedule Appointment for ${donation['donor_name']}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Donor Information:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              Text('Blood Type: ${donation['blood_type']} • Preferred: ${donation['preferred_date']} • Units: ${donation['units']}'),
+              const SizedBox(height: 14),
+
+              TextField(
+                controller: dateCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Appointment Date & Time',
+                  prefixIcon: Icon(Icons.access_time, size: 20),
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: locCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Where to Come (Room / Location)',
+                  prefixIcon: Icon(Icons.location_on_outlined, size: 20),
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: notesCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Hospital Notes / Instructions',
+                  prefixIcon: Icon(Icons.note_alt_outlined, size: 20),
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              final id = donation['id'];
+              if (id != null) {
+                try {
+                  await ApiService().acceptBloodDonation(id, {
+                    'appointment_date': dateCtrl.text.trim(),
+                    'appointment_location': locCtrl.text.trim(),
+                    'appointment_notes': notesCtrl.text.trim(),
+                  });
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  _loadBloodDonations();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('✅ Blood donation appointment confirmed and sent to donor!'),
+                        backgroundColor: AppTheme.secondaryGreen,
+                      ),
+                    );
+                  }
+                } catch (_) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Failed to schedule appointment'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text('CONFIRM & NOTIFY DONOR'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    }
   }
 }

@@ -466,13 +466,13 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                 onTap: () => context.go('/map'),
               ),
 
-              // 7. Settings
+              // 7. More Hub
               _NavItem(
-                icon: Icons.settings_outlined,
-                activeIcon: Icons.settings,
-                label: isMm ? 'ပြင်ဆင်ရန်' : 'Settings',
+                icon: Icons.grid_view_outlined,
+                activeIcon: Icons.grid_view_rounded,
+                label: isMm ? 'ပိုမို' : 'More',
                 isActive: _currentIndex(context) == 5,
-                onTap: () => context.go('/settings'),
+                onTap: () => context.go('/more'),
               ),
             ],
           ),
@@ -487,7 +487,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
     if (location.startsWith('/family-alerts')) return 3;
     if (location.startsWith('/family')) return 2;
     if (location.startsWith('/map')) return 4;
-    if (location.startsWith('/settings')) return 5;
+    if (location.startsWith('/more') || location.startsWith('/settings')) return 5;
     return 0;
   }
 }

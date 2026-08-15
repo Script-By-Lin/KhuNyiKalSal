@@ -347,4 +347,23 @@ class ApiService {
       dio.delete('/admin/organizations/$accountId');
 
   Future<Response> getAdminEmergencies() => dio.get('/admin/emergencies');
+
+  // ── Blood Donation ────────────────────────────────────────────────────
+  Future<Response> createBloodDonation(Map<String, dynamic> data) =>
+      dio.post('/blood-donations', data: data);
+
+  Future<Response> getMyBloodDonations() =>
+      dio.get('/blood-donations/my');
+
+  Future<Response> getOrgBloodDonations() =>
+      dio.get('/blood-donations/org');
+
+  Future<Response> getAllBloodDonations() =>
+      dio.get('/blood-donations/all');
+
+  Future<Response> acceptBloodDonation(String donationId, Map<String, dynamic> data) =>
+      dio.put('/blood-donations/$donationId/accept', data: data);
+
+  Future<Response> updateBloodDonationStatus(String donationId, String status) =>
+      dio.put('/blood-donations/$donationId/status', data: {'status': status});
 }

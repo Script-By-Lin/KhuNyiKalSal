@@ -384,11 +384,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _ActionCard(
-                        icon: Icons.notifications_active_outlined,
-                        title: isMm ? 'သတိပေးချက်များ' : 'Family Alerts',
-                        subtitle: isMm ? 'အရေးပေါ် သတိပေးချက်များ' : 'SOS alert messages',
-                        color: AppTheme.primaryRed,
-                        onTap: () => context.go('/family-alerts'),
+                        icon: Icons.bloodtype_outlined,
+                        title: isMm ? 'သွေးလှူဒါန်းရန်' : 'Blood Donation',
+                        subtitle: isMm ? 'ရက်ချိန်းရယူ လှူဒါန်းရန်' : 'Schedule donation',
+                        color: const Color(0xFFC2185B),
+                        onTap: () => context.push('/blood-donation'),
                       ),
                     ),
                   ],

@@ -25,7 +25,7 @@ class _CreateOrgScreenState extends ConsumerState<CreateOrgScreen> {
   final regionCtrl = TextEditingController(text: 'Yangon');
   final addressCtrl = TextEditingController(text: 'Station HQ');
   String selectedCategory = 'Medical';
-  final categories = ['Medical', 'Fire', 'Crime'];
+  final categories = ['Medical', 'Fire', 'Local Voluntary Org'];
 
   bool _isSubmitting = false;
 
