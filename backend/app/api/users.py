@@ -132,6 +132,7 @@ async def update_profile(
     db: AsyncSession = Depends(get_db),
 ):
     role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    role_upper = role_str.upper()
     # If email update is requested, validate uniqueness and update account
     if data.email and data.email.strip():
         new_email = data.email.strip().lower()
