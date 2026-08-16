@@ -1004,14 +1004,14 @@ class _AlertCard extends StatelessWidget {
                         child: Container(
                           alignment: Alignment.center,
                           height: 44,
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: isAssignedToMe
                                 ? const Color(0xFF00E676).withValues(alpha: 0.15)
-                                : AppTheme.primaryRed.withValues(alpha: 0.1),
+                                : Colors.amber.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isAssignedToMe ? const Color(0xFF00C853) : Colors.transparent,
+                              color: isAssignedToMe ? const Color(0xFF00C853) : Colors.amber.shade400,
                               width: 1.5,
                             ),
                           ),
@@ -1020,21 +1020,24 @@ class _AlertCard extends StatelessWidget {
                             children: [
                               Icon(
                                 isAssignedToMe ? Icons.check_circle_rounded : Icons.lock_clock_rounded,
-                                color: isAssignedToMe ? const Color(0xFF00C853) : AppTheme.primaryRed,
+                                color: isAssignedToMe ? const Color(0xFF00C853) : Colors.amber.shade900,
                                 size: 18,
                               ),
                               const SizedBox(width: 6),
                               Flexible(
-                                child: Text(
-                                  isAssignedToMe
-                                      ? 'ACCEPTED BY YOU • LIVE DISPATCH'
-                                      : 'ACCEPTED BY ${alert['assigned_volunteer_name']?.toUpperCase() ?? 'OTHER VOLUNTEER'}',
-                                  style: TextStyle(
-                                    color: isAssignedToMe ? const Color(0xFF00C853) : AppTheme.primaryRed,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    isAssignedToMe
+                                        ? 'ACCEPTED BY YOU • EN ROUTE'
+                                        : 'ACCEPTED BY ${alert['assigned_volunteer_name']?.toString().toUpperCase() ?? 'OTHER VOLUNTEER'}',
+                                    style: TextStyle(
+                                      color: isAssignedToMe ? const Color(0xFF00C853) : Colors.amber.shade900,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 11.5,
+                                      letterSpacing: 0.2,
+                                    ),
                                   ),
-                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -1045,31 +1048,23 @@ class _AlertCard extends StatelessWidget {
                       Expanded(
                         child: SizedBox(
                           height: 44,
-                          child: ElevatedButton(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.send_rounded, size: 16),
+                            label: const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'ACCEPT & DISPATCH',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+                              ),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primaryRed,
                               foregroundColor: Colors.white,
                               elevation: 2,
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             onPressed: onAccept,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.send_rounded, size: 18),
-                                SizedBox(width: 6),
-                                Flexible(
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      'ACCEPT & DISPATCH',
-                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
                       ),

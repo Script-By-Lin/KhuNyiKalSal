@@ -152,9 +152,11 @@ async def get_active_alerts(
         alerts.append({
             "event": "SOS_CREATED",
             "emergency_id": e_id,
+            "id": e_id,
             "type": e.type.value,
             "location": {"lat": e.location_lat, "lng": e.location_lng},
             "org_location": org_loc,
+            "assigned_org_id": str(e.assigned_org_id) if e.assigned_org_id else None,
             "assigned_volunteer_id": str(e.assigned_volunteer_id) if e.assigned_volunteer_id else None,
             "assigned_volunteer_name": vol_name,
             "assigned_volunteer_location": vol_loc,
@@ -275,6 +277,99 @@ async def toggle_volunteer_status(
     }
 
 
+@router.post("/assign")
+async def assign_volunteer_to_emergency(
+    data: AssignVolunteerRequest,
+    current_user: Account = Depends(require_role("organization")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Organization assigns an emergency to a specific volunteer belonging to their organization."""
+    try:
+        e_uuid = uuid_module.UUID(data.emergency_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid emergency_id format")
+
+    try:
+        v_uuid = uuid_module.UUID(data.volunteer_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid volunteer_id format")
+
+    # Verify volunteer belongs to this organization
+    v_res = await db.execute(
+        select(Volunteer).where(Volunteer.account_id == v_uuid)
+    )
+    volunteer = v_res.scalar_one_or_none()
+    if not volunteer:
+        raise HTTPException(status_code=404, detail="Volunteer not found")
+
+    if volunteer.org_id != current_user.id:
+        raise HTTPException(
+            status_code=403, detail="Volunteer does not belong to your organization"
+        )
+
+    # Verify emergency exists
+    e_res = await db.execute(
+        select(Emergency).where(Emergency.id == e_uuid)
+    )
+    emergency = e_res.scalar_one_or_none()
+    if not emergency:
+        raise HTTPException(status_code=404, detail="Emergency not found")
+
+    if emergency.status not in (EmergencyStatus.PENDING, EmergencyStatus.ACCEPTED):
+        raise HTTPException(
+            status_code=400, detail="Emergency is already completed or cancelled"
+        )
+
+    emergency.assigned_org_id = current_user.id
+    emergency.assigned_volunteer_id = volunteer.account_id
+    emergency.status = EmergencyStatus.ACCEPTED
+
+    # Fetch organization details
+    o_res = await db.execute(
+        select(Organization).where(Organization.account_id == current_user.id)
+    )
+    org = o_res.scalar_one_or_none()
+    org_name = org.org_name if org else "Rescue Organization"
+
+    await db.commit()
+
+    responder_lat = volunteer.current_lat or (emergency.location_lat - 0.015)
+    responder_lng = volunteer.current_lng or (emergency.location_lng - 0.010)
+
+    accept_payload = {
+        "event": "VOLUNTEER_ACCEPTED",
+        "emergency_id": data.emergency_id,
+        "status": "accepted",
+        "assigned_org_id": str(emergency.assigned_org_id),
+        "assigned_volunteer_id": str(volunteer.account_id),
+        "assigned_volunteer_name": volunteer.full_name,
+        "volunteer_id": str(volunteer.account_id),
+        "responder_name": volunteer.full_name,
+        "responder_phone": volunteer.get_decrypted_phone(),
+        "responder_role": "Volunteer",
+        "responder_location": {"lat": responder_lat, "lng": responder_lng},
+        "message": f"🚨 {volunteer.full_name} ({org_name}) has been dispatched to your location!",
+    }
+
+    # Notify victim, assigned volunteer, and organization
+    await manager.send_personal(str(emergency.user_id), accept_payload)
+    await manager.send_personal(str(volunteer.account_id), accept_payload)
+    await manager.send_personal(str(current_user.id), accept_payload)
+    await manager.broadcast_all(accept_payload)
+
+    # Generic accepted event for standard listeners
+    accept_payload_generic = dict(accept_payload)
+    accept_payload_generic["event"] = "EMERGENCY_ACCEPTED"
+    await manager.send_personal(str(emergency.user_id), accept_payload_generic)
+
+    return {
+        "message": f"Assigned to {volunteer.full_name} successfully",
+        "emergency_id": data.emergency_id,
+        "assigned_volunteer_id": str(volunteer.account_id),
+        "assigned_volunteer_name": volunteer.full_name,
+    }
+
+
 @router.post("/respond")
 async def respond_to_emergency(
     data: VolunteerRespondRequest,
@@ -357,7 +452,7 @@ async def respond_to_emergency(
         # Send to assigned organization and broadcast to active dashboard listeners
         if emergency.assigned_org_id:
             await manager.send_personal(str(emergency.assigned_org_id), accept_payload)
-        await manager.broadcast(accept_payload)
+        await manager.broadcast_all(accept_payload)
         
         # Also send EMERGENCY_ACCEPTED event for generic event handlers
         accept_payload_generic = dict(accept_payload)

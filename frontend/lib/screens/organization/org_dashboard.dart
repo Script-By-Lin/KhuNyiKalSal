@@ -335,9 +335,15 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
   }
 
   Future<void> _assignVolunteerModal(Map<String, dynamic> emergency) async {
-    final eid = emergency['emergency_id'] ?? '';
+    final eid = (emergency['emergency_id'] ?? emergency['id'] ?? '').toString();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final dialogBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
+    if (_volunteers.isEmpty) {
+      await _fetchVolunteers();
+    }
+
+    if (!mounted) return;
 
     showDialog(
       context: context,
@@ -364,7 +370,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (_, i) {
                     final v = _volunteers[i];
-                    final vid = v['account_id'] ?? v['id'] ?? '';
+                    final vid = (v['account_id'] ?? v['id'] ?? '').toString();
                     final vName = v['full_name'] ?? 'Volunteer';
                     final vPhone = v['phone_number'] ?? '';
                     final isActive = v['is_active'] == true;
@@ -389,6 +395,16 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                           try {
                             await ApiService().assignEmergencyToVolunteer(eid, vid);
                             _snack('Assigned to $vName successfully!', AppTheme.secondaryGreen);
+                            if (mounted) {
+                              setState(() {
+                                final idx = _emergencies.indexWhere((em) => (em['emergency_id'] ?? em['id'])?.toString() == eid);
+                                if (idx != -1) {
+                                  _emergencies[idx]['status'] = 'accepted';
+                                  _emergencies[idx]['assigned_volunteer_id'] = vid;
+                                  _emergencies[idx]['assigned_volunteer_name'] = vName;
+                                }
+                              });
+                            }
                             _fetchEmergencies(silent: true);
                           } catch (_) {
                             _snack('Failed to assign volunteer', Colors.red);
@@ -1078,10 +1094,17 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
     final info = e['user_info'] as Map<String, dynamic>? ?? {};
     final typeStr = (e['type'] ?? 'EMERGENCY').toString().toUpperCase();
     final status = (e['status'] ?? 'pending').toString().toLowerCase();
-    final eid = e['emergency_id'] ?? e['id'] ?? '';
+    final eid = (e['emergency_id'] ?? e['id'] ?? '').toString();
     final phone = info['phone_number'] ?? '';
-    final isAccepted = status == 'accepted';
     final isCompleted = status == 'completed';
+    final hasAssignedVolunteer = (e['assigned_volunteer_id'] != null &&
+            e['assigned_volunteer_id'].toString().isNotEmpty &&
+            e['assigned_volunteer_id'].toString() != 'null') ||
+        (e['assigned_volunteer_name'] != null &&
+            e['assigned_volunteer_name'].toString().isNotEmpty &&
+            e['assigned_volunteer_name'].toString() != 'null');
+    final assignedVolunteerName = (e['assigned_volunteer_name'] ?? 'Volunteer').toString();
+    final isAccepted = status == 'accepted' || hasAssignedVolunteer;
 
     Color accentColor = const Color(0xFF3B82F6);
     IconData icon = Icons.shield;
@@ -1164,13 +1187,15 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isAccepted
-                        ? AppTheme.primaryRed
-                        : (isCompleted ? AppTheme.secondaryGreen : Colors.orange),
+                    color: isCompleted
+                        ? AppTheme.secondaryGreen
+                        : (isAccepted ? AppTheme.primaryRed : Colors.orange),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    isAccepted ? 'DISPATCHED' : status.toUpperCase(),
+                    isCompleted
+                        ? 'COMPLETED'
+                        : (hasAssignedVolunteer ? 'ACTIVE RESCUE' : (isAccepted ? 'DISPATCHED' : status.toUpperCase())),
                     style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -1236,6 +1261,44 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                   ),
                 ],
 
+                // Assigned Volunteer status strip
+                if (hasAssignedVolunteer) ...[
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: AppTheme.secondaryGreen.withValues(alpha: isDark ? 0.18 : 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppTheme.secondaryGreen.withValues(alpha: 0.35)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.directions_run_rounded, size: 16, color: AppTheme.secondaryGreen),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Responder: ',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : Colors.grey.shade700,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            assignedVolunteerName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.secondaryGreen,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 12),
                 const Divider(height: 1),
                 const SizedBox(height: 10),
@@ -1243,73 +1306,158 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                 // Action Buttons Row
                 Row(
                   children: [
-                    if (phone.isNotEmpty)
-                      IconButton.filledTonal(
-                        icon: const Icon(Icons.call, color: AppTheme.secondaryGreen, size: 18),
-                        style: IconButton.styleFrom(backgroundColor: AppTheme.secondaryGreen.withValues(alpha: 0.15)),
-                        onPressed: () => _makeCall(phone),
+                    if (phone.isNotEmpty) ...[
+                      SizedBox(
+                        height: 42,
+                        width: 42,
+                        child: IconButton.filledTonal(
+                          icon: const Icon(Icons.call, color: AppTheme.secondaryGreen, size: 18),
+                          style: IconButton.styleFrom(
+                            backgroundColor: AppTheme.secondaryGreen.withValues(alpha: 0.15),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          padding: EdgeInsets.zero,
+                          tooltip: 'Call Victim ($phone)',
+                          onPressed: () => _makeCall(phone),
+                        ),
                       ),
-                    if (lat != null && lng != null) ...[
                       const SizedBox(width: 8),
-                      IconButton.filledTonal(
-                        icon: const Icon(Icons.map_rounded, color: Colors.blue, size: 18),
-                        style: IconButton.styleFrom(backgroundColor: Colors.blue.withValues(alpha: 0.15)),
-                        onPressed: () {
-                          context.push('/mission-map', extra: {
-                            'lat': lat,
-                            'lng': lng,
-                            'title': '$typeStr Emergency: ${info['full_name'] ?? 'Victim'}',
-                            'returnRoute': '/org-dashboard',
-                          });
-                        },
-                      ),
                     ],
-                    const SizedBox(width: 8),
-                    if (!isHistory && !isAccepted) ...[
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.send_rounded, size: 16),
-                          label: const Text('DISPATCH', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryRed,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    if (lat != null && lng != null) ...[
+                      SizedBox(
+                        height: 42,
+                        width: 42,
+                        child: IconButton.filledTonal(
+                          icon: const Icon(Icons.map_rounded, color: Colors.blue, size: 18),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.blue.withValues(alpha: 0.15),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          onPressed: () => _respond(eid, 'accept'),
+                          padding: EdgeInsets.zero,
+                          tooltip: 'View Target on Map',
+                          onPressed: () {
+                            context.push('/mission-map', extra: {
+                              'lat': lat,
+                              'lng': lng,
+                              'title': '$typeStr Emergency: ${info['full_name'] ?? 'Victim'}',
+                              'returnRoute': '/org-dashboard',
+                            });
+                          },
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: () => _respond(eid, 'reject'),
-                        child: const Text('DISMISS', style: TextStyle(fontSize: 11)),
-                      ),
-                    ] else if (!isHistory && isAccepted) ...[
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.person_add_alt, size: 16),
-                        label: const Text('VOLUNTEER', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.primaryRed,
-                          side: const BorderSide(color: AppTheme.primaryRed),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: () => _assignVolunteerModal(e),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.check_circle_rounded, size: 16),
-                          label: const Text('COMPLETE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.secondaryGreen,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      const SizedBox(width: 8),
+                    ],
+                    if (!isHistory && !isCompleted) ...[
+                      if (hasAssignedVolunteer) ...[
+                        // Volunteer already accepted / assigned: Only COMPLETE button is needed
+                        Expanded(
+                          child: SizedBox(
+                            height: 42,
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.check_circle_rounded, size: 18),
+                              label: const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  'COMPLETE MISSION',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.secondaryGreen,
+                                foregroundColor: Colors.white,
+                                elevation: 1.5,
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () => _completeEmergency(eid),
+                            ),
                           ),
-                          onPressed: () => _completeEmergency(eid),
+                        ),
+                      ] else ...[
+                        // No volunteer assigned yet: Org can ASSIGN VOLUNTEER or COMPLETE directly (or dismiss)
+                        Expanded(
+                          child: SizedBox(
+                            height: 42,
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
+                              label: const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  'ASSIGN VOLUNTEER',
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppTheme.primaryRed,
+                                side: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () => _assignVolunteerModal(e),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        SizedBox(
+                          height: 42,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                            label: const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'COMPLETE',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.secondaryGreen,
+                              foregroundColor: Colors.white,
+                              elevation: 1,
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () => _completeEmergency(eid),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        SizedBox(
+                          height: 42,
+                          width: 42,
+                          child: IconButton.outlined(
+                            icon: const Icon(Icons.close_rounded, size: 18, color: Colors.red),
+                            style: IconButton.styleFrom(
+                              side: BorderSide(color: Colors.red.shade300),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            tooltip: 'Dismiss / Reroute Call',
+                            onPressed: () => _respond(eid, 'reject'),
+                          ),
+                        ),
+                      ],
+                    ] else if (isCompleted) ...[
+                      Expanded(
+                        child: Container(
+                          height: 42,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppTheme.secondaryGreen.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.check_circle_rounded, size: 16, color: AppTheme.secondaryGreen),
+                              SizedBox(width: 6),
+                              Text(
+                                'MISSION COMPLETED',
+                                style: TextStyle(
+                                  color: AppTheme.secondaryGreen,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
