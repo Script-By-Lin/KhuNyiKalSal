@@ -7,7 +7,7 @@ import os
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add backend directory to sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -52,7 +52,7 @@ class TestBloodDonationCancellation(unittest.IsolatedAsyncioTestCase):
         mock_donation.appointment_notes = None
         mock_donation.pickup_location_message = None
         mock_donation.notes = None
-        mock_donation.created_at = datetime.utcnow()
+        mock_donation.created_at = datetime.now(timezone.utc)
         mock_donation.updated_at = None
         mock_donation.units = 2
         mock_donation.urgency_level = "Emergency"
@@ -72,7 +72,7 @@ class TestBloodDonationCancellation(unittest.IsolatedAsyncioTestCase):
 
         status_update = BloodDonationStatusUpdate(status="Cancelled")
 
-        with patch("app.api.blood_donation.manager.broadcast", new_callable=AsyncMock) as mock_broadcast:
+        with patch("app.api.blood_donation.manager.broadcast_all", new_callable=AsyncMock) as mock_broadcast:
             response = await update_blood_donation_status(
                 donation_id=str(donation_id),
                 data=status_update,

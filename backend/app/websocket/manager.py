@@ -116,8 +116,12 @@ class ConnectionManager:
                 pass
         await self._send_local(user_id, data)
 
-    async def broadcast(self, data: dict, user_ids: List[str]):
-        """Send a JSON message to multiple connected users (distributed)."""
+    async def broadcast(self, data: dict, user_ids: Optional[List[str]] = None):
+        """Send a JSON message to multiple connected users or all users if user_ids is None."""
+        if not user_ids:
+            await self.broadcast_all(data)
+            return
+
         if self.redis:
             try:
                 payload = {"target": user_ids, "data": data}

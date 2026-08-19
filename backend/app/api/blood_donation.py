@@ -440,7 +440,7 @@ async def update_blood_donation_status(
                 "request_type": donation.request_type or "donate",
                 "status": "Cancelled",
             })
-        await manager.broadcast({
+        await manager.broadcast_all({
             "event": "BLOOD_REQUEST_CANCELLED",
             "donation_id": str(donation.id),
             "request_type": donation.request_type or "donate",

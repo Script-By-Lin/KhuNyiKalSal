@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     EMAILJS_SERVICE_ID: Optional[str] = os.getenv("EMAILJS_SERVICE_ID", "service_7eznh8w")
     EMAILJS_TEMPLATE_ID: Optional[str] = os.getenv("EMAILJS_TEMPLATE_ID", "template_dfpnmo9")
     EMAILJS_PUBLIC_KEY: Optional[str] = os.getenv("EMAILJS_PUBLIC_KEY", "GnGSWrvd1vwRf9sie")
-    EMAILJS_PRIVATE_KEY: Optional[str] = os.getenv("EMAILJS_PRIVATE_KEY", None)
+    EMAILJS_PRIVATE_KEY: Optional[str] = os.getenv("EMAILJS_PRIVATE_KEY", "ngwRK6yaJf5vZtkg8VuK2")
 
     # OTP Configuration
     OTP_VALIDITY_SECONDS: int = int(os.getenv("OTP_VALIDITY_SECONDS", "30"))
