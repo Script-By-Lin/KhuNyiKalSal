@@ -22,7 +22,7 @@
 10. [Database Schema & Complete Entity Relationship Diagram (ERD)](#10-database-schema--complete-entity-relationship-diagram-erd)
 11. [REST API Specification & WebSocket Protocols](#11-rest-api-specification--websocket-protocols)
 12. [Mobile Client Navigation, Theme & Localization Engine](#12-mobile-client-navigation-theme--localization-engine)
-13. [High-Performance Resilience, Connection Pooling & Ephemeral Cache](#13-high-performance-resilience-connection-pooling--ephemeral-cache)
+13. [High-Performance Resilience, Connection Pooling & Ephemeral Cache (#13-high-performance-resilience-connection-pooling--ephemeral-cache)
 14. [StarUML Model Integration & Diagram Index](#14-staruml-model-integration--diagram-index)
 
 ---
@@ -191,10 +191,42 @@ sequenceDiagram
         WS-->>App: Smoothly Translate Ambulance Marker
     end
 
-    Primary->>API: PUT /api/emergency/{id}/complete
-    API->>WS: Push EMERGENCY_COMPLETED
-    WS-->>App: Operation Completed & Purge Ephemeral Routes
+### 4.3. 3-Minute Auto-Reroute & Cascading Timeout Lifecycle
+
 ```
+                     ┌───────────────────────────────┐
+                     │ Citizen Triggers SOS Alert    │
+                     └───────────────┬───────────────┘
+                                     │
+                                     ▼
+                     ┌───────────────────────────────┐
+                     │ Assign Nearest Candidate Org  │◄─────────────────┐
+                     │ Broadcast Alert + Push Siren  │                  │
+                     └───────────────┬───────────────┘                  │
+                                     │                                  │
+                                     ▼                                  │
+                     ┌───────────────────────────────┐                  │
+                     │ Wait 180s (3 Minutes)         │                  │
+                     └───────┬───────────────┬───────┘                  │
+            Accepts Within 3m│               │ No Response / Rejection  │
+                             ▼               ▼                          │
+              ┌─────────────────────┐   ┌───────────────────────────────┴─┐
+              │ Mission Accepted    │   │ Add to Skipped/Rejected Pool    │
+              │ Live GPS Navigation │   │ Query Next Nearest Org          │
+              └─────────────────────┘   │ Broadcast REROUTE_TRIGGERED     │
+                                        └───────────────┬─────────────────┘
+                                                        │ If All Exhausted
+                                                        ▼
+                                        ┌─────────────────────────────────┐
+                                        │ Emergency Cancelled             │
+                                        │ Notify: Call National Hotline   │
+                                        └─────────────────────────────────┘
+```
+
+* **Timeout Duration**: 180 seconds (3 minutes) configurable via `SOS_REROUTE_TIMEOUT_SECONDS`.
+* **Automatic Cascading**: If an assigned organization fails to accept within 3 minutes, the background orchestration loop automatically flags the organization, selects the next closest available unit, and triggers `REROUTE_TRIGGERED` to the victim's map screen.
+* **Instant Rejection Escalation**: If an organization explicitly declines (`accepted: false`), the 3-minute timer is aborted and re-routing is triggered immediately.
+* **Exhaustion Fallback**: When all candidates within the search radius have timed out or rejected, the emergency status is set to `CANCELLED`, broadcasting `SOS_CANCELLED` to advise dialing national emergency hotlines.
 
 ---
 

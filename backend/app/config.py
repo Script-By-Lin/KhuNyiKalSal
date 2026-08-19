@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     MAX_USER_SESSIONS: int = 3  # Max 3 active devices for regular users
     MAX_VOLUNTEER_SESSIONS: int = 1  # Exactly 1 active device for volunteers
     MAX_SOS_PER_DAY: int = 100
-    VOLUNTEER_TIMEOUT_SECONDS: int = 300  # 5 minutes per organization
+    VOLUNTEER_TIMEOUT_SECONDS: int = 180  # 3 minutes per organization
+    SOS_REROUTE_TIMEOUT_SECONDS: int = 180  # 3 minutes auto-reroute timeout
     REDIS_URL: Optional[str] = os.getenv("REDIS_URL", "redis://localhost:6379")
     FCM_SERVER_KEY: Optional[str] = os.getenv("FCM_SERVER_KEY", None)
     FIREBASE_CREDENTIALS_JSON: Optional[str] = os.getenv("FIREBASE_CREDENTIALS_JSON", None)

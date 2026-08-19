@@ -473,7 +473,12 @@ async def respond_to_emergency(
         response_tracker.add_rejection(data.emergency_id, str(current_user.id))
         response_tracker.add_rejection(data.emergency_id, user_org_id)
 
-        # Reroute to next available non-rejecting organization
+        # If active process_sos background loop is listening, wake it up to advance immediately
+        if data.emergency_id in response_tracker._events:
+            response_tracker.respond(data.emergency_id, str(current_user.id), False)
+            return {"message": "Emergency rejected and rerouting initiated"}
+
+        # Fallback manual reroute if background task is not active (e.g. after server restart)
         org_distances = await find_nearest_organizations(
             emergency.location_lat, emergency.location_lng, db, emergency_type=emergency.type.value
         )
