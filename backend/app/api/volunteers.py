@@ -176,7 +176,7 @@ async def get_active_alerts(
 @router.get("/history")
 async def get_responder_history(
     skip: int = 0,
-    limit: int = 50,
+    limit: Optional[int] = None,
     search: Optional[str] = None,
     current_user: Account = Depends(require_role("organization", "volunteer")),
     db: AsyncSession = Depends(get_db),
@@ -219,7 +219,11 @@ async def get_responder_history(
             )
         )
 
-    result = await db.execute(query.order_by(Emergency.created_at.desc()).offset(skip).limit(limit))
+    query = query.order_by(Emergency.created_at.desc()).offset(skip)
+    if limit is not None and limit > 0:
+        query = query.limit(limit)
+
+    result = await db.execute(query)
     emergencies = result.scalars().all()
 
     records = []

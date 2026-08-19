@@ -303,8 +303,11 @@ class ApiService {
 
   Future<Response> getActiveEmergencies() => dio.get('/emergency/active');
 
-  Future<Response> getEmergencyHistory({int skip = 0, int limit = 50}) =>
-      dio.get('/emergency/history', queryParameters: {'skip': skip, 'limit': limit});
+  Future<Response> getEmergencyHistory({int skip = 0, int? limit}) {
+    final Map<String, dynamic> params = {'skip': skip};
+    if (limit != null && limit > 0) params['limit'] = limit;
+    return dio.get('/emergency/history', queryParameters: params);
+  }
 
   Future<Response> cancelEmergency(String id) =>
       dio.put('/emergency/$id/cancel');
@@ -373,27 +376,27 @@ class ApiService {
         'volunteer_id': volunteerId,
       });
 
-  Future<Response> getResponderHistory({int skip = 0, int limit = 50, String? search}) =>
-      dio.get('/volunteers/history', queryParameters: {
-        'skip': skip,
-        'limit': limit,
-        if (search != null && search.isNotEmpty) 'search': search,
-      });
+  Future<Response> getResponderHistory({int skip = 0, int? limit, String? search}) {
+    final Map<String, dynamic> params = {'skip': skip};
+    if (limit != null && limit > 0) params['limit'] = limit;
+    if (search != null && search.isNotEmpty) params['search'] = search;
+    return dio.get('/volunteers/history', queryParameters: params);
+  }
 
   // ── Admin ─────────────────────────────────────────────────────────────
-  Future<Response> getAdminOrgs({int skip = 0, int limit = 50, String? search}) =>
-      dio.get('/admin/organizations', queryParameters: {
-        'skip': skip,
-        'limit': limit,
-        if (search != null && search.isNotEmpty) 'search': search,
-      });
+  Future<Response> getAdminOrgs({int skip = 0, int? limit, String? search}) {
+    final Map<String, dynamic> params = {'skip': skip};
+    if (limit != null && limit > 0) params['limit'] = limit;
+    if (search != null && search.isNotEmpty) params['search'] = search;
+    return dio.get('/admin/organizations', queryParameters: params);
+  }
 
-  Future<Response> getAdminUsers({int skip = 0, int limit = 50, String? search}) =>
-      dio.get('/admin/users', queryParameters: {
-        'skip': skip,
-        'limit': limit,
-        if (search != null && search.isNotEmpty) 'search': search,
-      });
+  Future<Response> getAdminUsers({int skip = 0, int? limit, String? search}) {
+    final Map<String, dynamic> params = {'skip': skip};
+    if (limit != null && limit > 0) params['limit'] = limit;
+    if (search != null && search.isNotEmpty) params['search'] = search;
+    return dio.get('/admin/users', queryParameters: params);
+  }
 
   Future<Response> createAdminOrg(Map<String, dynamic> data) =>
       dio.post('/admin/organizations', data: data);
@@ -404,12 +407,12 @@ class ApiService {
   Future<Response> deleteAdminOrg(String accountId) =>
       dio.delete('/admin/organizations/$accountId');
 
-  Future<Response> getAdminEmergencies({int skip = 0, int limit = 50, String? search}) =>
-      dio.get('/admin/emergencies', queryParameters: {
-        'skip': skip,
-        'limit': limit,
-        if (search != null && search.isNotEmpty) 'search': search,
-      });
+  Future<Response> getAdminEmergencies({int skip = 0, int? limit, String? search}) {
+    final Map<String, dynamic> params = {'skip': skip};
+    if (limit != null && limit > 0) params['limit'] = limit;
+    if (search != null && search.isNotEmpty) params['search'] = search;
+    return dio.get('/admin/emergencies', queryParameters: params);
+  }
 
   // ── Blood Donation ────────────────────────────────────────────────────
   Future<Response> createBloodDonation(Map<String, dynamic> data) =>

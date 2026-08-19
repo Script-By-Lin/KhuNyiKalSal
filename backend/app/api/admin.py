@@ -324,7 +324,7 @@ async def list_users(
 @router.get("/emergencies")
 async def list_emergencies(
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=200),
+    limit: Optional[int] = Query(None, ge=1),
     search: Optional[str] = Query(None),
     current_user: Account = Depends(require_role("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
@@ -347,7 +347,10 @@ async def list_emergencies(
             )
         )
 
-    query = query.order_by(Emergency.created_at.desc()).offset(skip).limit(limit)
+    query = query.order_by(Emergency.created_at.desc()).offset(skip)
+    if limit is not None and limit > 0:
+        query = query.limit(limit)
+
     result = await db.execute(query)
     emergencies = result.scalars().all()
 

@@ -232,6 +232,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final itemBg = isDark ? const Color(0xFF0F172A) : AppTheme.surfaceGrey;
     final textPrimary = isDark ? Colors.white : const Color(0xFF1E293B);
     final textSecondary = isDark ? Colors.white70 : AppTheme.subtleGrey;
+    final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
 
     showModalBottomSheet(
       context: context,
@@ -241,119 +242,208 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        builder: (_, scrollCtrl) => Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey[700] : Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '📜 SOS Emergency History Records',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: textPrimary),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: _history.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No past emergency records found.',
-                          style: TextStyle(color: textSecondary),
+      builder: (_) {
+        List<dynamic> sheetHistory = List.from(_history);
+        bool isLoadingMore = false;
+        bool hasMore = true;
+        int currentSkip = sheetHistory.length;
+        const int pageSize = 20;
+
+        return StatefulBuilder(
+          builder: (sheetCtx, setModalState) {
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.75,
+              maxChildSize: 0.95,
+              builder: (_, scrollCtrl) {
+                scrollCtrl.addListener(() async {
+                  if (scrollCtrl.position.pixels >= scrollCtrl.position.maxScrollExtent - 120 &&
+                      !isLoadingMore &&
+                      hasMore) {
+                    setModalState(() => isLoadingMore = true);
+                    try {
+                      final nextRes = await ApiService().getEmergencyHistory(
+                        skip: currentSkip,
+                        limit: pageSize,
+                      );
+                      final List nextItems = (nextRes.data as List?) ?? [];
+                      if (nextItems.length < pageSize) {
+                        hasMore = false;
+                      }
+                      currentSkip += nextItems.length;
+                      setModalState(() {
+                        sheetHistory.addAll(nextItems);
+                        isLoadingMore = false;
+                      });
+                    } catch (_) {
+                      setModalState(() => isLoadingMore = false);
+                    }
+                  }
+                });
+
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.grey[700] : Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
-                      )
-                    : ListView.builder(
-                        controller: scrollCtrl,
-                        itemCount: _history.length,
-                        itemBuilder: (_, i) {
-                          final h = _history[i];
-                          final type = (h['type'] ?? '').toString().toUpperCase();
-                          final status = (h['status'] ?? '').toString().toUpperCase();
-                          final date = (h['created_at'] ?? '').toString().split('T').first;
-
-                          Color statusColor = Colors.orange;
-                          if (status == 'ACCEPTED' || status == 'COMPLETED') {
-                            statusColor = AppTheme.secondaryGreen;
-                          } else if (status == 'CANCELLED') {
-                            statusColor = Colors.grey;
-                          }
-
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: itemBg,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  type.contains('FIRE')
-                                      ? Icons.local_fire_department
-                                      : (type.contains('ACCIDENT')
-                                          ? Icons.car_crash_outlined
-                                          : (type.contains('DISASTER')
-                                              ? Icons.flood_outlined
-                                              : Icons.medical_services_outlined)),
-                                  color: AppTheme.primaryRed,
-                                  size: 24,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '$type Emergency',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w700, fontSize: 14, color: textPrimary),
-                                      ),
-                                      Text(
-                                        'Date: $date',
-                                        style: TextStyle(
-                                            fontSize: 12, color: textSecondary),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: statusColor.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    status,
-                                    style: TextStyle(
-                                      color: statusColor,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
                       ),
-              ),
-            ],
-          ),
-        ),
-      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              isMm
+                                  ? '📜 SOS အရေးပေါ် မှတ်တမ်းများ (${sheetHistory.length})'
+                                  : '📜 SOS Emergency History (${sheetHistory.length})',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: textPrimary,
+                              ),
+                            ),
+                          ),
+                          if (sheetHistory.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                isMm ? 'အားလုံး' : 'All Records',
+                                style: const TextStyle(
+                                  color: AppTheme.primaryRed,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Expanded(
+                        child: sheetHistory.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.history_outlined, size: 48, color: textSecondary.withValues(alpha: 0.5)),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      isMm ? 'ယခင် အရေးပေါ် မှတ်တမ်း မရှိသေးပါ' : 'No past emergency records found.',
+                                      style: TextStyle(color: textSecondary),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                controller: scrollCtrl,
+                                itemCount: sheetHistory.length + (isLoadingMore ? 1 : 0),
+                                itemBuilder: (_, i) {
+                                  if (i == sheetHistory.length) {
+                                    return const Center(
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 16),
+                                        child: SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        ),
+                                      ),
+                                    );
+                                  }
+
+                                  final h = sheetHistory[i];
+                                  final type = (h['type'] ?? '').toString().toUpperCase();
+                                  final status = (h['status'] ?? '').toString().toUpperCase();
+                                  final date = (h['created_at'] ?? '').toString().split('T').first;
+
+                                  Color statusColor = Colors.orange;
+                                  if (status == 'ACCEPTED' || status == 'COMPLETED') {
+                                    statusColor = AppTheme.secondaryGreen;
+                                  } else if (status == 'CANCELLED') {
+                                    statusColor = Colors.grey;
+                                  }
+
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: itemBg,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          type.contains('FIRE')
+                                              ? Icons.local_fire_department
+                                              : (type.contains('ACCIDENT')
+                                                  ? Icons.car_crash_outlined
+                                                  : (type.contains('DISASTER')
+                                                      ? Icons.flood_outlined
+                                                      : Icons.medical_services_outlined)),
+                                          color: AppTheme.primaryRed,
+                                          size: 24,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                '$type Emergency',
+                                                style: TextStyle(
+                                                    fontWeight: FontWeight.w700, fontSize: 14, color: textPrimary),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                isMm ? 'ရက်စွဲ - $date' : 'Date: $date',
+                                                style: TextStyle(
+                                                    fontSize: 12, color: textSecondary),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: statusColor.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            status,
+                                            style: TextStyle(
+                                              color: statusColor,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 

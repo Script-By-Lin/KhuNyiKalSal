@@ -262,11 +262,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     String? modalError;
 
     Timer? countdownTimer;
-    int remainingSeconds = 30;
+    int remainingSeconds = 60;
 
     void startCountdown(void Function(void Function()) setModalState) {
       countdownTimer?.cancel();
-      remainingSeconds = 30;
+      remainingSeconds = 60;
       countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
         if (remainingSeconds > 0) {
           setModalState(() => remainingSeconds--);
@@ -344,8 +344,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             Text(
                               step == 1
                                   ? (isMm
-                                      ? 'သင့် Gmail သို့ ၆ လုံးပါ OTP ကုဒ် (၃၀ စက္ကန့် သက်တမ်း) ပို့ပေးပါမည်'
-                                      : 'Enter your Gmail to receive a 6-digit code (30s validity)')
+                                      ? 'သင့် Gmail သို့ ၆ လုံးပါ OTP ကုဒ် (၆၀ စက္ကန့် သက်တမ်း) ပို့ပေးပါမည်'
+                                      : 'Enter your Gmail to receive a 6-digit code (60s validity)')
                                   : (isMm
                                       ? '${resetEmailCtrl.text} သို့ OTP ပို့ထားပါသည်'
                                       : 'OTP sent to ${resetEmailCtrl.text}'),
@@ -482,14 +482,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ),
                     const SizedBox(height: 8),
 
-                    // ── 30s Countdown Live Indicator ─────────────────────
+                    // ── 60s Countdown Live Indicator ─────────────────────
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: (remainingSeconds > 0 ? const Color(0xFF00E676) : Colors.red).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
+                        color: (remainingSeconds > 0 ? const Color(0xFF00E676) : Colors.red).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: (remainingSeconds > 0 ? const Color(0xFF00E676) : Colors.red).withValues(alpha: 0.3),
+                          color: (remainingSeconds > 0 ? const Color(0xFF00E676) : Colors.red).withValues(alpha: 0.35),
                         ),
                       ),
                       child: Row(
@@ -497,24 +497,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         children: [
                           Icon(
                             remainingSeconds > 0 ? Icons.timer_outlined : Icons.timer_off_outlined,
-                            size: 16,
+                            size: 18,
                             color: remainingSeconds > 0 ? const Color(0xFF00E676) : Colors.red,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            remainingSeconds > 0
-                                ? (isMm
-                                    ? 'သက်တမ်းကျန်ချိန်: 00:${remainingSeconds.toString().padLeft(2, '0')} စက္ကန့်'
-                                    : 'Valid for: 00:${remainingSeconds.toString().padLeft(2, '0')}s')
-                                : (isMm
-                                    ? 'OTP ကုဒ် သက်တမ်းကုန်သွားပါပြီ။ OTP ပြန်လည်တောင်းဆိုပါ'
-                                    : 'OTP expired! Please tap Resend OTP below.'),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: remainingSeconds > 0
-                                  ? (isDark ? Colors.white70 : Colors.black87)
-                                  : Colors.red,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              remainingSeconds > 0
+                                  ? (isMm
+                                      ? 'ကျန်ရှိချိန် - ${(remainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(remainingSeconds % 60).toString().padLeft(2, '0')} စက္ကန့်'
+                                      : 'Valid for: ${(remainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(remainingSeconds % 60).toString().padLeft(2, '0')}')
+                                  : (isMm
+                                      ? 'OTP သက်တမ်းကုန်သွားပါပြီ။ OTP ပြန်ပို့မည် ကို နှိပ်ပါ'
+                                      : 'OTP expired! Please tap Resend OTP below.'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                height: 1.3,
+                                fontWeight: FontWeight.bold,
+                                color: remainingSeconds > 0
+                                    ? (isDark ? Colors.white70 : Colors.black87)
+                                    : Colors.red,
+                              ),
                             ),
                           ),
                         ],
@@ -593,7 +597,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                       messenger.showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            isMm ? 'OTP ကုဒ် အသစ် ပို့ပြီးပါပြီ (၃၀ စက္ကန့် သက်တမ်း)' : 'New OTP code resent (valid for 30s)!',
+                                            isMm ? 'OTP ကုဒ် အသစ် ပို့ပြီးပါပြီ (၆၀ စက္ကန့် သက်တမ်း)' : 'New OTP code resent (valid for 60s)!',
                                           ),
                                         ),
                                       );
