@@ -420,6 +420,19 @@ async def update_blood_donation_status(
     if data.status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
 
+    # Business Rule: User cannot cancel blood request/donation when an Organization has already accepted
+    user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if (
+        data.status == "Cancelled"
+        and donation.user_id == current_user.id
+        and user_role_str.lower() not in ["organization", "admin", "superadmin"]
+        and donation.status == "Accepted"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot cancel request after an organization has already accepted it. Please contact the organization directly.",
+        )
+
     donation.status = data.status
     await db.commit()
     await db.refresh(donation)

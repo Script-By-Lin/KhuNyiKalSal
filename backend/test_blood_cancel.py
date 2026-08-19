@@ -119,6 +119,41 @@ class TestBloodDonationCancellation(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(ctx.exception.status_code, 403)
 
+    async def test_user_cannot_cancel_when_org_has_accepted(self):
+        user_id = uuid.uuid4()
+        donation_id = uuid.uuid4()
+
+        mock_user = MagicMock(spec=Account)
+        mock_user.id = user_id
+        mock_user.role = RoleEnum.USER
+
+        mock_donation = MagicMock(spec=BloodDonation)
+        mock_donation.id = donation_id
+        mock_donation.user_id = user_id
+        mock_donation.status = "Accepted"  # Already accepted by an organization
+
+        mock_db = AsyncMock()
+        async def mock_execute(stmt):
+            mock_res = MagicMock()
+            mock_res.scalar_one_or_none.return_value = mock_donation
+            return mock_res
+
+        mock_db.execute = AsyncMock(side_effect=mock_execute)
+
+        status_update = BloodDonationStatusUpdate(status="Cancelled")
+
+        from fastapi import HTTPException
+        with self.assertRaises(HTTPException) as ctx:
+            await update_blood_donation_status(
+                donation_id=str(donation_id),
+                data=status_update,
+                current_user=mock_user,
+                db=mock_db,
+            )
+
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIn("already accepted", ctx.exception.detail)
+
 
 if __name__ == "__main__":
     unittest.main()

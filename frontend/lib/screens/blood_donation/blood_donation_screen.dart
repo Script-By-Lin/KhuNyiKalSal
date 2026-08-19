@@ -1926,8 +1926,8 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                           ),
                         ],
 
-                        // ── CANCEL ACTION BUTTON FOR ACTIVE PENDING / ACCEPTED RECORDS ────
-                        if (status.toLowerCase() != 'completed' && status.toLowerCase() != 'cancelled') ...[
+                        // ── CANCEL ACTION BUTTON FOR PENDING RECORDS / LOCKED FOR ACCEPTED ────
+                        if (status.toLowerCase() == 'pending') ...[
                           const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
@@ -1955,6 +1955,31 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                                     : Colors.red.shade50.withValues(alpha: 0.5),
                               ),
                               onPressed: () => _confirmCancelRecord(item, isMm),
+                            ),
+                          ),
+                        ] else if (status.toLowerCase() == 'accepted') ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.lock_outline, size: 16, color: Colors.blue),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    isMm
+                                        ? 'အဖွဲ့အစည်းမှ လက်ခံထားပြီးဖြစ်၍ ပယ်ဖျက်၍ မရတော့ပါ (အဖွဲ့အစည်းသို့ တိုက်ရိုက်ဆက်သွယ်ပါ)'
+                                        : 'Accepted by organization. Cancellation is locked (please contact the organization directly).',
+                                    style: const TextStyle(fontSize: 11.5, color: Colors.blue, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],

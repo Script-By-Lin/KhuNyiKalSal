@@ -255,6 +255,17 @@ async def cancel_emergency_by_id(
     if not emergency:
         raise HTTPException(status_code=404, detail="No active emergency found to cancel")
 
+    user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if (
+        emergency.status == EmergencyStatus.ACCEPTED
+        and emergency.user_id == current_user.id
+        and user_role_str.lower() not in ["organization", "volunteer", "admin", "superadmin"]
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot cancel emergency after a rescue team has already accepted. Please contact the rescue team directly.",
+        )
+
     emergency.status = EmergencyStatus.CANCELLED
     
     # Mark associated family alerts as resolved

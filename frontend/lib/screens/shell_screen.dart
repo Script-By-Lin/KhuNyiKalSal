@@ -256,7 +256,9 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      isAccepted ? 'SOS ACCEPTED' : 'SOS PENDING',
+                                      isAccepted
+                                          ? (isMm ? 'SOS လက်ခံထားပါသည်' : 'SOS ACCEPTED')
+                                          : (isMm ? 'SOS အချက်ပြနေပါသည်' : 'SOS PENDING'),
                                       style: TextStyle(
                                         color: isAccepted ? const Color(0xFF00E676) : Colors.white,
                                         fontSize: 14,
@@ -265,8 +267,8 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                                     ),
                                     Text(
                                       isAccepted
-                                          ? 'Rescue Team En Route • Help on the way'
-                                          : 'Alerting teams...',
+                                          ? (isMm ? 'ကယ်ဆယ်ရေးအဖွဲ့ လာရောက်နေပါသည်' : 'Rescue Team En Route • Help on the way')
+                                          : (isMm ? 'အဖွဲ့များသို့ အကြောင်းကြားနေပါသည်...' : 'Alerting teams...'),
                                       style: TextStyle(
                                         color: Colors.white.withValues(alpha: 0.85),
                                         fontSize: 12,
@@ -275,29 +277,54 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                                   ],
                                 ),
                               ),
-                              // Cancel button
-                              GestureDetector(
-                                onTap: () {
-                                  ref
-                                      .read(emergencyProvider.notifier)
-                                      .cancelEmergency(activeEmergency.id);
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: const Text(
-                                    'CANCEL',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
+                              // Cancel button (only when pending / not yet accepted)
+                              if (!isAccepted)
+                                GestureDetector(
+                                  onTap: () {
+                                    ref
+                                        .read(emergencyProvider.notifier)
+                                        .cancelEmergency(activeEmergency.id);
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      isMm ? 'ပယ်ဖျက်မည်' : 'CANCEL',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
+                                )
+                              else
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF00E676).withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: const Color(0xFF00E676).withValues(alpha: 0.5)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.lock_outline, size: 12, color: Color(0xFF00E676)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        isMm ? 'လက်ခံပြီး' : 'ACCEPTED',
+                                        style: const TextStyle(
+                                          color: Color(0xFF00E676),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
                             ],
                           )
                         : Row(
