@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     EMAILJS_PRIVATE_KEY: Optional[str] = os.getenv("EMAILJS_PRIVATE_KEY", "ngwRK6yaJf5vZtkg8VuK2")
 
     # OTP Configuration
-    OTP_VALIDITY_SECONDS: int = int(os.getenv("OTP_VALIDITY_SECONDS", "30"))
+    OTP_VALIDITY_SECONDS: int = int(os.getenv("OTP_VALIDITY_SECONDS", "60"))
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
