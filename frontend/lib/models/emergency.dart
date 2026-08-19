@@ -1,3 +1,5 @@
+import '../utils/date_formatter.dart';
+
 class EmergencyModel {
   final String id;
   final String userId;
@@ -33,9 +35,9 @@ class EmergencyModel {
       assignedVolunteerId: json['assigned_volunteer_id'],
       locationLat: (json['location_lat'] ?? 0).toDouble(),
       locationLng: (json['location_lng'] ?? 0).toDouble(),
-      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      createdAt: AppDateFormatter.parse(json['created_at']),
       updatedAt: json['updated_at'] != null
-          ? DateTime.tryParse(json['updated_at'])
+          ? AppDateFormatter.parse(json['updated_at'])
           : null,
     );
   }

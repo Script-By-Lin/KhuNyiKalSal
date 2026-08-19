@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../services/api_service.dart';
 import '../../providers/settings_provider.dart';
 import '../../config/theme.dart';
+import '../../utils/date_formatter.dart';
 
 class DeviceManagementScreen extends ConsumerStatefulWidget {
   const DeviceManagementScreen({super.key});
@@ -319,12 +319,8 @@ class _DeviceManagementScreenState
     final isActive = session['is_active'] == true;
     final deviceName = session['device_name'] ?? 'Unknown Device';
     final ip = session['ip_address'] ?? 'Unknown IP';
-    final lastUsed = session['last_used_at'] != null
-        ? DateTime.tryParse(session['last_used_at'].toString())
-        : null;
-
-    final formattedDate = lastUsed != null
-        ? DateFormat('yyyy-MM-dd HH:mm').format(lastUsed.toLocal())
+    final formattedDate = session['last_used_at'] != null
+        ? AppDateFormatter.formatDateTime(session['last_used_at'], isMm: isMm)
         : '-';
 
     IconData deviceIcon = Icons.smartphone;

@@ -18,12 +18,31 @@ from app.websocket.manager import manager
 from app.api import auth, users, organizations, volunteers, emergency, admin, family, blood_donation, announcements, support
 from app.api import websocket as ws
 
-logger = logging.getLogger(__name__)
+from zoneinfo import ZoneInfo
+from datetime import datetime
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
+YANGON_TZ = ZoneInfo("Asia/Yangon")
+
+class MyanmarTimeFormatter(logging.Formatter):
+    """Custom logging formatter that outputs all log timestamps in Asia/Yangon (MMT, UTC+06:30)."""
+    def formatTime(self, record, datefmt=None):
+        dt = datetime.fromtimestamp(record.created, tz=YANGON_TZ)
+        if datefmt:
+            return dt.strftime(datefmt)
+        return dt.strftime("%Y-%m-%d %H:%M:%S") + f".{int(record.msecs):03d} MMT"
+
+# Configure root logger with Myanmar Time Formatter
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+for h in list(root_logger.handlers):
+    root_logger.removeHandler(h)
+_handler = logging.StreamHandler()
+_handler.setFormatter(
+    MyanmarTimeFormatter("%(asctime)s  %(levelname)-8s  %(name)s  %(message)s")
 )
+root_logger.addHandler(_handler)
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager

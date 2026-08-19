@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../services/location_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../utils/date_formatter.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -366,7 +367,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   final h = sheetHistory[i];
                                   final type = (h['type'] ?? '').toString().toUpperCase();
                                   final status = (h['status'] ?? '').toString().toUpperCase();
-                                  final date = (h['created_at'] ?? '').toString().split('T').first;
+                                  final formattedDate = AppDateFormatter.formatDateTime(h['created_at'], isMm: isMm);
 
                                   Color statusColor = Colors.orange;
                                   if (status == 'ACCEPTED' || status == 'COMPLETED') {
@@ -407,7 +408,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                               ),
                                               const SizedBox(height: 2),
                                               Text(
-                                                isMm ? 'ရက်စွဲ - $date' : 'Date: $date',
+                                                formattedDate,
                                                 style: TextStyle(
                                                     fontSize: 12, color: textSecondary),
                                               ),

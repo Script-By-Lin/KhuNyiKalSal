@@ -6,6 +6,7 @@ import '../../config/theme.dart';
 import '../../services/api_service.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/cache_service.dart';
+import '../../utils/date_formatter.dart';
 import 'package:shimmer/shimmer.dart';
 
 class FamilyAlertsScreen extends ConsumerStatefulWidget {
@@ -223,7 +224,7 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
                 final type = (alert['emergency_type'] ?? 'emergency').toString().toUpperCase();
                 final message = alert['message'] ?? 'Emergency SOS triggered!';
                 final isResolved = alert['is_resolved'] == true;
-                final createdAt = alert['created_at']?.toString().replaceFirst('T', ' ').split('.').first ?? '';
+                final createdAt = AppDateFormatter.formatDateTime(alert['created_at']);
                 final double lat = (alert['location_lat'] as num?)?.toDouble() ?? 16.8661;
                 final double lng = (alert['location_lng'] as num?)?.toDouble() ?? 96.1951;
 

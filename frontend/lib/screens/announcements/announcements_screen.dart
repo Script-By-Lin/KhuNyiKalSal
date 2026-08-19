@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/theme.dart';
 import '../../services/api_service.dart';
 import '../../providers/settings_provider.dart';
+import '../../utils/date_formatter.dart';
 
 class AnnouncementsScreen extends ConsumerStatefulWidget {
   const AnnouncementsScreen({super.key});
@@ -53,7 +54,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     final content = item['content'] ?? '';
     final category = item['category'] ?? 'General';
     final author = item['author_name'] ?? 'Command Center';
-    final date = (item['created_at'] ?? '').toString().split('T').first;
+    final date = AppDateFormatter.formatDateTime(item['created_at']);
     final isPinned = item['is_pinned'] == true;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -266,7 +267,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                             final title = item['title'] ?? '';
                             final content = item['content'] ?? '';
                             final category = item['category'] ?? 'General';
-                            final date = (item['created_at'] ?? '').toString().split('T').first;
+                            final date = AppDateFormatter.formatDateTime(item['created_at']);
                             final isPinned = item['is_pinned'] == true;
                             final catColor = _getCategoryColor(category);
 

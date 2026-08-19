@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,6 +28,7 @@ class ShellScreen extends ConsumerStatefulWidget {
 class _ShellScreenState extends ConsumerState<ShellScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _sosCtrl;
+  Timer? _countdownTicker;
   bool _sosHolding = false;
   bool _sosActivated = false;
 
@@ -43,6 +45,16 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
           _triggerEmergencyTypeSheet();
         }
       });
+
+    // Countdown ticker for live Dynamic Island auto-reroute timer
+    _countdownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        final activeList = ref.read(emergencyProvider).value ?? [];
+        if (activeList.isNotEmpty && !activeList.first.isAccepted) {
+          setState(() {});
+        }
+      }
+    });
 
     // Load active emergencies when the shell screen initializes (e.g., after login)
     Future.microtask(() {
@@ -121,6 +133,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
 
   @override
   void dispose() {
+    _countdownTicker?.cancel();
     _sosCtrl.dispose();
     super.dispose();
   }
@@ -190,6 +203,15 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
         activeEmergencies.isNotEmpty ? activeEmergencies.first : null;
     final locale = ref.watch(settingsProvider).locale.languageCode;
     final isMm = locale == 'my';
+
+    // Calculate auto-reroute remaining countdown (180s = 3 minutes)
+    int remainingRerouteSeconds = 180;
+    if (activeEmergency != null && !activeEmergency.isAccepted) {
+      final elapsed = DateTime.now().toUtc().difference(activeEmergency.createdAt.toUtc()).inSeconds;
+      remainingRerouteSeconds = (180 - (elapsed % 180)).clamp(0, 180);
+    }
+    final minStr = (remainingRerouteSeconds ~/ 60).toString().padLeft(2, '0');
+    final secStr = (remainingRerouteSeconds % 60).toString().padLeft(2, '0');
 
     return Scaffold(
       extendBody: true,
@@ -267,8 +289,10 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                                     ),
                                     Text(
                                       isAccepted
-                                          ? (isMm ? 'ကယ်ဆယ်ရေးအဖွဲ့ လာရောက်နေပါသည်' : 'Rescue Team En Route • Help on the way')
-                                          : (isMm ? 'အဖွဲ့များသို့ အကြောင်းကြားနေပါသည်...' : 'Alerting teams...'),
+                                          ? (isMm ? 'ကယ်ဆယ်ရေးအဖွဲ့ လာရောက်နေပါသည် • အကူအညီ လမ်းခရီးတွင်' : 'Rescue Team En Route • Help on the way')
+                                          : (isMm
+                                              ? 'အဖွဲ့သစ်သို့ ပြန်ပြောင်းရန်: $minStr:$secStr • အဖွဲ့ရှာဖွေဆဲ...'
+                                              : 'Auto-reroute in: $minStr:$secStr • Alerting teams...'),
                                       style: TextStyle(
                                         color: Colors.white.withValues(alpha: 0.85),
                                         fontSize: 12,

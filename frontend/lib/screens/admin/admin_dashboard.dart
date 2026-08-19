@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/location_service.dart';
+import '../../utils/date_formatter.dart';
 
 class AdminDashboard extends ConsumerStatefulWidget {
   const AdminDashboard({super.key});
@@ -1476,7 +1477,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                           final isAbuse = e['is_suspected_abuse'] == true;
                           final abuseReason = e['abuse_flag_reason'] ?? '';
                           final orgName = e['assigned_org_name'] ?? 'Unassigned';
-                          final date = (e['created_at'] ?? '').toString().split('T').first;
+                          final date = AppDateFormatter.formatDateTime(e['created_at']);
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -1800,7 +1801,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                           final category = a['category'] ?? 'General';
                           final author = a['author_name'] ?? 'Admin';
                           final isPinned = a['is_pinned'] == true;
-                          final date = (a['created_at'] ?? '').toString().split('T').first;
+                          final date = AppDateFormatter.formatDateTime(a['created_at']);
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
