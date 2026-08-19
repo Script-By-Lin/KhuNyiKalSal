@@ -62,7 +62,7 @@ class BloodDonationResponse(BaseModel):
     accepted_org_name: Optional[str] = None
     accepted_org_phone: Optional[str] = None
 
-    target_location_name: str
+    target_location_name: Optional[str] = None
     target_lat: Optional[float] = None
     target_lng: Optional[float] = None
 

@@ -270,7 +270,7 @@ async def cancel_emergency_by_id(
     payload = {
         "event": "SOS_CANCELLED",
         "emergency_id": str(emergency.id),
-        "message": "Emergency call was cancelled by user.",
+        "message": "Emergency call was cancelled yourselve.",
     }
     await manager.send_personal(str(emergency.user_id), payload)
     if emergency.assigned_org_id:

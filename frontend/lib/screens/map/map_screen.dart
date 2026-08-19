@@ -497,6 +497,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
     final orgsAsync = ref.watch(organizationProvider);
     final orgsList = orgsAsync.value ?? [];
     
@@ -807,18 +808,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
           if (showRouteLine)
             Positioned(
               right: 16,
-              bottom: _targetLocation != null ? 170 : 196,
+              bottom: _targetLocation != null ? (MediaQuery.of(context).padding.bottom + 230) : (MediaQuery.of(context).padding.bottom + 165),
               child: FloatingActionButton.small(
                 heroTag: 'reload_route',
                 backgroundColor: Colors.white,
                 foregroundColor: (activeEmergency?.isAccepted == true || _responderLocation != null)
                     ? AppTheme.secondaryGreen
                     : AppTheme.primaryRed,
-                tooltip: 'Recalculate Route (လမ်းကြောင်း ပြန်ဆွဲမည်)',
+                tooltip: isMm ? 'လမ်းကြောင်း ပြန်ဆွဲမည်' : 'Recalculate Route',
                 onPressed: () {
                   ref.read(emergencyProvider.notifier).loadActive();
                   _reloadCurrentRoute();
-                  _showSnackBar('Recalculating rescue route...', Colors.blue);
+                  _showSnackBar(isMm ? 'ကယ်ဆယ်ရေး လမ်းကြောင်း ပြန်လည်တွက်ချက်နေသည်...' : 'Recalculating rescue route...', Colors.blue);
                 },
                 child: const Icon(Icons.refresh),
               ),
@@ -827,11 +828,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
           // ── My Location button ───────────────────────────────────────
           Positioned(
             right: 16,
-            bottom: _targetLocation != null ? 120 : 140,
+            bottom: _targetLocation != null ? (MediaQuery.of(context).padding.bottom + 180) : (MediaQuery.of(context).padding.bottom + 115),
             child: FloatingActionButton.small(
               heroTag: 'locate',
               backgroundColor: Colors.white,
               foregroundColor: AppTheme.primaryRed,
+              tooltip: isMm ? 'လက်ရှိနေရာ' : 'My Location',
               onPressed: () {
                 if (_userLocation != null) {
                   _mapCtrl.move(_userLocation!, AppConstants.defaultZoom);
@@ -846,7 +848,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             Positioned(
               left: 16,
               right: 16,
-              bottom: 24,
+              bottom: MediaQuery.of(context).padding.bottom + 98,
               child: Material(
                 elevation: 8,
                 borderRadius: BorderRadius.circular(18),
@@ -873,7 +875,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _targetTitle ?? '🚨 Emergency Target Location',
+                                  _targetTitle ?? (isMm ? '🚨 အရေးပေါ် တည်နေရာ' : '🚨 Emergency Target Location'),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w900,
@@ -896,7 +898,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           ),
                           IconButton(
                             icon: const Icon(Icons.center_focus_strong_rounded, color: Color(0xFF38BDF8), size: 22),
-                            tooltip: 'Center on Target',
+                            tooltip: isMm ? 'တည်နေရာသို့ အလယ်တည့်တည့်ချိန်မည်' : 'Center on Target',
                             onPressed: () {
                               _safeMove(LatLng(_targetLocation!['lat']!, _targetLocation!['lng']!), 15.0);
                             },
@@ -921,9 +923,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                   padding: const EdgeInsets.symmetric(horizontal: 10),
                                 ),
                                 icon: const Icon(Icons.navigation_rounded, color: Color(0xFF00E676), size: 18),
-                                label: const Text(
-                                  'GOOGLE MAPS GPS',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                                label: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    isMm ? 'ဂူဂဲလ်မြေပုံ GPS' : 'GOOGLE MAPS GPS',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                                  ),
                                 ),
                                 onPressed: () {
                                   final lat = _targetLocation!['lat']!;
@@ -946,9 +951,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
                               ),
                               icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                              label: const Text(
-                                'RETURN',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                              label: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  isMm ? 'ပြန်သွားမည်' : 'RETURN',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                                ),
                               ),
                               onPressed: () {
                                 if (widget.returnRoute != null) {
@@ -1250,7 +1258,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 children: [
                   Text(
                     isMm
-                        ? '📍 လွှမ်းခြုံဧရိယာ: ${org.coverageRadiusKm} km'
+                        ? '📍 ကူညီနိုင်သော အကွာအဝေး : ${org.coverageRadiusKm} km'
                         : '📍 Coverage: ${org.coverageRadiusKm} km',
                     style: TextStyle(fontSize: 13, color: textSecondary, fontWeight: FontWeight.w500),
                   ),

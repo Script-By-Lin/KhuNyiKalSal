@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -383,8 +384,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Widget _buildStep2Terms(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      color: Colors.white,
+      color: isDark ? const Color(0xFF0F172A) : Colors.white,
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,15 +394,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black),
                 onPressed: _prevPage,
                 padding: EdgeInsets.zero,
                 alignment: Alignment.centerLeft,
               ),
               const Icon(Icons.gavel, color: AppTheme.primaryRed, size: 28),
               const SizedBox(width: 8),
-              const Expanded(
-                child: Text('Terms & Conditions', style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold)),
+              Expanded(
+                child: Text(
+                  'Terms & Conditions',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
@@ -410,29 +419,37 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'စည်းမျဉ်းစည်းကမ်းများ',
-                    style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  _legalSectionBlack('ဝန်ဆောင်မှုအသုံးပြုခြင်းဆိုင်ရာ သဘောတူညီချက်', 'ဤအက်ပလီကေးရှင်းကို အသုံးပြုခြင်းဖြင့် အောက်ပါစည်းမျဉ်းစည်းကမ်းများကို သင်လက်ခံသဘောတူပါသည်။ ဤဝန်ဆောင်မှုသည် အရေးပေါ်အခြေအနေများတွင် ကူညီကယ်ဆယ်ရေးအဖွဲ့များနှင့် ချိတ်ဆက်ပေးရန် ရည်ရွယ်ပါသည်။'),
-                  _legalSectionBlack('အသုံးပြုသူ၏ တာဝန်များ', '၁။ မှန်ကန်သောအချက်အလက်များ ဖြည့်သွင်းရမည်။\n၂။ အရေးပေါ်မဟုတ်သော SOS အချက်ပြမှုများ မလုပ်ရ။\n၃။ မမှန်ကန်သော SOS အချက်ပြမှု ပြုလုပ်ပါက ဥပဒေအရ အရေးယူခံရနိုင်ပါသည်။\n၄။ ကိုယ်ရေးအချက်အလက်များကို တိကျမှန်ကန်စွာ ဖြည့်သွင်းပေးရမည်။'),
-                  _legalSectionBlack('ကိုယ်ရေးအချက်အလက် ကာကွယ်ရေး', 'သင်၏ကိုယ်ရေးအချက်အလက်များကို အရေးပေါ်ကယ်ဆယ်ရေးလုပ်ငန်းများအတွက်သာ အသုံးပြုမည်ဖြစ်ပြီး သင့်ခွင့်ပြုချက်မရှိဘဲ အခြားမည်သည့်‌ကိစ္စများတွင်မျှ အသုံးပြုမည်မဟုတ်ပါ။'),
+                  _legalSectionBlack('ဝန်ဆောင်မှုအသုံးပြုခြင်းဆိုင်ရာ သဘောတူညီချက်', 'ဤအက်ပလီကေးရှင်းကို အသုံးပြုခြင်းဖြင့် အောက်ပါစည်းမျဉ်းစည်းကမ်းများကို သင်လက်ခံသဘောတူပါသည်။ ဤဝန်ဆောင်မှုသည် အရေးပေါ်အခြေအနေများတွင် ကူညီကယ်ဆယ်ရေးအဖွဲ့များနှင့် ချိတ်ဆက်ပေးရန် ရည်ရွယ်ပါသည်။', isDark),
+                  _legalSectionBlack('အသုံးပြုသူ၏ တာဝန်များ', '၁။ မှန်ကန်သောအချက်အလက်များ ဖြည့်သွင်းရမည်။\n၂။ အရေးပေါ်မဟုတ်သော SOS အချက်ပြမှုများ မလုပ်ရ။\n၃။ မမှန်ကန်သော SOS အချက်ပြမှု ပြုလုပ်ပါက ဥပဒေအရ အရေးယူခံရနိုင်ပါသည်။\n၄။ ကိုယ်ရေးအချက်အလက်များကို တိကျမှန်ကန်စွာ ဖြည့်သွင်းပေးရမည်။', isDark),
+                  _legalSectionBlack('ကိုယ်ရေးအချက်အလက် ကာကွယ်ရေး', 'သင်၏ကိုယ်ရေးအချက်အလက်များကို အရေးပေါ်ကယ်ဆယ်ရေးလုပ်ငန်းများအတွက်သာ အသုံးပြုမည်ဖြစ်ပြီး သင့်ခွင့်ပြုချက်မရှိဘဲ အခြားမည်သည့်‌ကိစ္စများတွင်မျှ အသုံးပြုမည်မဟုတ်ပါ။', isDark),
                   _legalSectionBlack('ဥပဒေရေးရာ သတိပေးချက်', 'အရေးပေါ်မဟုတ်ဘဲ SOS ခလုတ်ကို နှိပ်ခြင်းသည် '
                   'ဥပဒေအရ ပြစ်မှုကျူးလွန်ရာ ကျရောက်နိုင်ပါသည်။ '
                   'မမှန်ကန်သော အချက်ပြမှုများအတွက် '
-                  'အကောင့်ပိတ်သိမ်းခြင်း အပါအဝင် တရားနှောက်ယှက်မှု ဥပဒေများဖြင့် တရားစွဲခံရနိုင်ပါသည်။'),
+                  'အကောင့်ပိတ်သိမ်းခြင်း အပါအဝင် တရားနှောက်ယှက်မှု ဥပဒေများဖြင့် တရားစွဲခံရနိုင်ပါသည်။', isDark),
                   
-                  const Divider(color: Colors.black12, height: 32, thickness: 1),
+                  Divider(color: isDark ? Colors.white24 : Colors.black12, height: 32, thickness: 1),
                   
-                  const Text(
+                  Text(
                     'Terms of Service (English)',
-                    style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  _legalSectionBlack('Service Agreement', 'By using Khu Nyi Kal Sal, you agree to these terms. This app connects users to nearby rescue organizations during emergencies.'),
-                  _legalSectionBlack('User Responsibilities', '• Provide accurate personal and medical information.\n• Only use SOS for genuine emergencies.\n• False alerts may result in account suspension and legal action.\n• Keep your location services enabled for accurate response.'),
-                  _legalSectionBlack('Privacy', 'Your data is used solely for emergency response and is not shared with third parties without consent.'),
+                  _legalSectionBlack('Service Agreement', 'By using Khu Nyi Kal Sal, you agree to these terms. This app connects users to nearby rescue organizations during emergencies.', isDark),
+                  _legalSectionBlack('User Responsibilities', '• Provide accurate personal and medical information.\n• Only use SOS for genuine emergencies.\n• False alerts may result in account suspension and legal action.\n• Keep your location services enabled for accurate response.', isDark),
+                  _legalSectionBlack('Privacy', 'Your data is used solely for emergency response and is not shared with third parties without consent.', isDark),
                 ],
               ),
             ),
@@ -444,15 +461,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 value: _agreedToTerms,
                 activeColor: AppTheme.primaryRed,
                 checkColor: Colors.white,
-                side: const BorderSide(color: Colors.black, width: 2),
+                side: BorderSide(color: isDark ? Colors.white70 : Colors.black, width: 2),
                 onChanged: (v) {
                   setState(() => _agreedToTerms = v!);
                 },
               ),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'I have read and agree to the Terms & Conditions',
-                  style: TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -506,7 +527,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryRed),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryRed,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
                       onPressed: (_agreedToTerms && !authState.isLoading) ? _executeRegistration : null,
                       child: authState.isLoading
                           ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
@@ -522,7 +547,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _legalSectionBlack(String title, String body) {
+  Widget _legalSectionBlack(String title, String body, bool isDark) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -530,7 +555,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         children: [
           Text(title, style: const TextStyle(color: AppTheme.primaryRed, fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 4),
-          Text(body, style: const TextStyle(color: Colors.black87, fontSize: 14, height: 1.5)),
+          Text(body, style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 14, height: 1.5)),
         ],
       ),
     );
@@ -538,15 +563,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: PageView(
-          controller: _pageController,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            _buildStep1Form(context),
-            _buildStep2Terms(context),
-          ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final systemOverlay = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+      systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarDividerColor: Colors.transparent,
+    );
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: systemOverlay,
+      child: Scaffold(
+        body: SafeArea(
+          child: PageView(
+            controller: _pageController,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              _buildStep1Form(context),
+              _buildStep2Terms(context),
+            ],
+          ),
         ),
       ),
     );

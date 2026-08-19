@@ -144,3 +144,39 @@ class AdminSessionResponse(BaseModel):
     created_at: datetime
     last_used_at: datetime
 
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+    @field_validator("otp")
+    @classmethod
+    def check_otp(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not cleaned or len(cleaned) != 6 or not cleaned.isdigit():
+            raise ValueError("OTP must be a 6-digit number")
+        return cleaned
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str
+
+    @field_validator("otp")
+    @classmethod
+    def check_otp(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not cleaned or len(cleaned) != 6 or not cleaned.isdigit():
+            raise ValueError("OTP must be a 6-digit number")
+        return cleaned
+
+    @field_validator("new_password")
+    @classmethod
+    def check_password(cls, v: str) -> str:
+        return validate_password(v)
+

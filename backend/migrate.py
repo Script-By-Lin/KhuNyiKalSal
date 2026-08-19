@@ -118,7 +118,18 @@ async def ensure_idempotent_schema():
             """CREATE INDEX IF NOT EXISTS ix_blood_donations_accepted_org_id ON blood_donations (accepted_org_id);""",
             """CREATE INDEX IF NOT EXISTS ix_blood_donations_request_type ON blood_donations (request_type);""",
             """CREATE INDEX IF NOT EXISTS ix_blood_donations_blood_type ON blood_donations (blood_type);""",
-            """CREATE INDEX IF NOT EXISTS ix_blood_donations_status ON blood_donations (status);"""
+            """CREATE INDEX IF NOT EXISTS ix_blood_donations_status ON blood_donations (status);""",
+            """ALTER TABLE family_members ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'accepted';""",
+            """CREATE INDEX IF NOT EXISTS ix_family_members_status ON family_members (status);""",
+            """CREATE TABLE IF NOT EXISTS password_reset_otps (
+                id UUID PRIMARY KEY,
+                email VARCHAR(255) NOT NULL,
+                otp_code VARCHAR(6) NOT NULL,
+                expires_at TIMESTAMPTZ NOT NULL,
+                is_used BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );""",
+            """CREATE INDEX IF NOT EXISTS ix_password_reset_otps_email ON password_reset_otps (email);"""
         ]
 
         for stmt in sql_statements:

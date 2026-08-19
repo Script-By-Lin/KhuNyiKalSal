@@ -16,6 +16,7 @@ class FamilyGroupScreen extends ConsumerStatefulWidget {
 
 class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
   Map<String, dynamic>? _group;
+  List<dynamic> _invitations = [];
   bool _loading = true;
   bool _hasGroup = false;
 
@@ -59,18 +60,35 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
       setState(() => _loading = true);
     }
 
-    // 2. Fetch fresh data from server in background
+    // 2. Fetch fresh group & pending invitations from server
     try {
-      final res = await ApiService().getMyFamilyGroup();
+      final results = await Future.wait([
+        ApiService().getMyFamilyGroup().then((r) => r.data).catchError((_) => null),
+        ApiService().getMyFamilyInvitations().then((r) => r.data).catchError((_) => []),
+      ]);
+
+      final groupData = results[0] as Map<String, dynamic>?;
+      final invData = (results[1] as List?) ?? [];
+
       if (mounted) {
         setState(() {
-          _group = res.data;
-          _hasGroup = true;
+          if (groupData != null) {
+            _group = groupData;
+            _hasGroup = true;
+          } else {
+            _group = null;
+            _hasGroup = false;
+          }
+          _invitations = invData;
           _loading = false;
         });
       }
-      // Save fresh data to cache
-      await CacheService.saveFamilyGroup(res.data);
+
+      if (groupData != null) {
+        await CacheService.saveFamilyGroup(groupData);
+      } else {
+        await CacheService.clearFamilyGroup();
+      }
     } catch (_) {
       if (mounted && cached == null) {
         setState(() {
@@ -78,6 +96,71 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
           _hasGroup = false;
           _loading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _acceptInvitation(String invitationId, String groupName) async {
+    final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
+    try {
+      final res = await ApiService().acceptFamilyInvitation(invitationId);
+      if (mounted) {
+        setState(() {
+          _group = res.data;
+          _hasGroup = true;
+          _invitations.removeWhere((inv) => inv['invitation_id'] == invitationId);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF10B981),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isMm ? '$groupName သို့ အောင်မြင်စွာ ဝင်ရောက်ပြီးပါပြီ' : 'Joined $groupName successfully!',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      await CacheService.saveFamilyGroup(res.data);
+    } catch (e) {
+      if (mounted) {
+        final err = (e as dynamic).response?.data?['detail'] ?? 'Failed to accept invitation';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('⚠️ $err'), backgroundColor: AppTheme.primaryRed),
+        );
+      }
+    }
+  }
+
+  Future<void> _denyInvitation(String invitationId) async {
+    final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
+    try {
+      await ApiService().denyFamilyInvitation(invitationId);
+      if (mounted) {
+        setState(() {
+          _invitations.removeWhere((inv) => inv['invitation_id'] == invitationId);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isMm ? 'ဖိတ်ကြားချက်ကို ငြင်းပယ်ပြီးပါပြီ' : 'Family invitation declined',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final err = (e as dynamic).response?.data?['detail'] ?? 'Failed to decline invitation';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('⚠️ $err'), backgroundColor: AppTheme.primaryRed),
+        );
       }
     }
   }
@@ -180,8 +263,16 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
                   await ApiService().addFamilyMember(email, _selectedRelationship);
                   _loadFamilyGroup();
                   if (mounted) {
+                    final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Added $email as $_selectedRelationship!')),
+                      SnackBar(
+                        backgroundColor: const Color(0xFF10B981),
+                        content: Text(
+                          isMm
+                              ? '$email ထံသို့ $_selectedRelationship အဖြစ် ဖိတ်ကြားချက် ပို့ပြီးပါပြီ'
+                              : 'Invitation sent to $email as $_selectedRelationship!',
+                        ),
+                      ),
                     );
                   }
                 } catch (e) {
@@ -532,6 +623,132 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
     );
   }
 
+  Widget _buildInvitationsSection(bool isMm, bool isDark) {
+    if (_invitations.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.mark_email_unread_outlined, color: Color(0xFFF59E0B), size: 20),
+            const SizedBox(width: 8),
+            Text(
+              isMm
+                  ? 'မိသားစု ဖိတ်ကြားချက်များ (${_invitations.length})'
+                  : 'Pending Family Invitations (${_invitations.length})',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ..._invitations.map((inv) {
+          final invId = inv['invitation_id']?.toString() ?? '';
+          final groupName = inv['group_name'] ?? 'Family Group';
+          final creatorName = inv['creator_name'] ?? 'Family Admin';
+          final creatorEmail = inv['creator_email'] ?? '';
+          final relationship = inv['relationship'] ?? 'Member';
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.family_restroom, color: Color(0xFFF59E0B), size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            groupName,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            isMm
+                                ? '$creatorName ($creatorEmail) မှ $relationship အဖြစ် ဖိတ်ကြားထားပါသည်'
+                                : 'Invited by $creatorName ($creatorEmail) as $relationship',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: isDark ? Colors.white70 : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        icon: const Icon(Icons.close, size: 18),
+                        label: Text(
+                          isMm ? 'ငြင်းပယ်မည်' : 'Deny',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        onPressed: () => _denyInvitation(invId),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        icon: const Icon(Icons.check, size: 18),
+                        label: Text(
+                          isMm ? 'လက်ခံမည်' : 'Accept',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        onPressed: () => _acceptInvitation(invId, groupName),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
   Widget _buildNoGroupView(bool isMm) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -539,7 +756,10 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 150),
       child: Column(
         children: [
-          const SizedBox(height: 20),
+          // Pending Invitations at top if user received any
+          _buildInvitationsSection(isMm, isDark),
+
+          const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -620,12 +840,16 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isCreator = _group?['is_creator'] == true;
     final members = (_group?['members'] as List?) ?? [];
+    final pendingMembers = (_group?['pending_members'] as List?) ?? [];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 150),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Pending Invitations to other groups (if any)
+          _buildInvitationsSection(isMm, isDark),
+
           // ── Group Header Card ──────────────────────────────────────────
           Container(
             padding: const EdgeInsets.all(20),
@@ -866,6 +1090,95 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
               ),
             );
           }),
+
+          // ── Pending Invited Members (Creator Only) ────────────────────
+          if (isCreator && pendingMembers.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                const Icon(Icons.hourglass_top, color: Color(0xFFF59E0B), size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  isMm
+                      ? 'ဖိတ်ကြားထားဆဲ အဖွဲ့ဝင်များ (${pendingMembers.length})'
+                      : 'Pending Invitations (${pendingMembers.length})',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFF59E0B),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...pendingMembers.map<Widget>((pm) {
+              final memberId = pm['account_id'] ?? '';
+              final name = pm['full_name'] ?? 'Invited Member';
+              final email = pm['email'] ?? '';
+              final relationship = pm['relationship'] ?? 'Member';
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.7) : Colors.amber.shade50.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.mail_outline, color: Color(0xFFF59E0B), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  relationship,
+                                  style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 10.5, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(email, style: const TextStyle(fontSize: 12, color: AppTheme.subtleGrey)),
+                          const SizedBox(height: 2),
+                          Text(
+                            isMm ? '⏳ ဖိတ်ကြားချက် လက်ခံရန် စောင့်ဆိုင်းဆဲ...' : '⏳ Awaiting acceptance...',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFFF59E0B), fontStyle: FontStyle.italic),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.cancel_outlined, color: Colors.red, size: 20),
+                      tooltip: isMm ? 'ဖိတ်ကြားချက် ပယ်ဖျက်မည်' : 'Cancel Invitation',
+                      onPressed: () => _removeMember(memberId, name),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
 
           const SizedBox(height: 24),
 

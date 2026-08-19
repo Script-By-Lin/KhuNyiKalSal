@@ -257,7 +257,7 @@ class _OrgCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     isMm
-                        ? 'လွှမ်းခြုံဧရိယာ: ${org.coverageRadiusKm.toStringAsFixed(0)} km'
+                        ? 'ကူညီနိုင်သော အကွာအဝေး: ${org.coverageRadiusKm.toStringAsFixed(0)} km'
                         : 'Coverage: ${org.coverageRadiusKm.toStringAsFixed(0)} km',
                     style: TextStyle(
                       fontSize: 12,

@@ -5,7 +5,7 @@ import re
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, EmailStr, field_validator
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, update, delete, or_, func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +16,8 @@ from app.models.organization import Organization
 from app.models.user_profile import UserProfile
 from app.models.emergency import Emergency, EmergencyStatus
 from app.models.session import UserSession
+from app.models.volunteer import Volunteer
+from app.models.blood_donation import BloodDonation
 from app.core.security import hash_password
 from app.core.permissions import require_role
 from app.schemas.auth import validate_password, validate_myanmar_phone
@@ -218,7 +220,7 @@ async def delete_organization(
     current_user: Account = Depends(require_role("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Admin endpoint to delete an organization account."""
+    """Admin endpoint to delete an organization account with safe unlinking of foreign keys."""
     try:
         acc_uuid = uuid_module.UUID(account_id)
     except Exception:
@@ -229,9 +231,54 @@ async def delete_organization(
     if not acc:
         raise HTTPException(status_code=404, detail="Organization account not found")
 
-    await db.delete(acc)
-    await db.commit()
-    return {"message": "Organization account deleted successfully"}
+    try:
+        # 1. Unassign all emergencies referencing this organization
+        await db.execute(
+            update(Emergency)
+            .where(Emergency.assigned_org_id == acc_uuid)
+            .values(assigned_org_id=None)
+        )
+
+        # 2. Unassign all blood donations referencing this organization
+        await db.execute(
+            update(BloodDonation)
+            .where((BloodDonation.target_org_id == acc_uuid) | (BloodDonation.accepted_org_id == acc_uuid))
+            .values(target_org_id=None, accepted_org_id=None)
+        )
+
+        # 3. Unassign or decouple any volunteers attached to this organization
+        await db.execute(
+            update(Volunteer)
+            .where(Volunteer.org_id == acc_uuid)
+            .values(org_id=None)
+        )
+
+        # 4. Remove active sessions for this account
+        await db.execute(
+            delete(UserSession)
+            .where(UserSession.user_id == acc_uuid)
+        )
+
+        # 5. Delete organization profile explicitly
+        org_res = await db.execute(
+            select(Organization).where(Organization.account_id == acc_uuid)
+        )
+        org = org_res.scalar_one_or_none()
+        if org:
+            await db.delete(org)
+
+        # 6. Delete account
+        await db.delete(acc)
+        await db.commit()
+
+        # Purge any cached tracking
+        location_cache.purge_user_tracking(str(acc_uuid))
+
+        return {"message": "Organization account and associated references deleted successfully"}
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete organization: {str(e)}")
 
 
 @router.get("/users")

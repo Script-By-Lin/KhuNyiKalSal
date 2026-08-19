@@ -120,9 +120,10 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
             }
           });
           _loadAlerts();
+          final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Emergency Accepted — Streaming live location to victim!'),
+            SnackBar(
+              content: Text(isMm ? '✅ အရေးပေါ် အမှုတွဲကို လက်ခံပြီး တိုက်ရိုက် GPS တည်နေရာ စတင်မျှဝေပါပြီ' : '✅ Emergency Accepted — Streaming live location to victim!'),
               backgroundColor: AppTheme.primaryRed,
               behavior: SnackBarBehavior.floating,
             ),
@@ -131,9 +132,10 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
           setState(() {
             _alerts.removeWhere((a) => a['emergency_id'] == emergencyId);
           });
+          final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Emergency Rejected'),
+            SnackBar(
+              content: Text(isMm ? 'အရေးပေါ် ခေါ်ဆိုမှုကို ပယ်ဖျက်လိုက်ပါသည်' : 'Emergency Rejected'),
               backgroundColor: Colors.orange,
               behavior: SnackBarBehavior.floating,
             ),
@@ -142,8 +144,9 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
       }
     } catch (e) {
       if (mounted) {
+        final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to respond to emergency alert')),
+          SnackBar(content: Text(isMm ? 'အရေးပေါ် ခေါ်ဆိုမှု တုံ့ပြန်ရန် မအောင်မြင်ပါ' : 'Failed to respond to emergency alert')),
         );
       }
     }
@@ -319,7 +322,7 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
             borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
           ),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               color: dutyCardBg,
               borderRadius: BorderRadius.circular(16),
@@ -331,8 +334,8 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
             child: Row(
               children: [
                 Container(
-                  width: 12,
-                  height: 12,
+                  width: 10,
+                  height: 10,
                   decoration: BoxDecoration(
                     color: _isDutyActive ? AppTheme.primaryRed : Colors.grey,
                     shape: BoxShape.circle,
@@ -346,20 +349,48 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  _isDutyActive ? (isMm ? 'တာဝန်ထမ်းဆောင်ဆဲ — တိုက်ရိုက်ခေါ်ဆိုမှု ဖွင့်ထားသည်' : 'ON DUTY — LIVE DISPATCH ACTIVE') : (isMm ? 'အသင့်အနေအထား — ပိတ်ထားသည်' : 'OFF DUTY — STANDBY'),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                    color: _isDutyActive ? AppTheme.primaryRed : (isDark ? Colors.white60 : Colors.grey.shade500),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _isDutyActive
+                            ? (isMm ? 'တာဝန်ထမ်းဆောင်ဆဲ (Active)' : 'ON DUTY (Active)')
+                            : (isMm ? 'တာဝန်ပိတ်ထားသည် (Inactive)' : 'OFF DUTY (Inactive)'),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: _isDutyActive ? AppTheme.primaryRed : (isDark ? Colors.white60 : Colors.grey.shade600),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _isDutyActive
+                            ? (isMm ? 'တိုက်ရိုက်ခေါ်ဆိုမှု ဖွင့်ထားသည်' : 'Live dispatch active')
+                            : (isMm ? 'အသင့်အနေအထား' : 'Standby mode'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white60 : Colors.grey.shade600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-                const Spacer(),
-                Switch(
-                  value: _isDutyActive,
-                  activeThumbColor: AppTheme.primaryRed,
-                  onChanged: (val) => setState(() => _isDutyActive = val),
+                const SizedBox(width: 8),
+                Transform.scale(
+                  scale: 0.85,
+                  child: Switch(
+                    value: _isDutyActive,
+                    activeThumbColor: AppTheme.primaryRed,
+                    activeTrackColor: AppTheme.primaryRed.withValues(alpha: 0.3),
+                    onChanged: (val) => setState(() => _isDutyActive = val),
+                  ),
                 ),
               ],
             ),
@@ -713,7 +744,10 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
               _loadAlerts();
               _loadProfile();
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Volunteer data refreshed'), backgroundColor: AppTheme.secondaryGreen),
+                SnackBar(
+                  content: Text(isMm ? 'စေတနာ့ဝန်ထမ်း အချက်အလက်များ အသစ်ပြန်လည်ရယူပြီးပါပြီ' : 'Volunteer data refreshed'),
+                  backgroundColor: AppTheme.secondaryGreen,
+                ),
               );
             },
           ),
@@ -726,12 +760,17 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
             height: 50,
             child: OutlinedButton.icon(
               icon: const Icon(Icons.logout, color: Colors.red),
-              label: Text(
-                isMm ? 'စေတနာ့ဝန်ထမ်း အကောင့်မှ ထွက်မည်' : 'SIGN OUT OF VOLUNTEER CONSOLE',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13, letterSpacing: 0.5),
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  isMm ? 'စေတနာ့ဝန်ထမ်း အကောင့်မှ ထွက်မည်' : 'SIGN OUT OF VOLUNTEER',
+                  maxLines: 1,
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13, letterSpacing: 0.5),
+                ),
               ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.red, width: 1.5),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               onPressed: () => _confirmVolunteerLogout(isMm),

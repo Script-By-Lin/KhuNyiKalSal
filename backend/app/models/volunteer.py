@@ -22,10 +22,10 @@ class Volunteer(Base):
         PG_UUID(as_uuid=True), ForeignKey("accounts.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    org_id: Mapped[uuid.UUID] = mapped_column(
+    org_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("organizations.account_id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("organizations.account_id", ondelete="SET NULL"),
+        nullable=True,
     )
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone_number: Mapped[str] = mapped_column(String(500), nullable=False)

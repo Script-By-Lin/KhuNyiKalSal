@@ -1,12 +1,43 @@
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.env
+*.py[cod]
+*$py.class
+*.so
 .pytest_cache/
 .coverage
 build/
 dist/
 *.egg-info/
+
+# Environments & Configs
+.env
+backend/.env
+*.env
+
+# SQLite & Databases
+*.db
+*.sqlite
+*.sqlite3
+khunyikalsal.db
+backend/khunyikalsal.db
+
+# IDEs & Editors
 .idea/
 .vscode/
+*.iml
+*.iws
+*.ipr
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Scratch & Temporary
+scratch/
+frontend/scratch/
+

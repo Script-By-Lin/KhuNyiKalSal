@@ -54,6 +54,9 @@ class FamilyMember(Base):
     relationship: Mapped[str] = mapped_column(
         String(50), nullable=False, default="Other"
     )  # Father, Mother, Son, Daughter, Spouse, Sibling, Other
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="accepted", server_default="accepted"
+    )  # pending, accepted, denied
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

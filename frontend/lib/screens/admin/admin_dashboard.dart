@@ -88,6 +88,8 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     _fetchSupportInfo();
   }
 
+  bool get _isMm => ref.read(settingsProvider).locale.languageCode == 'my';
+
   void _snack(String msg, Color color) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -117,7 +119,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     } catch (e) {
       if (mounted) {
         setState(() => _loadingOrgs = false);
-        _snack('Failed to load organizations', Colors.red);
+        _snack(_isMm ? 'အဖွဲ့အစည်းများ ရယူရန် မအောင်မြင်ပါ' : 'Failed to load organizations', Colors.red);
       }
     }
   }
@@ -130,14 +132,14 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: dialogBg,
-        title: const Text('Delete Organization?', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to remove "$orgName"? All linked records will be deleted.'),
+        title: Text(_isMm ? 'အဖွဲ့အစည်း ဖျက်မည်လား?' : 'Delete Organization?', style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(_isMm ? '"$orgName" အား ဖျက်ရန် သေချာပါသလား? ချိတ်ဆက်ထားသော ဒေတာများ အားလုံး ဖျက်ပစ်ပါမည်။' : 'Are you sure you want to remove "$orgName"? All linked records will be deleted.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(_isMm ? 'မလုပ်တော့ပါ' : 'Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('DELETE'),
+            child: Text(_isMm ? 'ဖျက်မည်' : 'DELETE'),
           ),
         ],
       ),
@@ -147,10 +149,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
 
     try {
       await ApiService().deleteAdminOrg(accountId);
-      _snack('Organization deleted successfully', AppTheme.secondaryGreen);
+      _snack(_isMm ? 'အဖွဲ့အစည်း အကောင့် အောင်မြင်စွာ ဖျက်ပြီးပါပြီ' : 'Organization deleted successfully', AppTheme.secondaryGreen);
       _fetchOrgs();
     } catch (e) {
-      _snack('Failed to delete organization', Colors.red);
+      _snack(_isMm ? 'အဖွဲ့အစည်း ဖျက်ရန် မအောင်မြင်ပါ' : 'Failed to delete organization', Colors.red);
     }
   }
 
@@ -281,93 +283,116 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: sheetBg,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-            top: 24,
-            left: 24,
-            right: 24,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Edit Organization Account', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                _input(nameCtrl, 'Organization Name'),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: DropdownButtonFormField<String>(
-                    initialValue: categories.contains(selectedCategory) ? selectedCategory : 'Medical',
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: isDark ? const Color(0xFF0F172A) : Colors.grey.shade50,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    items: categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
-                    onChanged: (val) {
-                      if (val != null) setModalState(() => selectedCategory = val);
-                    },
+        builder: (context, setModalState) => SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              top: 24,
+              left: 24,
+              right: 24,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _isMm ? 'အဖွဲ့အစည်း အကောင့် ပြင်ဆင်မည်' : 'Edit Organization Account',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                ),
-                _input(phoneCtrl, 'Hotline Phone Number', keyboardType: TextInputType.phone),
-                _input(regionCtrl, 'Operating Regions (e.g. Yangon, Bago)'),
-                _input(addressCtrl, 'Headquarters Address', maxLines: 2),
-                Row(
-                  children: [
-                    Expanded(child: _input(latCtrl, 'Latitude', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
-                    const SizedBox(width: 8),
-                    Expanded(child: _input(lngCtrl, 'Longitude', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
-                    IconButton(
-                      icon: const Icon(Icons.map, color: AppTheme.primaryRed, size: 30),
-                      onPressed: () => _pickLocationOnMap(latCtrl, lngCtrl),
+                  const SizedBox(height: 16),
+                  _input(nameCtrl, _isMm ? 'အဖွဲ့အစည်း အမည်' : 'Organization Name'),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: DropdownButtonFormField<String>(
+                      initialValue: categories.contains(selectedCategory) ? selectedCategory : 'Medical',
+                      decoration: InputDecoration(
+                        labelText: _isMm ? 'အဖွဲ့အစည်း အမျိုးအစား' : 'Category',
+                        filled: true,
+                        fillColor: isDark ? const Color(0xFF0F172A) : Colors.grey.shade50,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      items: categories.map((cat) {
+                        String label = cat;
+                        if (_isMm) {
+                          if (cat == 'Medical') label = 'ဆေးဘက်ဆိုင်ရာနှင့် လူနာတင်ယာဉ်';
+                          if (cat == 'Fire') label = 'မီးသတ်နှင့် သဘာဝဘေး';
+                          if (cat == 'Local Voluntary Org') label = 'ဒေသခံ ပရဟိတ လူမှုကူညီရေးအသင်း';
+                        }
+                        return DropdownMenuItem(value: cat, child: Text(label));
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) setModalState(() => selectedCategory = val);
+                      },
                     ),
-                  ],
-                ),
-                SwitchListTile(
-                  title: const Text('Account Active Status', style: TextStyle(fontWeight: FontWeight.w600)),
-                  value: isActive,
-                  activeThumbColor: AppTheme.secondaryGreen,
-                  onChanged: (v) => setModalState(() => isActive = v),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryRed,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () async {
-                      final nav = Navigator.of(ctx);
-                      try {
-                        await ApiService().updateAdminOrg(org['account_id'], {
-                          'org_name': nameCtrl.text.trim(),
-                          'phone_number': phoneCtrl.text.trim(),
-                          'category': selectedCategory,
-                          'operating_regions': regionCtrl.text.trim(),
-                          'headquarters_address': addressCtrl.text.trim(),
-                          'geo_lat': double.tryParse(latCtrl.text) ?? org['geo_lat'],
-                          'geo_lng': double.tryParse(lngCtrl.text) ?? org['geo_lng'],
-                          'is_active': isActive,
-                        });
-                        nav.pop();
-                        _snack('Organization updated successfully', AppTheme.secondaryGreen);
-                        _fetchOrgs();
-                      } catch (e) {
-                        _snack('Failed to update organization', Colors.red);
-                      }
-                    },
-                    child: const Text('SAVE CHANGES', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
-                ),
-              ],
+                  _input(phoneCtrl, _isMm ? 'အရေးပေါ် ဖုန်းနံပါတ်' : 'Hotline Phone Number', keyboardType: TextInputType.phone),
+                  _input(regionCtrl, _isMm ? 'တာဝန်ထမ်းဆောင်သည့် ဒေသများ' : 'Operating Regions (e.g. Yangon, Bago)'),
+                  _input(addressCtrl, _isMm ? 'ရုံးချုပ် လိပ်စာ' : 'Headquarters Address', maxLines: 2),
+                  Row(
+                    children: [
+                      Expanded(child: _input(latCtrl, _isMm ? 'လတ္တီတွဒ်' : 'Latitude', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+                      const SizedBox(width: 8),
+                      Expanded(child: _input(lngCtrl, _isMm ? 'လောင်ဂျီတွဒ်' : 'Longitude', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+                      IconButton(
+                        icon: const Icon(Icons.map, color: AppTheme.primaryRed, size: 30),
+                        onPressed: () => _pickLocationOnMap(latCtrl, lngCtrl),
+                      ),
+                    ],
+                  ),
+                  SwitchListTile(
+                    title: Text(_isMm ? 'အကောင့် အခြေအနေ (Active)' : 'Account Active Status', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    value: isActive,
+                    activeThumbColor: AppTheme.secondaryGreen,
+                    onChanged: (v) => setModalState(() => isActive = v),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryRed,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () async {
+                        final nav = Navigator.of(ctx);
+                        try {
+                          await ApiService().updateAdminOrg(org['account_id'], {
+                            'org_name': nameCtrl.text.trim(),
+                            'phone_number': phoneCtrl.text.trim(),
+                            'category': selectedCategory,
+                            'operating_regions': regionCtrl.text.trim(),
+                            'headquarters_address': addressCtrl.text.trim(),
+                            'geo_lat': double.tryParse(latCtrl.text) ?? org['geo_lat'],
+                            'geo_lng': double.tryParse(lngCtrl.text) ?? org['geo_lng'],
+                            'is_active': isActive,
+                          });
+                          nav.pop();
+                          _snack(_isMm ? 'အဖွဲ့အစည်း အချက်အလက် အောင်မြင်စွာ ပြင်ဆင်ပြီးပါပြီ' : 'Organization updated successfully', AppTheme.secondaryGreen);
+                          _fetchOrgs();
+                        } catch (e) {
+                          _snack(_isMm ? 'အဖွဲ့အစည်း အချက်အလက် ပြင်ဆင်ရန် မအောင်မြင်ပါ' : 'Failed to update organization', Colors.red);
+                        }
+                      },
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          _isMm ? 'အချက်အလက် သိမ်းဆည်းမည်' : 'SAVE CHANGES',
+                          maxLines: 1,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -426,10 +451,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
 
     try {
       await ApiService().adminCancelEmergency(emergencyId);
-      _snack('SOS Emergency cancelled by Admin', AppTheme.secondaryGreen);
+      _snack(_isMm ? 'အက်ဒမင်မှ အရေးပေါ် ခေါ်ဆိုမှုအား ပယ်ဖျက်ပြီးပါပြီ' : 'SOS Emergency cancelled by Admin', AppTheme.secondaryGreen);
       _fetchEmergencies();
     } catch (e) {
-      _snack('Failed to cancel emergency', Colors.red);
+      _snack(_isMm ? 'အရေးပေါ် ခေါ်ဆိုမှု ပယ်ဖျက်ရန် မအောင်မြင်ပါ' : 'Failed to cancel emergency', Colors.red);
     }
   }
 
@@ -441,20 +466,20 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: dialogBg,
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.block, color: Colors.red, size: 24),
-            SizedBox(width: 8),
-            Text('Ban Abusive Account?'),
+            const Icon(Icons.block, color: Colors.red, size: 24),
+            const SizedBox(width: 8),
+            Text(_isMm ? 'အကောင့်အား ပိတ်ပင် (Ban) မည်လား?' : 'Ban Abusive Account?'),
           ],
         ),
-        content: Text('Are you sure you want to ban "$userName"?\n\nAll active device sessions will be immediately terminated and login will be blocked.'),
+        content: Text(_isMm ? '"$userName" ၏ အကောင့်အား ပိတ်ပင်ရန် သေချာပါသလား?\n\nလက်ရှိ ဝင်ရောက်ထားသော စက်အားလုံးမှ အလိုအလျောက် ထွက်သွားမည် ဖြစ်ပြီး အကောင့်ဝင်ရောက်ခွင့် ပိတ်ပါမည်။' : 'Are you sure you want to ban "$userName"?\n\nAll active device sessions will be immediately terminated and login will be blocked.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(_isMm ? 'မလုပ်တော့ပါ' : 'Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('BAN ACCOUNT'),
+            child: Text(_isMm ? 'အကောင့်ပိတ်မည်' : 'BAN ACCOUNT'),
           ),
         ],
       ),
@@ -464,10 +489,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
 
     try {
       await ApiService().adminBanUser(userId);
-      _snack('User account banned and sessions revoked', Colors.red);
+      _snack(_isMm ? 'အကောင့်အား ပိတ်ပင်ပြီး စက်အားလုံးမှ အကောင့်ထွက်လိုက်ပါပြီ' : 'User account banned and sessions revoked', Colors.red);
       _fetchEmergencies();
     } catch (e) {
-      _snack('Failed to ban user account', Colors.red);
+      _snack(_isMm ? 'အကောင့် ပိတ်ပင်ရန် မအောင်မြင်ပါ' : 'Failed to ban user account', Colors.red);
     }
   }
 
@@ -479,20 +504,20 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: dialogBg,
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.check_circle_outline, color: AppTheme.secondaryGreen, size: 24),
-            SizedBox(width: 8),
-            Text('Unban User Account?'),
+            const Icon(Icons.check_circle_outline, color: AppTheme.secondaryGreen, size: 24),
+            const SizedBox(width: 8),
+            Text(_isMm ? 'အကောင့် ပိတ်ပင်မှုကို ပြန်ဖွင့်မည်လား?' : 'Unban User Account?'),
           ],
         ),
-        content: Text('Restore emergency system access for "$userName"?'),
+        content: Text(_isMm ? '"$userName" ၏ အရေးပေါ် စနစ် သုံးစွဲခွင့်ကို ပြန်လည်ဖွင့်ပေးမည်လား?' : 'Restore emergency system access for "$userName"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(_isMm ? 'မလုပ်တော့ပါ' : 'Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.secondaryGreen, foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('RESTORE ACCESS'),
+            child: Text(_isMm ? 'ပြန်လည်ဖွင့်ပေးမည်' : 'RESTORE ACCESS'),
           ),
         ],
       ),
@@ -502,10 +527,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
 
     try {
       await ApiService().adminUnbanUser(userId);
-      _snack('User account restored successfully', AppTheme.secondaryGreen);
+      _snack(_isMm ? 'အကောင့် အသုံးပြုခွင့်ကို အောင်မြင်စွာ ပြန်လည်ဖွင့်ပေးပြီးပါပြီ' : 'User account restored successfully', AppTheme.secondaryGreen);
       _fetchEmergencies();
     } catch (e) {
-      _snack('Failed to restore user', Colors.red);
+      _snack(_isMm ? 'အကောင့် ပြန်ဖွင့်ရန် မအောင်မြင်ပါ' : 'Failed to restore user', Colors.red);
     }
   }
 
@@ -543,98 +568,125 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: sheetBg,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-            top: 24,
-            left: 24,
-            right: 24,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item == null ? '📢 Post New Announcement' : 'Edit Announcement',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                _input(titleCtrl, 'Announcement Title (Headline)'),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: DropdownButtonFormField<String>(
-                    initialValue: categories.contains(selectedCategory) ? selectedCategory : 'General',
-                    decoration: InputDecoration(
-                      labelText: 'Category',
-                      filled: true,
-                      fillColor: isDark ? const Color(0xFF0F172A) : Colors.grey.shade50,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (val) {
-                      if (val != null) setModalState(() => selectedCategory = val);
-                    },
+        builder: (context, setModalState) => SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              top: 24,
+              left: 24,
+              right: 24,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item == null
+                        ? (_isMm ? '📢 သတင်းကြေညာချက် အသစ်ထုတ်ပြန်မည်' : '📢 Post New Announcement')
+                        : (_isMm ? 'သတင်းကြေညာချက် ပြင်ဆင်မည်' : 'Edit Announcement'),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                ),
-                _input(authorCtrl, 'Author / Department (e.g. Disaster Relief Command)'),
-                _input(contentCtrl, 'Announcement Content / Details', maxLines: 4),
-                SwitchListTile(
-                  title: const Text('Pin to Top (Featured Bulletin)', style: TextStyle(fontWeight: FontWeight.w600)),
-                  value: isPinned,
-                  activeThumbColor: Colors.amber.shade900,
-                  onChanged: (v) => setModalState(() => isPinned = v),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.send),
-                    label: Text(item == null ? 'BROADCAST ANNOUNCEMENT' : 'SAVE CHANGES', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryRed,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () async {
-                      final nav = Navigator.of(ctx);
-                      if (titleCtrl.text.trim().isEmpty || contentCtrl.text.trim().isEmpty) {
-                        _snack('Please provide title and content', Colors.red);
-                        return;
-                      }
-                      try {
-                        if (item == null) {
-                          await ApiService().createAnnouncement({
-                            'title': titleCtrl.text.trim(),
-                            'content': contentCtrl.text.trim(),
-                            'category': selectedCategory,
-                            'author_name': authorCtrl.text.trim(),
-                            'is_pinned': isPinned,
-                          });
-                          _snack('Announcement broadcasted successfully', AppTheme.secondaryGreen);
-                        } else {
-                          await ApiService().updateAnnouncement(item['id'], {
-                            'title': titleCtrl.text.trim(),
-                            'content': contentCtrl.text.trim(),
-                            'category': selectedCategory,
-                            'author_name': authorCtrl.text.trim(),
-                            'is_pinned': isPinned,
-                          });
-                          _snack('Announcement updated successfully', AppTheme.secondaryGreen);
+                  const SizedBox(height: 16),
+                  _input(titleCtrl, _isMm ? 'သတင်း ခေါင်းစဉ် (Headline)' : 'Announcement Title (Headline)'),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: DropdownButtonFormField<String>(
+                      initialValue: categories.contains(selectedCategory) ? selectedCategory : 'General',
+                      decoration: InputDecoration(
+                        labelText: _isMm ? 'အမျိုးအစား' : 'Category',
+                        filled: true,
+                        fillColor: isDark ? const Color(0xFF0F172A) : Colors.grey.shade50,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      items: categories.map((c) {
+                        String label = c;
+                        if (_isMm) {
+                          if (c == 'General') label = 'အထွေထွေ';
+                          if (c == 'Urgent') label = 'အရေးပေါ်';
+                          if (c == 'Weather/Disaster') label = 'ရာသီဥတု / သဘာဝဘေး';
+                          if (c == 'Blood Drive') label = 'သွေးလှူဒါန်းမှု';
                         }
-                        nav.pop();
-                        _fetchAnnouncements();
-                      } catch (e) {
-                        _snack('Failed to save announcement', Colors.red);
-                      }
-                    },
+                        return DropdownMenuItem(value: c, child: Text(label));
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) setModalState(() => selectedCategory = val);
+                      },
+                    ),
                   ),
-                ),
-              ],
+                  _input(authorCtrl, _isMm ? 'ဌာန / ထုတ်ပြန်သူ (ဥပမာ အရေးပေါ် ကွပ်ကဲရေး စင်တာ)' : 'Author / Department (e.g. Disaster Relief Command)'),
+                  _input(contentCtrl, _isMm ? 'အသေးစိတ် အကြောင်းအရာ' : 'Announcement Content / Details', maxLines: 4),
+                  SwitchListTile(
+                    title: Text(
+                      _isMm ? 'အပေါ်ဆုံးတွင် အမြဲပြသထားမည် (Pin to Top)' : 'Pin to Top (Featured Bulletin)',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    value: isPinned,
+                    activeThumbColor: Colors.amber.shade900,
+                    onChanged: (v) => setModalState(() => isPinned = v),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.send),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          item == null
+                              ? (_isMm ? 'သတင်းကြေညာချက် ထုတ်ပြန်မည်' : 'BROADCAST ANNOUNCEMENT')
+                              : (_isMm ? 'အချက်အလက် သိမ်းဆည်းမည်' : 'SAVE CHANGES'),
+                          maxLines: 1,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryRed,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () async {
+                        final nav = Navigator.of(ctx);
+                        if (titleCtrl.text.trim().isEmpty || contentCtrl.text.trim().isEmpty) {
+                          _snack(_isMm ? 'ခေါင်းစဉ်နှင့် အကြောင်းအရာ ဖြည့်သွင်းပါ' : 'Please provide title and content', Colors.red);
+                          return;
+                        }
+                        try {
+                          if (item == null) {
+                            await ApiService().createAnnouncement({
+                              'title': titleCtrl.text.trim(),
+                              'content': contentCtrl.text.trim(),
+                              'category': selectedCategory,
+                              'author_name': authorCtrl.text.trim(),
+                              'is_pinned': isPinned,
+                            });
+                            _snack(_isMm ? 'သတင်းကြေညာချက် အောင်မြင်စွာ ထုတ်ပြန်ပြီးပါပြီ' : 'Announcement broadcasted successfully', AppTheme.secondaryGreen);
+                          } else {
+                            await ApiService().updateAnnouncement(item['id'], {
+                              'title': titleCtrl.text.trim(),
+                              'content': contentCtrl.text.trim(),
+                              'category': selectedCategory,
+                              'author_name': authorCtrl.text.trim(),
+                              'is_pinned': isPinned,
+                            });
+                            _snack(_isMm ? 'သတင်းကြေညာချက် ပြင်ဆင်ပြီးပါပြီ' : 'Announcement updated successfully', AppTheme.secondaryGreen);
+                          }
+                          nav.pop();
+                          _fetchAnnouncements();
+                        } catch (e) {
+                          _snack(_isMm ? 'သတင်းကြေညာချက် သိမ်းဆည်းရန် မအောင်မြင်ပါ' : 'Failed to save announcement', Colors.red);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -650,14 +702,14 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: dialogBg,
-        title: const Text('Delete Announcement?'),
-        content: const Text('Are you sure you want to remove this announcement bulletin?'),
+        title: Text(_isMm ? 'သတင်းကြေညာချက် ဖျက်မည်လား?' : 'Delete Announcement?'),
+        content: Text(_isMm ? 'ဤသတင်းကြေညာချက်အား ဖျက်ရန် သေချာပါသလား?' : 'Are you sure you want to remove this announcement bulletin?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(_isMm ? 'မလုပ်တော့ပါ' : 'Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('DELETE'),
+            child: Text(_isMm ? 'ဖျက်မည်' : 'DELETE'),
           ),
         ],
       ),
@@ -667,10 +719,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
 
     try {
       await ApiService().deleteAnnouncement(id);
-      _snack('Announcement deleted', AppTheme.secondaryGreen);
+      _snack(_isMm ? 'သတင်းကြေညာချက် ဖျက်ပြီးပါပြီ' : 'Announcement deleted', AppTheme.secondaryGreen);
       _fetchAnnouncements();
     } catch (e) {
-      _snack('Failed to delete announcement', Colors.red);
+      _snack(_isMm ? 'သတင်းကြေညာချက် ဖျက်ရန် မအောင်မြင်ပါ' : 'Failed to delete announcement', Colors.red);
     }
   }
 
@@ -718,12 +770,12 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
         'mmqr_image_url': _mmqrImageUrlCtrl.text.trim(),
         'note_message': _supportNoteCtrl.text.trim(),
       });
-      _snack('Support & Donation details updated successfully', AppTheme.secondaryGreen);
+      _snack(_isMm ? 'လှူဒါန်းထောက်ပံ့မှု အချက်အလက်များ သိမ်းဆည်းပြီးပါပြီ' : 'Support & Donation details updated successfully', AppTheme.secondaryGreen);
       setState(() => _savingSupport = false);
       _fetchSupportInfo();
     } catch (e) {
       setState(() => _savingSupport = false);
-      _snack('Failed to update support info', Colors.red);
+      _snack(_isMm ? 'အချက်အလက် သိမ်းဆည်းရန် မအောင်မြင်ပါ' : 'Failed to update support info', Colors.red);
     }
   }
 
@@ -2619,12 +2671,17 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
             height: 50,
             child: OutlinedButton.icon(
               icon: const Icon(Icons.logout, color: Colors.red),
-              label: Text(
-                isMm ? 'အက်ဒမင် အကောင့်မှ ထွက်မည်' : 'SIGN OUT OF ADMIN PANEL',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13, letterSpacing: 0.5),
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  isMm ? 'အက်ဒမင် အကောင့်မှ ထွက်မည်' : 'SIGN OUT OF ADMIN',
+                  maxLines: 1,
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13, letterSpacing: 0.5),
+                ),
               ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.red, width: 1.5),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               onPressed: () => _confirmLogout(isMm),

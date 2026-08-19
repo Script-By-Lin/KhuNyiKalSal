@@ -298,6 +298,96 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
     }
   }
 
+  Future<void> _confirmCancelRecord(Map<String, dynamic> item, bool isMm) async {
+    final reqType = (item['request_type'] ?? 'donate').toString().toLowerCase();
+    final isRequest = reqType == 'request';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: dialogBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                isRequest
+                    ? (isMm ? 'သွေးတောင်းခံမှု ပယ်ဖျက်မည်လား?' : 'Cancel Blood Request?')
+                    : (isMm ? 'သွေးလှူဒါန်းမှု ပယ်ဖျက်မည်လား?' : 'Cancel Donation Pledge?'),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          isRequest
+              ? (isMm
+                  ? 'လူနာ ${item['patient_name'] ?? 'အတွက်'} သွေးတောင်းခံထားမှုကို ပယ်ဖျက်ရန် သေချာပါသလား?'
+                  : 'Are you sure you want to cancel this emergency blood request for ${item['patient_name'] ?? 'the patient'}?')
+              : (isMm
+                  ? 'သွေးလှူဒါန်းရန် လျှောက်ထားချက်ကို ပယ်ဖျက်ရန် သေချာပါသလား?'
+                  : 'Are you sure you want to cancel your blood donation pledge?'),
+          style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              isMm ? 'မလုပ်တော့ပါ' : 'Keep',
+              style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700, fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              isMm ? 'ပယ်ဖျက်မည်' : 'Yes, Cancel',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        final id = item['id'].toString();
+        await ApiService().updateBloodDonationStatus(id, 'Cancelled');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isRequest
+                    ? (isMm ? 'သွေးတောင်းခံမှုကို ပယ်ဖျက်ပြီးပါပြီ' : 'Blood request cancelled successfully')
+                    : (isMm ? 'သွေးလှူဒါန်းမှုကို ပယ်ဖျက်ပြီးပါပြီ' : 'Blood donation pledge cancelled successfully'),
+              ),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+          _loadMyRecords();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isMm ? 'ပယ်ဖျက်ရန် မအောင်မြင်ပါ' : 'Failed to cancel record: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   // ── SUBMIT BLOOD DONATION PLEDGE ──────────────────────────────────────────
   Future<void> _submitDonation() async {
     if (_nameCtrl.text.trim().isEmpty || _phoneCtrl.text.trim().isEmpty) {
@@ -1436,6 +1526,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
           Color badgeColor = Colors.orange;
           if (isAccepted) badgeColor = AppTheme.secondaryGreen;
           if (isCompleted) badgeColor = Colors.blue;
+          if (status.toLowerCase() == 'cancelled') badgeColor = Colors.grey.shade600;
 
             final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -1557,7 +1648,11 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                           child: Text(
                             isAccepted
                                 ? (isMm ? 'လက်ခံပြီး' : 'ACCEPTED')
-                                : status.toUpperCase(),
+                                : (status.toLowerCase() == 'cancelled'
+                                    ? (isMm ? 'ပယ်ဖျက်ပြီး' : 'CANCELLED')
+                                    : (status.toLowerCase() == 'completed'
+                                        ? (isMm ? 'ပြီးစီး' : 'COMPLETED')
+                                        : status.toUpperCase())),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -1797,6 +1892,69 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
                                   ),
                                 ),
                               ],
+                            ),
+                          ),
+                        ] else if (status.toLowerCase() == 'cancelled') ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.red.withValues(alpha: 0.12) : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isDark ? Colors.red.withValues(alpha: 0.3) : Colors.grey.shade300,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.cancel_outlined, color: Colors.red, size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    isRequest
+                                        ? (isMm ? 'ဤသွေးတောင်းခံမှုကို ပယ်ဖျက်ထားပါသည်' : 'This blood request was cancelled.')
+                                        : (isMm ? 'ဤသွေးလှူဒါန်းမှု လျှောက်ထားချက်ကို ပယ်ဖျက်ထားပါသည်' : 'This donation pledge was cancelled.'),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? Colors.white70 : Colors.grey.shade700,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        // ── CANCEL ACTION BUTTON FOR ACTIVE PENDING / ACCEPTED RECORDS ────
+                        if (status.toLowerCase() != 'completed' && status.toLowerCase() != 'cancelled') ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 42,
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.cancel_outlined, size: 16, color: Colors.red),
+                              label: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  isRequest
+                                      ? (isMm ? 'သွေးတောင်းခံမှု ပယ်ဖျက်မည်' : 'CANCEL BLOOD REQUEST')
+                                      : (isMm ? 'သွေးလှူဒါန်းမှု ပယ်ဖျက်မည်' : 'CANCEL DONATION PLEDGE'),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Colors.red.shade300, width: 1.2),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                backgroundColor: isDark
+                                    ? Colors.red.withValues(alpha: 0.1)
+                                    : Colors.red.shade50.withValues(alpha: 0.5),
+                              ),
+                              onPressed: () => _confirmCancelRecord(item, isMm),
                             ),
                           ),
                         ],

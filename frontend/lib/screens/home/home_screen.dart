@@ -301,7 +301,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         const SizedBox(width: 4),
                                         Text(
                                           isMm
-                                              ? 'လွှမ်းခြုံဧရိယာ: ${(_selectedOrg!['coverage_radius_km'] ?? 50.0).toString()} km'
+                                              ? 'ကူညီနိုင်သော အကွာအဝေး : ${(_selectedOrg!['coverage_radius_km'] ?? 50.0).toString()} km'
                                               : 'Coverage: ${(_selectedOrg!['coverage_radius_km'] ?? 50.0).toString()} km',
                                           style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                                         ),

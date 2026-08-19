@@ -31,8 +31,8 @@ class OfflineFirstAidData {
       category: 'Medical',
       icon: 'favorite',
       stepsMm: [
-        '၁။ လူနာ သတိရှိမရှိ၊ အသက်ရှူမရှူ စစ်ဆေးပါ။ မေးခိုင်ပြီး အသံပြု၍ ခေါ်ပါ။',
-        '၂။ ၁၉၁ (လူနာတင်ယာဉ်) သို့ ချက်ချင်း ဖုန်းခေါ်ဆို၍ အရေးပေါ်အကူအညီ တောင်းပါ။',
+        '၁။ လူနာ သတိရှိမရှိ၊ အသက်ရှူမရှူ စစ်ဆေးပါ။',
+        '၂။ လူနာတင်ယာဉ် သို့မဟုတ် အရေးပေါ်အကူအညီ အတွက် ချက်ချင်း ဖုန်းခေါ်ဆို၍ အရေးပေါ်အကူအညီ တောင်းပါ။',
         '၃။ လူနာအား ညီညာမာကျောသော ကြမ်းပြင်ပေါ်တွင် ပက်လက်အနေအထား ထားပါ။',
         '၄။ လက်နှစ်ဖက်ကို ရင်ညွန့်အလယ်တည့်တည့်တွင် ထပ်တင်ပြီး လက်မောင်းကို ဖြောင့်တန်းစွာ ထားပါ။',
         '၅။ တစ်မိနစ်လျှင် အကြိမ် ၁၀၀ မှ ၁၂၀ နှုန်းဖြင့် ရင်ဘတ်ကို ၂ လက်မခန့် နစ်အောင် အားပြင်းပြင်းနှင့် မြန်မြန် ဖိနှိပ်ပါ။',
@@ -40,7 +40,7 @@ class OfflineFirstAidData {
       ],
       stepsEn: [
         '1. Check for responsiveness and breathing. Tap the shoulders and shout.',
-        '2. Call 191 (Ambulance) immediately for emergency dispatch.',
+        '2. Call emergency dispatch for medical help.',
         '3. Place the person on their back on a firm, flat surface.',
         '4. Place hands interlaced in the center of the chest with straight arms.',
         '5. Push hard and fast: 100 to 120 compressions per minute, at least 2 inches deep.',
@@ -89,7 +89,7 @@ class OfflineFirstAidData {
       category: 'Fire',
       icon: 'local_fire_department',
       stepsMm: [
-        '၁။ လောင်ကျွမ်းနေသော အပူရင်းမြစ်မှ ချက်ချင်း ဖယ်ခွာပါ။',
+        '၁။ လောင်ကျွမ်းနေသော နေရာမှ ချက်ချင်း ဖယ်ခွာပါ။',
         '၂။ မီးလောင်ဒဏ်ရာကို ရိုးရိုးရေအေး (ရေခဲရေ မဟုတ်) ဖြင့် အနည်းဆုံး ၁၅ မိနစ်မှ မိနစ် ၂၀ ခန့် ဆက်တိုက် လောင်းပေးပါ။',
         '၃။ ဒဏ်ရာနေရာရှိ လက်ဝတ်ရတနာ၊ တင်းကျပ်သောအဝတ်အစားများကို ဖယ်ရှားပါ။',
         '၄။ သန့်ရှင်းသော ပိုးသတ်ပိတ်စ သို့မဟုတ် ပလတ်စတစ်အကြည်စဖြင့် ချောင်ချောင် ဖုံးအုပ်ထားပါ။',

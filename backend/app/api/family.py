@@ -18,8 +18,10 @@ from app.schemas.family import (
     AddFamilyMemberRequest,
     FamilyGroupResponse,
     FamilyMemberResponse,
+    FamilyInvitationResponse,
     FamilyAlertResponse,
 )
+from app.websocket.manager import manager
 
 router = APIRouter()
 
@@ -31,14 +33,17 @@ async def create_family_group(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new Family Group. The creator becomes the Group Admin."""
-    # Check if user already belongs to a family group
+    # Check if user already belongs to an active family group
     existing_mem = await db.execute(
-        select(FamilyMember).where(FamilyMember.account_id == current_user.id)
+        select(FamilyMember).where(
+            FamilyMember.account_id == current_user.id,
+            FamilyMember.status == "accepted",
+        )
     )
     if existing_mem.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You are already a member of a family group.",
+            detail="You are already an active member of a family group.",
         )
 
     # Create Group
@@ -54,8 +59,18 @@ async def create_family_group(
         family_id=group.id,
         account_id=current_user.id,
         relationship="Group Creator",
+        status="accepted",
     )
     db.add(creator_member)
+
+    # Sync profile family_id
+    prof_res = await db.execute(
+        select(UserProfile).where(UserProfile.account_id == current_user.id)
+    )
+    profile = prof_res.scalar_one_or_none()
+    if profile:
+        profile.family_id = str(group.id)
+
     await db.commit()
 
     return await _build_group_response(group.id, current_user.id, db)
@@ -66,9 +81,12 @@ async def get_my_family_group(
     current_user: Account = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Fetch current user's family group, members with relationship titles, and creator status."""
+    """Fetch current user's active family group, members with relationship titles, and creator status."""
     result = await db.execute(
-        select(FamilyMember).where(FamilyMember.account_id == current_user.id)
+        select(FamilyMember).where(
+            FamilyMember.account_id == current_user.id,
+            FamilyMember.status == "accepted",
+        )
     )
     member_record = result.scalar_one_or_none()
     if not member_record:
@@ -80,13 +98,161 @@ async def get_my_family_group(
     return await _build_group_response(member_record.family_id, current_user.id, db)
 
 
+@router.get("/my-invitations", response_model=list[FamilyInvitationResponse])
+async def get_my_family_invitations(
+    current_user: Account = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch all pending family invitations for the current user."""
+    invitations_res = await db.execute(
+        select(FamilyMember, FamilyGroup)
+        .join(FamilyGroup, FamilyMember.family_id == FamilyGroup.id)
+        .where(
+            FamilyMember.account_id == current_user.id,
+            FamilyMember.status == "pending",
+        )
+    )
+    rows = invitations_res.all()
+    if not rows:
+        return []
+
+    creator_ids = [group.creator_id for _, group in rows]
+    profiles_res = await db.execute(select(UserProfile).where(UserProfile.account_id.in_(creator_ids)))
+    profiles_map = {p.account_id: p for p in profiles_res.scalars().all()}
+    accounts_res = await db.execute(select(Account).where(Account.id.in_(creator_ids)))
+    accounts_map = {a.id: a for a in accounts_res.scalars().all()}
+
+    result = []
+    for member, group in rows:
+        prof = profiles_map.get(group.creator_id)
+        acc = accounts_map.get(group.creator_id)
+        creator_name = prof.full_name if prof else "Family Creator"
+        creator_email = acc.email if acc else ""
+
+        result.append(
+            FamilyInvitationResponse(
+                invitation_id=str(member.id),
+                family_id=str(group.id),
+                group_name=group.group_name,
+                creator_name=creator_name,
+                creator_email=creator_email,
+                relationship=member.relationship,
+                status=member.status,
+                created_at=member.added_at,
+            )
+        )
+    return result
+
+
+@router.post("/invitations/{invitation_id}/accept", response_model=FamilyGroupResponse)
+async def accept_family_invitation(
+    invitation_id: str,
+    current_user: Account = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Accept a pending family invitation."""
+    try:
+        inv_uuid = uuid_module.UUID(invitation_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid invitation ID format")
+
+    res = await db.execute(
+        select(FamilyMember).where(
+            FamilyMember.id == inv_uuid,
+            FamilyMember.account_id == current_user.id,
+        )
+    )
+    member = res.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="Family invitation not found")
+
+    if member.status == "accepted":
+        return await _build_group_response(member.family_id, current_user.id, db)
+
+    # Check if already accepted another group
+    other_accepted = await db.execute(
+        select(FamilyMember).where(
+            FamilyMember.account_id == current_user.id,
+            FamilyMember.status == "accepted",
+        )
+    )
+    if other_accepted.scalar_one_or_none():
+        raise HTTPException(
+            status_code=400,
+            detail="You are already an active member of another family group.",
+        )
+
+    member.status = "accepted"
+
+    # Sync user profile family_id
+    prof_res = await db.execute(
+        select(UserProfile).where(UserProfile.account_id == current_user.id)
+    )
+    profile = prof_res.scalar_one_or_none()
+    if profile:
+        profile.family_id = str(member.family_id)
+
+    await db.commit()
+
+    # Notify creator via WebSocket
+    group_res = await db.execute(select(FamilyGroup).where(FamilyGroup.id == member.family_id))
+    group = group_res.scalar_one_or_none()
+    if group:
+        await manager.send_personal(str(group.creator_id), {
+            "event": "FAMILY_INVITATION_ACCEPTED",
+            "family_id": str(group.id),
+            "member_id": str(current_user.id),
+        })
+
+    return await _build_group_response(member.family_id, current_user.id, db)
+
+
+@router.post("/invitations/{invitation_id}/deny")
+async def deny_family_invitation(
+    invitation_id: str,
+    current_user: Account = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Deny/decline a pending family invitation."""
+    try:
+        inv_uuid = uuid_module.UUID(invitation_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid invitation ID format")
+
+    res = await db.execute(
+        select(FamilyMember).where(
+            FamilyMember.id == inv_uuid,
+            FamilyMember.account_id == current_user.id,
+        )
+    )
+    member = res.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="Family invitation not found")
+
+    family_id = member.family_id
+    await db.delete(member)
+    await db.commit()
+
+    # Notify creator via WebSocket
+    group_res = await db.execute(select(FamilyGroup).where(FamilyGroup.id == family_id))
+    group = group_res.scalar_one_or_none()
+    if group:
+        await manager.send_personal(str(group.creator_id), {
+            "event": "FAMILY_INVITATION_DENIED",
+            "family_id": str(group.id),
+            "member_id": str(current_user.id),
+        })
+
+    return {"message": "Family invitation declined successfully."}
+
+
 @router.post("/add-member", response_model=FamilyGroupResponse)
 async def add_family_member(
     data: AddFamilyMemberRequest,
     current_user: Account = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Add a family member by registered email and relationship (Creator only)."""
+    """Invite a family member by registered email and relationship (Creator only)."""
     # Fetch current user's family group
     res = await db.execute(
         select(FamilyGroup).where(FamilyGroup.creator_id == current_user.id)
@@ -110,33 +276,51 @@ async def add_family_member(
             detail=f"No user account found with email '{data.email}'. Please ask them to register first.",
         )
 
-    # Check if target is already in a family group
+    # Check if target is already in a family group (accepted or already invited to this group)
     existing_mem = await db.execute(
-        select(FamilyMember).where(FamilyMember.account_id == target_acc.id)
+        select(FamilyMember).where(
+            FamilyMember.account_id == target_acc.id,
+            or_(FamilyMember.status == "accepted", FamilyMember.family_id == group.id),
+        )
     )
-    if existing_mem.scalar_one_or_none():
+    mem_obj = existing_mem.scalar_one_or_none()
+    if mem_obj:
+        if mem_obj.status == "pending" and mem_obj.family_id == group.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"An invitation has already been sent to '{data.email}'.",
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"User '{data.email}' is already a member of another family group.",
+            detail=f"User '{data.email}' is already a member of a family group.",
         )
 
-    # Add member
+    # Add member with pending invitation status
     new_member = FamilyMember(
         family_id=group.id,
         account_id=target_acc.id,
         relationship=data.relationship,
+        status="pending",
     )
     db.add(new_member)
-
-    # Also sync family_id string on user profile if available
-    prof_res = await db.execute(
-        select(UserProfile).where(UserProfile.account_id == target_acc.id)
-    )
-    profile = prof_res.scalar_one_or_none()
-    if profile:
-        profile.family_id = str(group.id)
-
     await db.commit()
+
+    # Real-time WebSocket notification to target user
+    try:
+        prof_res = await db.execute(select(UserProfile).where(UserProfile.account_id == current_user.id))
+        c_prof = prof_res.scalar_one_or_none()
+        c_name = c_prof.full_name if c_prof else "Family Creator"
+
+        await manager.send_personal(str(target_acc.id), {
+            "event": "FAMILY_INVITATION_RECEIVED",
+            "invitation_id": str(new_member.id),
+            "family_id": str(group.id),
+            "group_name": group.group_name,
+            "creator_name": c_name,
+            "relationship": data.relationship,
+        })
+    except Exception:
+        pass
 
     return await _build_group_response(group.id, current_user.id, db)
 
@@ -411,15 +595,20 @@ async def _build_group_response(
                 phone_number=phone,
                 relationship=m.relationship,
                 is_creator=m.account_id == group.creator_id,
+                status=getattr(m, "status", "accepted") or "accepted",
                 added_at=m.added_at,
             )
         )
+
+    accepted_members = [m for m in member_responses if m.status == "accepted"]
+    pending_members = [m for m in member_responses if m.status == "pending"]
 
     return FamilyGroupResponse(
         family_id=str(group.id),
         group_name=group.group_name,
         creator_id=str(group.creator_id),
         is_creator=current_user_id == group.creator_id,
-        members=member_responses,
+        members=accepted_members,
+        pending_members=pending_members,
         created_at=group.created_at,
     )

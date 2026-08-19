@@ -243,6 +243,23 @@ class ApiService {
         'new_password': newPassword,
       });
 
+  Future<Response> forgotPassword(String email) =>
+      dio.post('/auth/forgot-password', data: {'email': email});
+
+  Future<Response> verifyOtp(String email, String otp) =>
+      dio.post('/auth/verify-otp', data: {'email': email, 'otp': otp});
+
+  Future<Response> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) =>
+      dio.post('/auth/reset-password', data: {
+        'email': email,
+        'otp': otp,
+        'new_password': newPassword,
+      });
+
   Future<Response> getMe() => dio.get('/auth/me');
 
   // ── User ──────────────────────────────────────────────────────────────
@@ -315,6 +332,15 @@ class ApiService {
 
   Future<Response> addFamilyMember(String email, String relationship) =>
       dio.post('/family/add-member', data: {'email': email, 'relationship': relationship});
+
+  Future<Response> getMyFamilyInvitations() =>
+      dio.get('/family/my-invitations');
+
+  Future<Response> acceptFamilyInvitation(String invitationId) =>
+      dio.post('/family/invitations/$invitationId/accept');
+
+  Future<Response> denyFamilyInvitation(String invitationId) =>
+      dio.post('/family/invitations/$invitationId/deny');
 
   Future<Response> removeFamilyMember(String memberAccountId) =>
       dio.delete('/family/members/$memberAccountId');

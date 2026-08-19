@@ -8,6 +8,7 @@ from app.models.session import UserSession
 from app.models.blood_donation import BloodDonation
 from app.models.announcement import Announcement
 from app.models.support_info import SupportInfo
+from app.models.password_reset_otp import PasswordResetOTP
 
 __all__ = [
     "Account", "RoleEnum",
@@ -20,4 +21,5 @@ __all__ = [
     "BloodDonation",
     "Announcement",
     "SupportInfo",
+    "PasswordResetOTP",
 ]

@@ -424,4 +424,27 @@ async def update_blood_donation_status(
     await db.commit()
     await db.refresh(donation)
 
+    # Real-time WebSocket broadcast to relevant parties
+    if data.status == "Cancelled":
+        if donation.accepted_org_id:
+            await manager.send_personal(str(donation.accepted_org_id), {
+                "event": "BLOOD_REQUEST_CANCELLED",
+                "donation_id": str(donation.id),
+                "request_type": donation.request_type or "donate",
+                "status": "Cancelled",
+            })
+        if donation.target_org_id and donation.target_org_id != donation.accepted_org_id:
+            await manager.send_personal(str(donation.target_org_id), {
+                "event": "BLOOD_REQUEST_CANCELLED",
+                "donation_id": str(donation.id),
+                "request_type": donation.request_type or "donate",
+                "status": "Cancelled",
+            })
+        await manager.broadcast({
+            "event": "BLOOD_REQUEST_CANCELLED",
+            "donation_id": str(donation.id),
+            "request_type": donation.request_type or "donate",
+            "status": "Cancelled",
+        })
+
     return _to_response(donation)

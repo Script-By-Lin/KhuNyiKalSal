@@ -137,6 +137,8 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
     _fetchOrgProfile();
   }
 
+  bool get _isMm => ref.read(settingsProvider).locale.languageCode == 'my';
+
   void _snack(String msg, Color color) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -306,16 +308,16 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
             final idx = _emergencies.indexWhere((e) => e['emergency_id'] == emergencyId);
             if (idx != -1) _emergencies[idx]['status'] = 'accepted';
           });
-          _snack('✅ Case Accepted — Rescue Dispatched!', AppTheme.secondaryGreen);
+          _snack(_isMm ? '✅ အရေးပေါ် အမှုတွဲကို လက်ခံပြီး ကယ်ဆယ်ရေး စတင်ပါပြီ' : '✅ Case Accepted — Rescue Dispatched!', AppTheme.secondaryGreen);
         } else {
           setState(() {
             _emergencies.removeWhere((e) => e['emergency_id'] == emergencyId);
           });
-          _snack('Emergency Rejected / Dismissed', Colors.orange);
+          _snack(_isMm ? 'အရေးပေါ် ခေါ်ဆိုမှုကို ပယ်ဖျက်ပြီး အခြားသို့ လွှဲပြောင်းလိုက်ပါသည်' : 'Emergency Rejected / Dismissed', Colors.orange);
         }
       }
     } catch (_) {
-      _snack('Failed to update emergency status', Colors.red);
+      _snack(_isMm ? 'အရေးပေါ် အခြေအနေ ပြင်ဆင်ရန် မအောင်မြင်ပါ' : 'Failed to update emergency status', Colors.red);
     }
   }
 
@@ -327,10 +329,10 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
           _emergencies.removeWhere((e) => e['emergency_id'] == emergencyId);
         });
         _fetchHistory();
-        _snack('Mission Completed. Record archived.', AppTheme.secondaryGreen);
+        _snack(_isMm ? 'ကယ်ဆယ်ရေး တာဝန် အောင်မြင်စွာ ပြီးစီးပါပြီ' : 'Mission Completed. Record archived.', AppTheme.secondaryGreen);
       }
     } catch (e) {
-      _snack('Failed to complete emergency', Colors.red);
+      _snack(_isMm ? 'တာဝန်ပြီးစီးမှု သတ်မှတ်ရန် မအောင်မြင်ပါ' : 'Failed to complete emergency', Colors.red);
     }
   }
 
@@ -354,15 +356,15 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
           children: [
             const Icon(Icons.person_add_alt_1_rounded, color: AppTheme.primaryRed),
             const SizedBox(width: 10),
-            const Text('Assign First Responder', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(_isMm ? 'စေတနာ့ဝန်ထမ်း တာဝန်ပေးအပ်ခြင်း' : 'Assign First Responder', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
         content: SizedBox(
           width: double.maxFinite,
           child: _volunteers.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('No registered volunteers found for your organization.'),
+              ? Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(_isMm ? 'မှတ်ပုံတင်ထားသော စေတနာ့ဝန်ထမ်း မရှိသေးပါ' : 'No registered volunteers found for your organization.'),
                 )
               : ListView.separated(
                   shrinkWrap: true,
@@ -371,7 +373,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                   itemBuilder: (_, i) {
                     final v = _volunteers[i];
                     final vid = (v['account_id'] ?? v['id'] ?? '').toString();
-                    final vName = v['full_name'] ?? 'Volunteer';
+                    final vName = v['full_name'] ?? (_isMm ? 'စေတနာ့ဝန်ထမ်း' : 'Volunteer');
                     final vPhone = v['phone_number'] ?? '';
                     final isActive = v['is_active'] == true;
 
@@ -394,7 +396,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                           Navigator.pop(ctx);
                           try {
                             await ApiService().assignEmergencyToVolunteer(eid, vid);
-                            _snack('Assigned to $vName successfully!', AppTheme.secondaryGreen);
+                            _snack(_isMm ? '$vName အား အောင်မြင်စွာ တာဝန်ပေးအပ်ပြီးပါပြီ' : 'Assigned to $vName successfully!', AppTheme.secondaryGreen);
                             if (mounted) {
                               setState(() {
                                 final idx = _emergencies.indexWhere((em) => (em['emergency_id'] ?? em['id'])?.toString() == eid);
@@ -407,17 +409,17 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                             }
                             _fetchEmergencies(silent: true);
                           } catch (_) {
-                            _snack('Failed to assign volunteer', Colors.red);
+                            _snack(_isMm ? 'စေတနာ့ဝန်ထမ်း တာဝန်ပေးရန် မအောင်မြင်ပါ' : 'Failed to assign volunteer', Colors.red);
                           }
                         },
-                        child: const Text('ASSIGN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        child: Text(_isMm ? 'တာဝန်ပေး' : 'ASSIGN', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                       ),
                     );
                   },
                 ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_isMm ? 'မလုပ်တော့ပါ' : 'CANCEL')),
         ],
       ),
     );
@@ -438,18 +440,18 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
     final phone = _phoneCtrl.text.trim().replaceAll(' ', '').replaceAll('-', '');
 
     if (name.isEmpty) {
-      _snack('Organization name is required', Colors.red);
+      _snack(_isMm ? 'အဖွဲ့အစည်း အမည် ထည့်သွင်းရန် လိုအပ်ပါသည်' : 'Organization name is required', Colors.red);
       return;
     }
 
     if (phone.isNotEmpty && !RegExp(r'^(?:\+959|09)\d{7,10}$').hasMatch(phone)) {
-      _snack('Invalid phone format (must start with +959 or 09)', Colors.red);
+      _snack(_isMm ? 'ဖုန်းနံပါတ် မမှန်ကန်ပါ (+959 သို့မဟုတ် 09 ဖြင့် စတင်ပါ)' : 'Invalid phone format (must start with +959 or 09)', Colors.red);
       return;
     }
 
     final email = _emailCtrl.text.trim();
     if (email.isNotEmpty && (!email.contains('@') || !email.contains('.'))) {
-      _snack('Please enter a valid email address', Colors.red);
+      _snack(_isMm ? 'မှန်ကန်သော အီးမေးလ်လိပ်စာ ထည့်သွင်းပါ' : 'Please enter a valid email address', Colors.red);
       return;
     }
 
@@ -476,12 +478,12 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
 
     try {
       await ApiService().updateProfile(payload);
-      _snack('✅ Coverage & Profile updated! Radius: ${_coverageRadiusKm.toStringAsFixed(1)} KM is active for SOS routing.', AppTheme.secondaryGreen);
+      _snack(_isMm ? '✅ အဖွဲ့အစည်း အချက်အလက်နှင့် လွှမ်းခြုံဧရိယာ (${_coverageRadiusKm.toStringAsFixed(1)} KM) အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ' : '✅ Coverage & Profile updated! Radius: ${_coverageRadiusKm.toStringAsFixed(1)} KM is active for SOS routing.', AppTheme.secondaryGreen);
       setState(() => _savingProfile = false);
       _fetchOrgProfile();
     } catch (e) {
       setState(() => _savingProfile = false);
-      _snack('Failed to update organization profile', Colors.red);
+      _snack(_isMm ? 'အချက်အလက် သိမ်းဆည်းရန် မအောင်မြင်ပါ' : 'Failed to update organization profile', Colors.red);
     }
   }
 
@@ -832,6 +834,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
   Widget _buildSosRadarTab() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
 
     final pending = _emergencies.where((e) => e['status'] != 'accepted').toList();
     final active = _emergencies.where((e) => e['status'] == 'accepted').toList();
@@ -879,7 +882,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
             children: [
               Expanded(
                 child: _statBox(
-                  'PENDING',
+                  isMm ? 'စောင့်ဆိုင်းဆဲ' : 'PENDING',
                   '${pending.length}',
                   const Color(0xFFF59E0B),
                   isSelected: _sosSubTab == 0 && _selectedSosFilter == 'PENDING',
@@ -892,7 +895,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
               const SizedBox(width: 8),
               Expanded(
                 child: _statBox(
-                  'ACTIVE',
+                  isMm ? 'လက်ခံပြီး' : 'ACTIVE',
                   '${active.length}',
                   AppTheme.primaryRed,
                   isSelected: _sosSubTab == 0 && _selectedSosFilter == 'ACTIVE',
@@ -905,7 +908,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
               const SizedBox(width: 8),
               Expanded(
                 child: _statBox(
-                  'HISTORY',
+                  isMm ? 'မှတ်တမ်း' : 'HISTORY',
                   '${completed.length}',
                   const Color(0xFF06B6D4),
                   isSelected: _sosSubTab == 1,
@@ -940,7 +943,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        'Live Calls (${_emergencies.length})',
+                        isMm ? 'တိုက်ရိုက် ခေါ်ဆိုမှု (${_emergencies.length})' : 'Live Calls (${_emergencies.length})',
                         style: TextStyle(
                           color: _sosSubTab == 0 ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
                           fontWeight: FontWeight.bold,
@@ -960,7 +963,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        'Mission History (${_history.length})',
+                        isMm ? 'ကယ်ဆယ်ရေး မှတ်တမ်း (${_history.length})' : 'Mission History (${_history.length})',
                         style: TextStyle(
                           color: _sosSubTab == 1 ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
                           fontWeight: FontWeight.bold,
@@ -981,7 +984,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
           child: TextField(
             controller: _sosSearchCtrl,
             decoration: InputDecoration(
-              hintText: 'Search victim, phone number, type...',
+              hintText: isMm ? 'လူနာအမည်၊ ဖုန်းနံပါတ်၊ အမျိုးအစား ရှာရန်...' : 'Search victim, phone number, type...',
               prefixIcon: const Icon(Icons.search, size: 20),
               suffixIcon: _sosSearchQuery.isNotEmpty
                   ? IconButton(
@@ -1007,15 +1010,15 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(
             children: [
-              _typeChip('ALL', 'All Types', Icons.all_inclusive),
+              _typeChip('ALL', isMm ? 'အားလုံး' : 'All Types', Icons.all_inclusive),
               const SizedBox(width: 6),
-              _typeChip('FIRE', 'Fire', Icons.local_fire_department, const Color(0xFFFF6B35)),
+              _typeChip('FIRE', isMm ? 'မီးလောင်မှု' : 'Fire', Icons.local_fire_department, const Color(0xFFFF6B35)),
               const SizedBox(width: 6),
-              _typeChip('MEDICAL', 'Medical', Icons.medical_services, AppTheme.primaryRed),
+              _typeChip('MEDICAL', isMm ? 'ဆေးဘက်ဆိုင်ရာ' : 'Medical', Icons.medical_services, AppTheme.primaryRed),
               const SizedBox(width: 6),
-              _typeChip('ACCIDENT', 'Accident', Icons.car_crash, const Color(0xFFE65100)),
+              _typeChip('ACCIDENT', isMm ? 'ယာဉ်တိုက်မှု' : 'Accident', Icons.car_crash, const Color(0xFFE65100)),
               const SizedBox(width: 6),
-              _typeChip('NATURAL_DISASTER', 'Disaster', Icons.flood, const Color(0xFF00897B)),
+              _typeChip('NATURAL_DISASTER', isMm ? 'သဘာဝဘေး' : 'Disaster', Icons.flood, const Color(0xFF00897B)),
             ],
           ),
         ),
@@ -1036,7 +1039,9 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            _sosSubTab == 1 ? 'No mission history records' : 'No emergency calls in this view',
+                            _sosSubTab == 1
+                                ? (isMm ? 'ကယ်ဆယ်ရေး မှတ်တမ်း မရှိသေးပါ' : 'No mission history records')
+                                : (isMm ? 'လက်ရှိ အရေးပေါ် ခေါ်ဆိုမှု မရှိပါ' : 'No emergency calls in this view'),
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
@@ -1045,7 +1050,9 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Incoming alerts within your ${_coverageRadiusKm.toStringAsFixed(0)} KM radius will ping here in real time.',
+                            isMm
+                                ? 'မိမိတို့၏ ${_coverageRadiusKm.toStringAsFixed(0)} ကီလိုမီတာ ပတ်လည်မှ အရေးပေါ်ခေါ်ဆိုမှုများ ဤနေရာတွင် တိုက်ရိုက်ပေါ်လာပါမည်။'
+                                : 'Incoming alerts within your ${_coverageRadiusKm.toStringAsFixed(0)} KM radius will ping here in real time.',
                             style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.grey),
                           ),
                         ],
@@ -1090,6 +1097,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final cardBorder = isDark ? const Color(0xFF334155) : Colors.grey.shade300;
+    final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
 
     final info = e['user_info'] as Map<String, dynamic>? ?? {};
     final typeStr = (e['type'] ?? 'EMERGENCY').toString().toUpperCase();
@@ -1103,23 +1111,28 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
         (e['assigned_volunteer_name'] != null &&
             e['assigned_volunteer_name'].toString().isNotEmpty &&
             e['assigned_volunteer_name'].toString() != 'null');
-    final assignedVolunteerName = (e['assigned_volunteer_name'] ?? 'Volunteer').toString();
+    final assignedVolunteerName = (e['assigned_volunteer_name'] ?? (isMm ? 'စေတနာ့ဝန်ထမ်း' : 'Volunteer')).toString();
     final isAccepted = status == 'accepted' || hasAssignedVolunteer;
 
     Color accentColor = const Color(0xFF3B82F6);
     IconData icon = Icons.shield;
+    String typeLabel = typeStr;
     if (typeStr.contains('FIRE')) {
       accentColor = const Color(0xFFFF6B35);
       icon = Icons.local_fire_department;
+      typeLabel = isMm ? 'မီးလောင်မှု' : 'FIRE';
     } else if (typeStr.contains('MEDIC')) {
       accentColor = AppTheme.primaryRed;
       icon = Icons.medical_services;
+      typeLabel = isMm ? 'ဆေးဘက်ဆိုင်ရာ' : 'MEDICAL';
     } else if (typeStr.contains('ACCIDENT')) {
       accentColor = const Color(0xFFE65100);
       icon = Icons.car_crash_rounded;
+      typeLabel = isMm ? 'ယာဉ်တိုက်မှု' : 'ACCIDENT';
     } else if (typeStr.contains('DISASTER')) {
       accentColor = const Color(0xFF00897B);
       icon = Icons.flood_rounded;
+      typeLabel = isMm ? 'သဘာဝဘေး' : 'NATURAL DISASTER';
     }
 
     final lat = (e['location']?['lat'] ?? e['location_lat'] as num?)?.toDouble();
@@ -1168,7 +1181,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '$typeStr EMERGENCY',
+                        isMm ? '$typeLabel အရေးပေါ်' : '$typeLabel EMERGENCY',
                         style: TextStyle(
                           color: accentColor,
                           fontWeight: FontWeight.w900,
@@ -1194,8 +1207,10 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                   ),
                   child: Text(
                     isCompleted
-                        ? 'COMPLETED'
-                        : (hasAssignedVolunteer ? 'ACTIVE RESCUE' : (isAccepted ? 'DISPATCHED' : status.toUpperCase())),
+                        ? (isMm ? 'ပြီးစီး' : 'COMPLETED')
+                        : (hasAssignedVolunteer
+                            ? (isMm ? 'ကယ်ဆယ်ဆဲ' : 'ACTIVE RESCUE')
+                            : (isAccepted ? (isMm ? 'တာဝန်ပို့ပြီး' : 'DISPATCHED') : (isMm ? 'စောင့်ဆိုင်းဆဲ' : status.toUpperCase()))),
                     style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -1214,7 +1229,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                     const Icon(Icons.person, size: 16, color: Colors.grey),
                     const SizedBox(width: 6),
                     Text(
-                      info['full_name'] ?? 'Citizen Victim',
+                      info['full_name'] ?? (isMm ? 'အကူအညီတောင်းခံသူ' : 'Citizen Victim'),
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     const Spacer(),
@@ -1227,7 +1242,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                           border: Border.all(color: Colors.red.shade200),
                         ),
                         child: Text(
-                          'Blood: ${info['blood_type']}',
+                          isMm ? 'သွေး: ${info['blood_type']}' : 'Blood: ${info['blood_type']}',
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade800),
                         ),
                       ),
@@ -1251,7 +1266,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Condition: ${info['medical_conditions']}',
+                          isMm ? 'ရောဂါအခြေအနေ: ${info['medical_conditions']}' : 'Condition: ${info['medical_conditions']}',
                           style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.grey.shade700),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -1276,7 +1291,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                         const Icon(Icons.directions_run_rounded, size: 16, color: AppTheme.secondaryGreen),
                         const SizedBox(width: 6),
                         Text(
-                          'Responder: ',
+                          isMm ? 'တာဝန်ကျ ကယ်ဆယ်ရေး: ' : 'Responder: ',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -1317,7 +1332,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           padding: EdgeInsets.zero,
-                          tooltip: 'Call Victim ($phone)',
+                          tooltip: isMm ? 'ခေါ်ဆိုမည် ($phone)' : 'Call Victim ($phone)',
                           onPressed: () => _makeCall(phone),
                         ),
                       ),
@@ -1334,12 +1349,12 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           padding: EdgeInsets.zero,
-                          tooltip: 'View Target on Map',
+                          tooltip: isMm ? 'မြေပုံကြည့်မည်' : 'View Target on Map',
                           onPressed: () {
                             context.push('/mission-map', extra: {
                               'lat': lat,
                               'lng': lng,
-                              'title': '$typeStr Emergency: ${info['full_name'] ?? 'Victim'}',
+                              'title': isMm ? '$typeLabel အရေးပေါ်: ${info['full_name'] ?? 'လူနာ'}' : '$typeStr Emergency: ${info['full_name'] ?? 'Victim'}',
                               'returnRoute': '/org-dashboard',
                             });
                           },
@@ -1355,11 +1370,11 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                             height: 42,
                             child: ElevatedButton.icon(
                               icon: const Icon(Icons.check_circle_rounded, size: 18),
-                              label: const FittedBox(
+                              label: FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Text(
-                                  'COMPLETE MISSION',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                                  isMm ? 'တာဝန်ပြီးစီးသတ်မှတ်မည်' : 'COMPLETE MISSION',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                                 ),
                               ),
                               style: ElevatedButton.styleFrom(
@@ -1380,11 +1395,11 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                             height: 42,
                             child: OutlinedButton.icon(
                               icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
-                              label: const FittedBox(
+                              label: FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Text(
-                                  'ASSIGN VOLUNTEER',
-                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+                                  isMm ? 'တာဝန်ပေးမည်' : 'ASSIGN VOLUNTEER',
+                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
                                 ),
                               ),
                               style: OutlinedButton.styleFrom(
@@ -1402,11 +1417,11 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                           height: 42,
                           child: ElevatedButton.icon(
                             icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                            label: const FittedBox(
+                            label: FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                'COMPLETE',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                                isMm ? 'ပြီးစီး' : 'COMPLETE',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
                               ),
                             ),
                             style: ElevatedButton.styleFrom(
@@ -1429,7 +1444,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                               side: BorderSide(color: Colors.red.shade300),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            tooltip: 'Dismiss / Reroute Call',
+                            tooltip: isMm ? 'ပယ်ဖျက် / အခြားသို့လွှဲမည်' : 'Dismiss / Reroute Call',
                             onPressed: () => _respond(eid, 'reject'),
                           ),
                         ),
@@ -1443,14 +1458,14 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                             color: AppTheme.secondaryGreen.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.check_circle_rounded, size: 16, color: AppTheme.secondaryGreen),
-                              SizedBox(width: 6),
+                              const Icon(Icons.check_circle_rounded, size: 16, color: AppTheme.secondaryGreen),
+                              const SizedBox(width: 6),
                               Text(
-                                'MISSION COMPLETED',
-                                style: TextStyle(
+                                isMm ? 'တာဝန်ပြီးစီးကြောင်း မှတ်တမ်းတင်ပြီး' : 'MISSION COMPLETED',
+                                style: const TextStyle(
                                   color: AppTheme.secondaryGreen,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
@@ -1750,7 +1765,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                   Expanded(
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.done_all, size: 16, color: Colors.blue),
-                      label: const Text('MARK FULFILLED / COMPLETED', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.blue)),
+                      label: Text(_isMm ? 'ပြီးစီးကြောင်း သတ်မှတ်မည်' : 'MARK FULFILLED / COMPLETED', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.blue)),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.blue),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -1758,7 +1773,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                       onPressed: () async {
                         await ApiService().updateBloodDonationStatus(id, 'Completed');
                         _fetchBloodDonations(silent: true);
-                        _snack('Blood record marked as completed!', AppTheme.secondaryGreen);
+                        _snack(_isMm ? 'သွေးမှတ်တမ်း ပြီးစီးကြောင်း သတ်မှတ်ပြီးပါပြီ' : 'Blood record marked as completed!', AppTheme.secondaryGreen);
                       },
                     ),
                   ),
@@ -1787,7 +1802,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                isRequest ? 'Provide Blood Supply' : 'Confirm Blood Donation',
+                isRequest ? (_isMm ? 'သွေးထောက်ပံ့မှု ပေးအပ်မည်' : 'Provide Blood Supply') : (_isMm ? 'သွေးလှူဒါန်းမှု အတည်ပြုမည်' : 'Confirm Blood Donation'),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
@@ -1799,33 +1814,33 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
             children: [
               TextField(
                 controller: locCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Appointment Location / Counter',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: _isMm ? 'ရက်ချိန်း နေရာ / ဌာန' : 'Appointment Location / Counter',
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: dateCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Date & Time',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: _isMm ? 'ရက်စွဲနှင့် အချိန်' : 'Date & Time',
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: notesCtrl,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Instructions / Notes',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: _isMm ? 'ညွှန်ကြားချက် / မှတ်ချက်' : 'Instructions / Notes',
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_isMm ? 'မလုပ်တော့ပါ' : 'CANCEL')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryRed, foregroundColor: Colors.white),
             onPressed: () async {
@@ -1840,13 +1855,13 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                   });
                   if (ctx.mounted) Navigator.pop(ctx);
                   _fetchBloodDonations(silent: true);
-                  _snack('Appointment confirmed and sent to user!', AppTheme.secondaryGreen);
+                  _snack(_isMm ? 'ရက်ချိန်း အတည်ပြုပြီး အသုံးပြုသူထံ အကြောင်းကြားလိုက်ပါပြီ' : 'Appointment confirmed and sent to user!', AppTheme.secondaryGreen);
                 } catch (_) {
-                  _snack('Failed to schedule appointment', Colors.red);
+                  _snack(_isMm ? 'ရက်ချိန်း သတ်မှတ်ရန် မအောင်မြင်ပါ' : 'Failed to schedule appointment', Colors.red);
                 }
               }
             },
-            child: const Text('CONFIRM & NOTIFY'),
+            child: Text(_isMm ? 'အတည်ပြုပြီး အကြောင်းကြားမည်' : 'CONFIRM & NOTIFY'),
           ),
         ],
       ),
@@ -2035,28 +2050,28 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Add New Volunteer', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(_isMm ? 'စေတနာ့ဝန်ထမ်း အကောင့် အသစ်ဖွင့်မည်' : 'Add New Volunteer', style: const TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Full Name')),
+              TextField(controller: nameCtrl, decoration: InputDecoration(labelText: _isMm ? 'အမည် အပြည့်အစုံ' : 'Full Name')),
               const SizedBox(height: 10),
-              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email Address')),
+              TextField(controller: emailCtrl, decoration: InputDecoration(labelText: _isMm ? 'အီးမေးလ် လိပ်စာ' : 'Email Address')),
               const SizedBox(height: 10),
-              TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Password (min 6 chars)')),
+              TextField(controller: passCtrl, obscureText: true, decoration: InputDecoration(labelText: _isMm ? 'လျှို့ဝှက်နံပါတ် (အနည်းဆုံး ၆ လုံး)' : 'Password (min 6 chars)')),
               const SizedBox(height: 10),
-              TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Phone Number (+959...)')),
+              TextField(controller: phoneCtrl, decoration: InputDecoration(labelText: _isMm ? 'ဖုန်းနံပါတ် (+959...)' : 'Phone Number (+959...)')),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_isMm ? 'မလုပ်တော့ပါ' : 'CANCEL')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryRed, foregroundColor: Colors.white),
             onPressed: () async {
               if (emailCtrl.text.isEmpty || passCtrl.text.isEmpty || nameCtrl.text.isEmpty) {
-                _snack('Please fill in all required fields', Colors.red);
+                _snack(_isMm ? 'လိုအပ်သော အချက်အလက်များ အားလုံး ဖြည့်သွင်းပါ' : 'Please fill in all required fields', Colors.red);
                 return;
               }
               try {
@@ -2068,12 +2083,12 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                 });
                 if (ctx.mounted) Navigator.pop(ctx);
                 _fetchVolunteers();
-                _snack('Volunteer added to your team!', AppTheme.secondaryGreen);
+                _snack(_isMm ? 'စေတနာ့ဝန်ထမ်း အကောင့် အသစ် ထည့်သွင်းပြီးပါပြီ' : 'Volunteer added to your team!', AppTheme.secondaryGreen);
               } catch (_) {
-                _snack('Failed to create volunteer account', Colors.red);
+                _snack(_isMm ? 'စေတနာ့ဝန်ထမ်း အကောင့် ဖွင့်ရန် မအောင်မြင်ပါ' : 'Failed to create volunteer account', Colors.red);
               }
             },
-            child: const Text('CREATE'),
+            child: Text(_isMm ? 'အကောင့်ဖွင့်မည်' : 'CREATE'),
           ),
         ],
       ),
@@ -2095,6 +2110,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
     final textPrimary = isDark ? Colors.white : const Color(0xFF1E293B);
     final textSecondary = isDark ? Colors.white70 : Colors.grey.shade600;
 
+    final isMm = ref.watch(settingsProvider).locale.languageCode == 'my';
     final coverageAreaSqKm = math.pi * _coverageRadiusKm * _coverageRadiusKm;
 
     return SingleChildScrollView(
@@ -2130,13 +2146,15 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Live SOS Geolocation Coverage',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primaryRed),
+                      Text(
+                        isMm ? 'တိုက်ရိုက် SOS တည်နေရာ လွှမ်းခြုံမှု' : 'Live SOS Geolocation Coverage',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primaryRed),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'When citizens trigger SOS alerts within your coverage radius (${_coverageRadiusKm.toStringAsFixed(1)} KM), our geolocation dispatcher prioritizes and routes the emergency directly to your command console.',
+                        isMm
+                            ? 'မိမိတို့၏ လွှမ်းခြုံဧရိယာ (${_coverageRadiusKm.toStringAsFixed(1)} ကီလိုမီတာ) အတွင်း ပြည်သူများမှ အရေးပေါ် SOS ခေါ်ဆိုပါက စနစ်မှ တိုက်ရိုက် ဦးစားပေး ချိတ်ဆက်ပေးပါမည်။'
+                            : 'When citizens trigger SOS alerts within your coverage radius (${_coverageRadiusKm.toStringAsFixed(1)} KM), our geolocation dispatcher prioritizes and routes the emergency directly to your command console.',
                         style: TextStyle(fontSize: 12.5, color: textSecondary, height: 1.35),
                       ),
                     ],
@@ -2170,8 +2188,8 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Coverage Radius (KM)',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textPrimary),
+                      isMm ? 'ကူညီနိုင်သော အကွာအဝေး (ကီလိုမီတာ)' : 'Coverage Radius (KM)',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textPrimary),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -2181,14 +2199,16 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                       ),
                       child: Text(
                         '${_coverageRadiusKm.toStringAsFixed(1)} KM',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Total Protected Zone: ~${coverageAreaSqKm.toStringAsFixed(0)} sq km around headquarters',
+                  isMm
+                      ? 'စုစုပေါင်း ကာကွယ်မှုဇုန် - ရုံးချုပ်ပတ်လည် ~${coverageAreaSqKm.toStringAsFixed(0)} စတုရန်းကီလိုမီတာ'
+                      : 'Total Protected Zone: ~${coverageAreaSqKm.toStringAsFixed(0)} sq km around headquarters',
                   style: TextStyle(fontSize: 12, color: textSecondary),
                 ),
                 const SizedBox(height: 16),
@@ -2219,9 +2239,9 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('5 KM (Local Hub)', style: TextStyle(fontSize: 11, color: textSecondary)),
-                    Text('50 KM (City)', style: TextStyle(fontSize: 11, color: textSecondary)),
-                    Text('100 KM (Regional)', style: TextStyle(fontSize: 11, color: textSecondary)),
+                    Text(isMm ? '၅ ကီလိုမီတာ (ရပ်ကွက်)' : '5 KM (Local Hub)', style: TextStyle(fontSize: 11, color: textSecondary)),
+                    Text(isMm ? '၅၀ ကီလိုမီတာ (မြို့နယ်)' : '50 KM (City)', style: TextStyle(fontSize: 11, color: textSecondary)),
+                    Text(isMm ? '၁၀၀ ကီလိုမီတာ (တိုင်းဒေသ)' : '100 KM (Regional)', style: TextStyle(fontSize: 11, color: textSecondary)),
                   ],
                 ),
               ],
@@ -2242,12 +2262,12 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Base GPS Coordinates',
+                  isMm ? 'ရုံးချုပ် အခြေစိုက် GPS တည်နေရာ' : 'Base GPS Coordinates',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textPrimary),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Exact latitude and longitude of your dispatch station',
+                  isMm ? 'အရေးပေါ် ကွပ်ကဲရေးစခန်း၏ တိကျသော လတ္တီတွဒ်နှင့် လောင်ဂျီတွဒ်' : 'Exact latitude and longitude of your dispatch station',
                   style: TextStyle(fontSize: 12, color: textSecondary),
                 ),
                 const SizedBox(height: 14),
@@ -2259,7 +2279,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                         controller: _latCtrl,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         decoration: InputDecoration(
-                          labelText: 'Latitude',
+                          labelText: isMm ? 'လတ္တီတွဒ် (Latitude)' : 'Latitude',
                           prefixIcon: const Icon(Icons.my_location, size: 18),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         ),
@@ -2271,7 +2291,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                         controller: _lngCtrl,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         decoration: InputDecoration(
-                          labelText: 'Longitude',
+                          labelText: isMm ? 'လောင်ဂျီတွဒ် (Longitude)' : 'Longitude',
                           prefixIcon: const Icon(Icons.location_searching, size: 18),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         ),
@@ -2286,7 +2306,14 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                     Expanded(
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.gps_fixed, size: 16),
-                        label: const Text('Use Current GPS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            isMm ? 'လက်ရှိ GPS သုံးမည်' : 'Use Current GPS',
+                            maxLines: 1,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppTheme.primaryRed,
                           side: const BorderSide(color: AppTheme.primaryRed),
@@ -2299,9 +2326,9 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                               _latCtrl.text = pos.latitude.toStringAsFixed(6);
                               _lngCtrl.text = pos.longitude.toStringAsFixed(6);
                             });
-                            _snack('Updated with current GPS coordinates!', AppTheme.secondaryGreen);
+                            _snack(isMm ? 'လက်ရှိ GPS တည်နေရာ ထည့်သွင်းပြီးပါပြီ' : 'Updated with current GPS coordinates!', AppTheme.secondaryGreen);
                           } catch (_) {
-                            _snack('Failed to fetch GPS coordinates', Colors.red);
+                            _snack(isMm ? 'GPS ရယူရန် မအောင်မြင်ပါ' : 'Failed to fetch GPS coordinates', Colors.red);
                           }
                         },
                       ),
@@ -2310,7 +2337,14 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                     Expanded(
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.map_outlined, size: 16),
-                        label: const Text('Pick on Map', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            isMm ? 'မြေပုံပေါ်တွင် ရွေးမည်' : 'Pick on Map',
+                            maxLines: 1,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blueGrey,
                           foregroundColor: Colors.white,
@@ -2339,7 +2373,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Organization Profile',
+                  isMm ? 'အဖွဲ့အစည်း အချက်အလက်များ' : 'Organization Profile',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textPrimary),
                 ),
                 const SizedBox(height: 14),
@@ -2347,7 +2381,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                 TextField(
                   controller: _nameCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Organization Name',
+                    labelText: isMm ? 'အဖွဲ့အစည်း အမည်' : 'Organization Name',
                     prefixIcon: const Icon(Icons.business_outlined),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -2358,8 +2392,8 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    labelText: 'Official Email (Gmail)',
-                    helperText: 'Used for login and emergency broadcast records',
+                    labelText: isMm ? 'တရားဝင် အီးမေးလ် (Gmail)' : 'Official Email (Gmail)',
+                    helperText: isMm ? 'အကောင့်ဝင်ရန်နှင့် အရေးပေါ် မှတ်တမ်းများအတွက် သုံးသည်' : 'Used for login and emergency broadcast records',
                     prefixIcon: const Icon(Icons.email_outlined),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -2370,8 +2404,8 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                   controller: _phoneCtrl,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
-                    labelText: 'Hotline Phone Number',
-                    helperText: 'Must start with +959 or 09 (e.g. 09123456789)',
+                    labelText: isMm ? 'အရေးပေါ် ဖုန်းနံပါတ်' : 'Hotline Phone Number',
+                    helperText: isMm ? '+959 သို့မဟုတ် 09 ဖြင့် စတင်ရပါမည် (ဥပမာ 09123456789)' : 'Must start with +959 or 09 (e.g. 09123456789)',
                     prefixIcon: const Icon(Icons.phone_outlined),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -2381,14 +2415,14 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                 DropdownButtonFormField<String>(
                   initialValue: _selectedCategory,
                   decoration: InputDecoration(
-                    labelText: 'Organization Category',
+                    labelText: isMm ? 'အဖွဲ့အစည်း အမျိုးအစား' : 'Organization Category',
                     prefixIcon: const Icon(Icons.category_outlined),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'Medical', child: Text('Medical & Ambulance')),
-                    DropdownMenuItem(value: 'Fire', child: Text('Fire & Disaster Rescue')),
-                    DropdownMenuItem(value: 'Local Voluntary Org', child: Text('Local Voluntary Org')),
+                  items: [
+                    DropdownMenuItem(value: 'Medical', child: Text(isMm ? 'ဆေးဘက်ဆိုင်ရာနှင့် လူနာတင်ယာဉ်' : 'Medical & Ambulance')),
+                    DropdownMenuItem(value: 'Fire', child: Text(isMm ? 'မီးသတ်နှင့် သဘာဝဘေး ကယ်ဆယ်ရေး' : 'Fire & Disaster Rescue')),
+                    DropdownMenuItem(value: 'Local Voluntary Org', child: Text(isMm ? 'ဒေသခံ ပရဟိတ လူမှုကူညီရေးအသင်း' : 'Local Voluntary Org')),
                   ],
                   onChanged: (val) {
                     if (val != null) setState(() => _selectedCategory = val);
@@ -2399,7 +2433,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                 TextField(
                   controller: _addressCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Headquarters Address',
+                    labelText: isMm ? 'ရုံးချုပ် လိပ်စာ' : 'Headquarters Address',
                     prefixIcon: const Icon(Icons.location_city_outlined),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -2409,8 +2443,8 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                 TextField(
                   controller: _regionsCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Operating Regions / Townships',
-                    helperText: 'e.g. Kamaryut, Hledan, Sanchaung, Bahan, Yangon',
+                    labelText: isMm ? 'တာဝန်ထမ်းဆောင်သည့် မြို့နယ် / ဒေသများ' : 'Operating Regions / Townships',
+                    helperText: isMm ? 'ဥပမာ - ကမာရွတ်၊ လှည်းတန်း၊ စမ်းချောင်း၊ ဗဟန်း၊ ရန်ကုန်' : 'e.g. Kamaryut, Hledan, Sanchaung, Bahan, Yangon',
                     prefixIcon: const Icon(Icons.map_outlined),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -2420,7 +2454,7 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
                 TextField(
                   controller: _regNumCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Official Registration Number',
+                    labelText: isMm ? 'တရားဝင် မှတ်ပုံတင်အမှတ်' : 'Official Registration Number',
                     prefixIcon: const Icon(Icons.verified_outlined),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -2439,14 +2473,21 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
               icon: _savingProfile
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.save_rounded, color: Colors.white),
-              label: Text(
-                _savingProfile ? 'SAVING PROFILE & COVERAGE...' : 'SAVE ORGANIZATION PROFILE & COVERAGE',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  _savingProfile
+                      ? (isMm ? 'သိမ်းဆည်းနေပါသည်...' : 'SAVING...')
+                      : (isMm ? 'အချက်အလက် သိမ်းဆည်းမည်' : 'SAVE PROFILE & COVERAGE'),
+                  maxLines: 1,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryRed,
                 foregroundColor: Colors.white,
                 elevation: 3,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               onPressed: _savingProfile ? null : _saveOrganizationProfile,
@@ -2877,12 +2918,17 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
             height: 50,
             child: OutlinedButton.icon(
               icon: const Icon(Icons.logout, color: Colors.red),
-              label: Text(
-                isMm ? 'အဖွဲ့အစည်း အကောင့်မှ ထွက်မည်' : 'SIGN OUT OF ORGANIZATION CONSOLE',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13, letterSpacing: 0.5),
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  isMm ? 'အဖွဲ့အစည်း အကောင့်မှ ထွက်မည်' : 'SIGN OUT OF ORGANIZATION',
+                  maxLines: 1,
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13, letterSpacing: 0.5),
+                ),
               ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.red, width: 1.5),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               onPressed: () => _confirmOrgLogout(isMm),

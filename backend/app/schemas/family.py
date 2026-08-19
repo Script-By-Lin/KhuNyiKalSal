@@ -58,7 +58,19 @@ class FamilyMemberResponse(BaseModel):
     phone_number: str
     relationship: str
     is_creator: bool
+    status: str = "accepted"  # "pending", "accepted", "denied"
     added_at: datetime
+
+
+class FamilyInvitationResponse(BaseModel):
+    invitation_id: str
+    family_id: str
+    group_name: str
+    creator_name: str
+    creator_email: str
+    relationship: str
+    status: str = "pending"
+    created_at: datetime
 
 
 class FamilyGroupResponse(BaseModel):
@@ -67,6 +79,7 @@ class FamilyGroupResponse(BaseModel):
     creator_id: str
     is_creator: bool
     members: List[FamilyMemberResponse]
+    pending_members: Optional[List[FamilyMemberResponse]] = []
     created_at: datetime
 
 

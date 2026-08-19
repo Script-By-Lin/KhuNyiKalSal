@@ -142,17 +142,32 @@ async def create_tables(drop: bool = False):
             "ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS appointment_location VARCHAR(200);",
             "ALTER TABLE blood_donations ADD COLUMN IF NOT EXISTS appointment_notes TEXT;",
 
-            # 6. Ensure column types are standard VARCHAR(50) to prevent enum type mismatch
+            # 6. Family Member status (pending/accepted/denied)
+            "ALTER TABLE family_members ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'accepted';",
+            "CREATE INDEX IF NOT EXISTS ix_family_members_status ON family_members (status);",
+
+            # 7. Password Reset OTP Table
+            """CREATE TABLE IF NOT EXISTS password_reset_otps (
+                id UUID PRIMARY KEY,
+                email VARCHAR(255) NOT NULL,
+                otp_code VARCHAR(6) NOT NULL,
+                expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                is_used BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );""",
+            "CREATE INDEX IF NOT EXISTS ix_password_reset_otps_email ON password_reset_otps (email);",
+
+            # 8. Ensure column types are standard VARCHAR(50) to prevent enum type mismatch
             "ALTER TABLE emergencies ALTER COLUMN type TYPE VARCHAR(50) USING type::text;",
             "ALTER TABLE emergencies ALTER COLUMN status TYPE VARCHAR(50) USING status::text;",
             "ALTER TABLE accounts ALTER COLUMN role TYPE VARCHAR(50) USING role::text;",
 
-            # 7. Normalize case values
+            # 9. Normalize case values
             "UPDATE emergencies SET type = lower(type) WHERE type IS NOT NULL AND type != lower(type);",
             "UPDATE emergencies SET status = lower(status) WHERE status IS NOT NULL AND status != lower(status);",
             "UPDATE accounts SET role = upper(role) WHERE role IS NOT NULL AND role != upper(role);",
 
-            # 8. Performance Indexes
+            # 10. Performance Indexes
             "CREATE INDEX IF NOT EXISTS ix_blood_req_status ON blood_donations (request_type, status);",
             "CREATE INDEX IF NOT EXISTS ix_blood_accepted_org ON blood_donations (accepted_org_id);",
             "CREATE INDEX IF NOT EXISTS ix_blood_type ON blood_donations (blood_type);",

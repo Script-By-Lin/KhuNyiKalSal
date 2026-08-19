@@ -20,6 +20,15 @@ class Settings(BaseSettings):
     FCM_SERVER_KEY: Optional[str] = os.getenv("FCM_SERVER_KEY", None)
     FIREBASE_CREDENTIALS_JSON: Optional[str] = os.getenv("FIREBASE_CREDENTIALS_JSON", None)
 
+    # EmailJS Configuration
+    EMAILJS_SERVICE_ID: Optional[str] = os.getenv("EMAILJS_SERVICE_ID", "service_7eznh8w")
+    EMAILJS_TEMPLATE_ID: Optional[str] = os.getenv("EMAILJS_TEMPLATE_ID", "template_dfpnmo9")
+    EMAILJS_PUBLIC_KEY: Optional[str] = os.getenv("EMAILJS_PUBLIC_KEY", "GnGSWrvd1vwRf9sie")
+    EMAILJS_PRIVATE_KEY: Optional[str] = os.getenv("EMAILJS_PRIVATE_KEY", None)
+
+    # OTP Configuration
+    OTP_VALIDITY_SECONDS: int = int(os.getenv("OTP_VALIDITY_SECONDS", "30"))
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
     @property

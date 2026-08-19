@@ -123,10 +123,10 @@ class Emergency(Base):
         default=EmergencyStatus.PENDING, index=True
     )
     assigned_org_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("organizations.account_id"), nullable=True, index=True
+        PG_UUID(as_uuid=True), ForeignKey("organizations.account_id", ondelete="SET NULL"), nullable=True, index=True
     )
     assigned_volunteer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("volunteers.account_id"), nullable=True, index=True
+        PG_UUID(as_uuid=True), ForeignKey("volunteers.account_id", ondelete="SET NULL"), nullable=True, index=True
     )
     location_lat: Mapped[float] = mapped_column(Float, nullable=False, index=True)
     location_lng: Mapped[float] = mapped_column(Float, nullable=False, index=True)
