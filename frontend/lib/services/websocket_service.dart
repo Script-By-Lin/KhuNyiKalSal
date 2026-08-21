@@ -14,21 +14,24 @@ class WebSocketService {
   bool get isConnected => _channel != null;
 
   String? _currentUserId;
+  String? _currentToken;
   Timer? _reconnectTimer;
   Timer? _heartbeatTimer;
   int _reconnectAttempts = 0;
   bool _isDisposed = false;
 
-  void connect(String userId) {
+  void connect(String userId, {String? token}) {
     if (_isDisposed) return;
     _currentUserId = userId;
+    if (token != null) _currentToken = token;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
 
     disconnect();
 
     try {
-      final uri = Uri.parse('${AppConstants.wsBaseUrl}/$userId');
+      final tokenQuery = _currentToken != null ? '?token=${Uri.encodeComponent(_currentToken!)}' : '';
+      final uri = Uri.parse('${AppConstants.wsBaseUrl}/$userId$tokenQuery');
       _channel = WebSocketChannel.connect(uri);
       _reconnectAttempts = 0;
 
@@ -76,7 +79,7 @@ class WebSocketService {
 
     _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
       if (!_isDisposed && _currentUserId != null) {
-        connect(_currentUserId!);
+        connect(_currentUserId!, token: _currentToken);
       }
     });
   }

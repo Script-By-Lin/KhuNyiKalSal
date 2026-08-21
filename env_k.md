@@ -9,7 +9,7 @@ You can copy and paste the block below directly into Railway's **"Raw Editor"** 
 ```env
 DATABASE_URL=postgresql://postgres:bdVNJVoRQcWkycAohaOXBrfoFnWUNvMm@postgres.railway.internal:5432/railway
 REDIS_URL=redis://default:FjJkHWjFHbWJpeVGXNGttEMAZFXMkOwA@redis.railway.internal:6379
-SECRET_KEY=your-super-secret-key-change-me-in-production
+SECRET_KEY=d7d5bf1ae69e3985b71db6d141e39b9c07c155@!$@e7ce44307736b396708c41a457@
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 MAX_SOS_PER_DAY=5

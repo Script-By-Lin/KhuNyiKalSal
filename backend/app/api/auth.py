@@ -234,6 +234,9 @@ async def forgot_password_endpoint(
     }
 
 
+_otp_failed_attempts: dict[str, int] = {}
+
+
 @router.post("/verify-otp")
 async def verify_otp_endpoint(
     data: VerifyOTPRequest,
@@ -241,6 +244,7 @@ async def verify_otp_endpoint(
 ):
     """
     Verify that the provided 6-digit OTP is valid and not expired.
+    Includes brute-force prevention: invalidates OTP after 5 failed attempts.
     """
     target_email = data.email.lower().strip()
     now_utc = datetime.now(timezone.utc)
@@ -249,7 +253,6 @@ async def verify_otp_endpoint(
         select(PasswordResetOTP)
         .where(
             func.lower(PasswordResetOTP.email) == target_email,
-            PasswordResetOTP.otp_code == data.otp.strip(),
             PasswordResetOTP.is_used == False,
             PasswordResetOTP.expires_at >= now_utc,
         )
@@ -257,10 +260,30 @@ async def verify_otp_endpoint(
     )
     otp_record = res.scalar_one_or_none()
     if not otp_record:
+        _otp_failed_attempts.pop(target_email, None)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired verification code. Please request a new code.",
         )
+
+    if otp_record.otp_code != data.otp.strip():
+        fails = _otp_failed_attempts.get(target_email, 0) + 1
+        _otp_failed_attempts[target_email] = fails
+        if fails >= 5:
+            otp_record.is_used = True
+            await db.commit()
+            _otp_failed_attempts.pop(target_email, None)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many failed verification attempts. This verification code has been invalidated. Please request a new code.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid verification code. {5 - fails} attempts remaining.",
+        )
+
+    # Valid OTP
+    _otp_failed_attempts.pop(target_email, None)
 
     return {
         "message": "Verification code verified successfully.",

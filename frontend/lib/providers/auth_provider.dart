@@ -68,7 +68,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         role: role,
         email: data['email'],
       );
-      _ws.connect(data['id']);
+      _ws.connect(data['id'], token: token);
       return role;
     } catch (_) {
       // If access token failed, attempt refresh token
@@ -91,7 +91,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
             role: role,
             email: meData['email'],
           );
-          _ws.connect(meData['id']);
+          _ws.connect(meData['id'], token: rData['access_token']);
           return role;
         } catch (_) {}
       }
@@ -118,7 +118,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         role: data['role'],
         email: email,
       );
-      _ws.connect(data['user_id']);
+      _ws.connect(data['user_id'], token: data['access_token']);
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -145,7 +145,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         role: body['role'],
         email: data['email'],
       );
-      _ws.connect(body['user_id']);
+      _ws.connect(body['user_id'], token: body['access_token']);
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _extractError(e));
@@ -169,7 +169,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         role: body['role'],
         email: data['email'],
       );
-      _ws.connect(body['user_id']);
+      _ws.connect(body['user_id'], token: body['access_token']);
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _extractError(e));

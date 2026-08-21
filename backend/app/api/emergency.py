@@ -150,14 +150,41 @@ async def get_emergency(
     current_user: Account = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    try:
+        e_uuid = uuid_module.UUID(emergency_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid emergency ID format")
+
     result = await db.execute(
         select(Emergency).where(
-            Emergency.id == uuid_module.UUID(emergency_id)
+            Emergency.id == e_uuid
         )
     )
     emergency = result.scalar_one_or_none()
     if not emergency:
         raise HTTPException(status_code=404, detail="Emergency not found")
+
+    role_str = (current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)).lower()
+    is_owner = emergency.user_id == current_user.id
+    is_assigned_org = emergency.assigned_org_id == current_user.id
+    is_assigned_vol = emergency.assigned_volunteer_id == current_user.id
+    is_admin = role_str in ["admin", "superadmin"]
+
+    is_org_volunteer = False
+    if role_str == "volunteer" and emergency.assigned_org_id:
+        from app.models.volunteer import Volunteer
+        v_res = await db.execute(
+            select(Volunteer).where(
+                Volunteer.account_id == current_user.id,
+                Volunteer.org_id == emergency.assigned_org_id,
+            )
+        )
+        if v_res.scalar_one_or_none():
+            is_org_volunteer = True
+
+    if not (is_owner or is_assigned_org or is_assigned_vol or is_org_volunteer or is_admin):
+        raise HTTPException(status_code=403, detail="Access denied to this emergency record")
+
     return _to_response(emergency)
 
 
@@ -168,34 +195,32 @@ async def complete_emergency(
     db: AsyncSession = Depends(get_db),
 ):
     """Mark an emergency as completed, notify victim/responders via WebSocket, and purge real-time tracking cache."""
-    emergency = None
     try:
         e_uuid = uuid_module.UUID(emergency_id)
-        result = await db.execute(
-            select(Emergency).where(Emergency.id == e_uuid)
-        )
-        emergency = result.scalar_one_or_none()
-    except Exception:
-        pass
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid emergency ID format")
 
+    result = await db.execute(
+        select(Emergency).where(Emergency.id == e_uuid)
+    )
+    emergency = result.scalar_one_or_none()
     if not emergency:
-        # Fallback: get the most recent active emergency if matching ID fails
-        res2 = await db.execute(
-            select(Emergency).where(
-                Emergency.status.in_([EmergencyStatus.PENDING, EmergencyStatus.ACCEPTED])
-            ).order_by(Emergency.created_at.desc())
-        )
-        emergency = res2.scalars().first()
+        raise HTTPException(status_code=404, detail="Emergency not found")
 
-    if not emergency:
-        raise HTTPException(status_code=404, detail="No active emergency found to complete")
+    role_str = (current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)).lower()
+    is_owner = emergency.user_id == current_user.id
+    is_assigned_org = emergency.assigned_org_id == current_user.id
+    is_assigned_vol = emergency.assigned_volunteer_id == current_user.id
+    is_admin = role_str in ["admin", "superadmin"]
+
+    if not (is_owner or is_assigned_org or is_assigned_vol or is_admin):
+        raise HTTPException(status_code=403, detail="Not authorized to complete this emergency")
 
     emergency.status = EmergencyStatus.COMPLETED
     
-    role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    if role_str.upper() == "ORGANIZATION" and not emergency.assigned_org_id:
+    if role_str == "organization" and not emergency.assigned_org_id:
         emergency.assigned_org_id = current_user.id
-    elif role_str.upper() == "VOLUNTEER" and not emergency.assigned_volunteer_id:
+    elif role_str == "volunteer" and not emergency.assigned_volunteer_id:
         emergency.assigned_volunteer_id = current_user.id
 
     # Mark associated family alerts as resolved
@@ -233,33 +258,31 @@ async def cancel_emergency_by_id(
     db: AsyncSession = Depends(get_db),
 ):
     """Cancel a specific emergency call by user and purge real-time tracking cache."""
-    emergency = None
     try:
         e_uuid = uuid_module.UUID(emergency_id)
-        result = await db.execute(
-            select(Emergency).where(Emergency.id == e_uuid)
-        )
-        emergency = result.scalar_one_or_none()
-    except Exception:
-        pass
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid emergency ID format")
 
+    result = await db.execute(
+        select(Emergency).where(Emergency.id == e_uuid)
+    )
+    emergency = result.scalar_one_or_none()
     if not emergency:
-        res2 = await db.execute(
-            select(Emergency).where(
-                Emergency.user_id == current_user.id,
-                Emergency.status.in_([EmergencyStatus.PENDING, EmergencyStatus.ACCEPTED])
-            ).order_by(Emergency.created_at.desc())
-        )
-        emergency = res2.scalars().first()
+        raise HTTPException(status_code=404, detail="Emergency not found")
 
-    if not emergency:
-        raise HTTPException(status_code=404, detail="No active emergency found to cancel")
+    role_str = (current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)).lower()
+    is_owner = emergency.user_id == current_user.id
+    is_admin = role_str in ["admin", "superadmin"]
+    is_assigned_org = emergency.assigned_org_id == current_user.id
+    is_assigned_vol = emergency.assigned_volunteer_id == current_user.id
 
-    user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if not (is_owner or is_admin or is_assigned_org or is_assigned_vol):
+        raise HTTPException(status_code=403, detail="Not authorized to cancel this emergency")
+
     if (
         emergency.status == EmergencyStatus.ACCEPTED
-        and emergency.user_id == current_user.id
-        and user_role_str.lower() not in ["organization", "volunteer", "admin", "superadmin"]
+        and is_owner
+        and role_str not in ["organization", "volunteer", "admin", "superadmin"]
     ):
         raise HTTPException(
             status_code=400,
@@ -284,7 +307,7 @@ async def cancel_emergency_by_id(
     payload = {
         "event": "SOS_CANCELLED",
         "emergency_id": str(emergency.id),
-        "message": "Emergency call was cancelled yourselve.",
+        "message": "Emergency call was cancelled.",
     }
     await manager.send_personal(str(emergency.user_id), payload)
     if emergency.assigned_org_id:

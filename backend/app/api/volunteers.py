@@ -324,6 +324,11 @@ async def assign_volunteer_to_emergency(
             status_code=400, detail="Emergency is already completed or cancelled"
         )
 
+    if emergency.assigned_org_id and emergency.assigned_org_id != current_user.id:
+        raise HTTPException(
+            status_code=403, detail="Emergency is assigned to another organization"
+        )
+
     emergency.assigned_org_id = current_user.id
     emergency.assigned_volunteer_id = volunteer.account_id
     emergency.status = EmergencyStatus.ACCEPTED

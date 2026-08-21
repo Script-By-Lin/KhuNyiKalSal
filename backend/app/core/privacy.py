@@ -49,7 +49,8 @@ def encrypt_field(plaintext: Optional[str], salt: Optional[str] = None) -> Tuple
 def decrypt_field(ciphertext: Optional[str], salt: Optional[str]) -> Optional[str]:
     """
     Decrypt a text field using its associated salt.
-    Returns plaintext string. If input is invalid or unencrypted fallback to raw text.
+    Returns plaintext string. If input is legacy plaintext returns raw string;
+    if encrypted Fernet token fails decryption, returns None for security.
     """
     if not ciphertext or not salt:
         return ciphertext
@@ -59,7 +60,9 @@ def decrypt_field(ciphertext: Optional[str], salt: Optional[str]) -> Optional[st
         f = Fernet(fernet_key)
         return f.decrypt(ciphertext.encode("utf-8")).decode("utf-8")
     except Exception:
-        # Fallback if field is legacy plaintext
+        # If it is an encrypted Fernet payload that failed decryption, do not leak raw ciphertext
+        if isinstance(ciphertext, str) and ciphertext.startswith("gAAAAA"):
+            return None
         return ciphertext
 
 

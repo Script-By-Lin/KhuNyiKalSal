@@ -70,10 +70,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+from app.config import settings
+
+# ── CORS Middleware Configuration ──────────────────────────────────────────
+raw_origins = getattr(settings, "ALLOWED_ORIGINS", "*")
+if raw_origins == "*":
+    cors_origins = ["*"]
+    cors_credentials = False
+else:
+    cors_origins = [orig.strip() for orig in raw_origins.split(",") if orig.strip()]
+    cors_credentials = True
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=cors_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
