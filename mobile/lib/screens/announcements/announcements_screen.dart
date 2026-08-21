@@ -23,6 +23,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     'Urgent',
     'Weather/Disaster',
     'Blood Drive',
+    'Donation & Mission',
     'General',
   ];
 
@@ -109,7 +110,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      category.toUpperCase(),
+                      _getCategoryDisplayName(category, isMm).toUpperCase(),
                       style: TextStyle(
                         color: _getCategoryColor(category),
                         fontWeight: FontWeight.bold,
@@ -170,8 +171,34 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
         return Colors.blue.shade600;
       case 'blood drive':
         return Colors.redAccent;
+      case 'donation & mission':
+      case 'donation':
+      case 'our mission':
+        return Colors.purple.shade600;
       default:
         return Colors.teal;
+    }
+  }
+
+  String _getCategoryDisplayName(String cat, bool isMm) {
+    if (!isMm) return cat;
+    switch (cat.toLowerCase()) {
+      case 'all':
+        return 'အားလုံး';
+      case 'urgent':
+        return 'အရေးပေါ် သတိပေးချက်';
+      case 'weather/disaster':
+        return 'ရာသီဥတု / သဘာဝဘေး';
+      case 'blood drive':
+        return 'သွေးလှူဒါန်းပွဲ';
+      case 'donation & mission':
+      case 'donation':
+      case 'our mission':
+        return 'လှူဒါန်းမှုနှင့် ကယ်ဆယ်ရေး';
+      case 'general':
+        return 'အထွေထွေ သတင်း';
+      default:
+        return cat;
     }
   }
 
@@ -215,7 +242,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                 final isSelected = _selectedCategory == cat;
                 return ChoiceChip(
                   label: Text(
-                    cat == 'ALL' ? (isMm ? 'အားလုံး' : 'ALL') : cat,
+                    _getCategoryDisplayName(cat, isMm),
                     style: TextStyle(
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                       color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),

@@ -395,6 +395,13 @@ async def admin_suspend_user(
     if not account:
         raise HTTPException(status_code=404, detail="User account not found")
 
+    # Only citizen / user accounts can be suspended
+    if str(getattr(account.role, "value", account.role)).upper() != "USER":
+        raise HTTPException(
+            status_code=403,
+            detail="Administrators cannot suspend Organization or Volunteer accounts. Only Citizen accounts can be suspended."
+        )
+
     now_utc = datetime.now(timezone.utc)
     account.is_suspended = True
     account.suspended_until = now_utc + timedelta(days=data.duration_days)

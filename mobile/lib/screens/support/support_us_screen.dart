@@ -72,8 +72,7 @@ class _SupportUsScreenState extends ConsumerState<SupportUsScreen> {
     final bankName = _info?['bank_name'] ?? 'KBZ Bank';
     final bankAccNum = _info?['bank_account_number'] ?? '123-456-789012345';
     final bankAccName = _info?['bank_account_name'] ?? 'Khu Nyi Kal Sal Emergency Response';
-    final mmqrPayload = _info?['mmqr_payload'] as String?;
-    final mmqrImageUrl = _info?['mmqr_image_url'] as String?;
+    final mmqrImageUrl = (_info?['mmqr_image_url'] ?? _info?['mmqr_payload']) as String?;
     final noteMessage = _info?['note_message'] ?? 'All donations directly support emergency rescue operations, first aid kits, and blood drives.';
 
     return Scaffold(
@@ -278,28 +277,6 @@ class _SupportUsScreenState extends ConsumerState<SupportUsScreen> {
                             ],
                           ),
                         ),
-
-                        // Copy Payload / Instructions Row
-                        if (mmqrPayload != null && mmqrPayload.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                icon: const Icon(Icons.copy_rounded, size: 16, color: Colors.purpleAccent),
-                                label: Text(
-                                  isMm ? 'MMQR Payload စာသား ကူးယူမည်' : 'Copy MMQR Payload Data',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.purpleAccent),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: isDark ? Colors.purple.shade400 : Colors.purple.shade300),
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                onPressed: () => _copyToClipboard(mmqrPayload, 'MMQR Payload', isMm),
-                              ),
-                            ),
-                          ),
 
                         Container(
                           width: double.infinity,

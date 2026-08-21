@@ -220,7 +220,7 @@ export default function UsersPage() {
                                   : t("Deactivate", "ပယ်ဖျက်မည်")}
                               </span>
                             </button>
-                          ) : (
+                          ) : (u.role || "").toUpperCase() === "USER" ? (
                             <button
                               onClick={() => {
                                 setSelectedUser(u);
@@ -231,6 +231,10 @@ export default function UsersPage() {
                               <Ban className="w-3.5 h-3.5" />
                               <span>{t("Suspend", "ပိတ်ပင်မည်")}</span>
                             </button>
+                          ) : (
+                            <span className="text-[var(--text-subtle)] text-[11px] font-medium italic">
+                              {t("Protected Role", "ကာကွယ်ထားသော အကောင့်")}
+                            </span>
                           )}
                         </td>
                       </tr>

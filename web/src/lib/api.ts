@@ -37,7 +37,6 @@ class ApiClient {
       const res = await fetch(url, {
         ...options,
         headers,
-        keepalive: true,
       });
 
       if (res.status === 401) {
@@ -50,12 +49,23 @@ class ApiClient {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ detail: res.statusText }));
-        const message =
-          typeof errorData.detail === "string"
-            ? errorData.detail
-            : typeof errorData.detail === "object"
-            ? errorData.detail.message || JSON.stringify(errorData.detail)
-            : "An unexpected error occurred.";
+        let message = "An unexpected error occurred.";
+        if (typeof errorData.detail === "string") {
+          message = errorData.detail;
+        } else if (Array.isArray(errorData.detail)) {
+          message = errorData.detail
+            .map((e: any) => {
+              const field = Array.isArray(e.loc) ? e.loc[e.loc.length - 1] : "";
+              const msg = (e.msg || "").replace(/^Value error,\s*/i, "");
+              return field && field !== "body"
+                ? `${field.charAt(0).toUpperCase() + field.slice(1)}: ${msg}`
+                : msg;
+            })
+            .filter(Boolean)
+            .join(" | ");
+        } else if (typeof errorData.detail === "object" && errorData.detail !== null) {
+          message = errorData.detail.message || JSON.stringify(errorData.detail);
+        }
         throw new Error(message);
       }
 
