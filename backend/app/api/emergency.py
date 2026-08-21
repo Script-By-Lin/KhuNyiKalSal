@@ -35,7 +35,7 @@ async def create_sos(
     background processing (nearest-org search → volunteer alerting → rerouting).
     Locks the user to the current device session and deactivates other sessions.
     """
-    await check_sos_limit(current_user.id, db)
+    await check_sos_limit(current_user.id, db, account=current_user)
 
     normalized_type = data.type.lower().strip().replace(" ", "_")
     if normalized_type == "disaster":
@@ -141,7 +141,16 @@ async def cancel_active_emergencies(
         .values(status=EmergencyStatus.CANCELLED)
     )
     await db.commit()
-    return {"message": "Active emergencies cancelled and real-time tracking cache purged"}
+
+    suspension_info = None
+    if active_list:
+        from app.core.abuse import evaluate_cancellation_abuse
+        suspension_info = await evaluate_cancellation_abuse(current_user, db)
+
+    return {
+        "message": "Active emergencies cancelled and real-time tracking cache purged",
+        "suspension": suspension_info,
+    }
 
 
 @router.get("/{emergency_id}", response_model=EmergencyResponse)
@@ -300,6 +309,12 @@ async def cancel_emergency_by_id(
     
     await db.commit()
 
+    # Evaluate cancellation abuse (5 cancellations in 24h -> 1d / 10d / 100yr suspension)
+    suspension_info = None
+    if is_owner:
+        from app.core.abuse import evaluate_cancellation_abuse
+        suspension_info = await evaluate_cancellation_abuse(current_user, db)
+
     # Instantly purge real-time tracking cache
     location_cache.purge_realtime_tracking(str(emergency.id))
     location_cache.purge_user_tracking(str(emergency.user_id))
@@ -308,12 +323,22 @@ async def cancel_emergency_by_id(
         "event": "SOS_CANCELLED",
         "emergency_id": str(emergency.id),
         "message": "Emergency call was cancelled.",
+        "suspension": suspension_info,
     }
     await manager.send_personal(str(emergency.user_id), payload)
     if emergency.assigned_org_id:
         await manager.send_personal(str(emergency.assigned_org_id), payload)
 
-    return {"message": "Emergency call cancelled successfully and tracking cache purged"}
+    msg = "Emergency call cancelled successfully and tracking cache purged"
+    if suspension_info and suspension_info.get("is_suspended"):
+        tier = suspension_info.get("suspension_tier", 1)
+        tier_str = "1 Day" if tier == 1 else ("10 Days" if tier == 2 else "100 Years Ban")
+        msg = f"Emergency cancelled. Notice: Your account has been suspended ({tier_str}) due to 5 cancellations in 24 hours."
+
+    return {
+        "message": msg,
+        "suspension": suspension_info,
+    }
 
 
 def _to_response(e: Emergency) -> EmergencyResponse:

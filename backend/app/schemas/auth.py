@@ -115,6 +115,11 @@ class AccountResponse(BaseModel):
     email: str
     role: str
     is_active: bool
+    is_suspended: bool = False
+    suspended_until: Optional[datetime] = None
+    remaining_suspension_seconds: int = 0
+    suspension_count: int = 0
+    suspension_reason: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

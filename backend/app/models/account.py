@@ -3,7 +3,7 @@ import enum
 from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import String, Boolean, DateTime, TypeDecorator
+from sqlalchemy import String, Boolean, DateTime, Integer, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
@@ -82,6 +82,12 @@ class Account(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
+    # Progressive 3-Tier Escalating Suspension Tracking
+    is_suspended: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    suspended_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    suspension_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    suspension_reason: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
     # One-to-one relationships to role-specific profiles
     user_profile: Mapped[Optional["UserProfile"]] = relationship(
         back_populates="account", uselist=False, lazy="selectin", cascade="all, delete-orphan", passive_deletes=True
@@ -95,3 +101,31 @@ class Account(Base):
     sessions: Mapped[list["UserSession"]] = relationship(
         back_populates="account", lazy="selectin", cascade="all, delete-orphan", passive_deletes=True
     )
+
+    @property
+    def is_currently_suspended(self) -> bool:
+        """Returns True if the account is currently within an active suspension window."""
+        if not self.suspended_until:
+            return bool(self.is_suspended)
+        now_utc = datetime.now(timezone.utc)
+        target = self.suspended_until
+        if target.tzinfo is None:
+            target = target.replace(tzinfo=timezone.utc)
+        return now_utc < target
+
+    @property
+    def remaining_suspension_seconds(self) -> int:
+        """Returns the number of remaining seconds until suspension expires (for countdown timer)."""
+        if not self.is_currently_suspended or not self.suspended_until:
+            return 0
+        now_utc = datetime.now(timezone.utc)
+        target = self.suspended_until
+        if target.tzinfo is None:
+            target = target.replace(tzinfo=timezone.utc)
+        diff = (target - now_utc).total_seconds()
+        return max(0, int(diff))
+
+    @property
+    def suspension_tier(self) -> int:
+        """Returns suspension tier level (1: 1 day, 2: 10 days, 3: 100 years)."""
+        return min(3, max(1, self.suspension_count)) if self.suspension_count else 1

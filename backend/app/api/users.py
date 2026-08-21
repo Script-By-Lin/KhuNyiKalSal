@@ -58,6 +58,11 @@ async def get_profile(
             coverage_radius_km=org.coverage_radius_km,
             location_lat=org.geo_lat,
             location_lng=org.geo_lng,
+            is_suspended=current_user.is_currently_suspended,
+            suspended_until=current_user.suspended_until.isoformat() if current_user.suspended_until else None,
+            remaining_suspension_seconds=current_user.remaining_suspension_seconds,
+            suspension_count=current_user.suspension_count or 0,
+            suspension_reason=current_user.suspension_reason,
         )
 
     elif role_upper == "VOLUNTEER":
@@ -85,6 +90,11 @@ async def get_profile(
             is_active=vol.is_active,
             location_lat=vol.current_lat,
             location_lng=vol.current_lng,
+            is_suspended=current_user.is_currently_suspended,
+            suspended_until=current_user.suspended_until.isoformat() if current_user.suspended_until else None,
+            remaining_suspension_seconds=current_user.remaining_suspension_seconds,
+            suspension_count=current_user.suspension_count or 0,
+            suspension_reason=current_user.suspension_reason,
         )
 
     elif role_upper in ["ADMIN", "SUPERADMIN"]:
@@ -94,6 +104,11 @@ async def get_profile(
             email=current_user.email,
             full_name="System Administrator",
             phone_number="",
+            is_suspended=current_user.is_currently_suspended,
+            suspended_until=current_user.suspended_until.isoformat() if current_user.suspended_until else None,
+            remaining_suspension_seconds=current_user.remaining_suspension_seconds,
+            suspension_count=current_user.suspension_count or 0,
+            suspension_reason=current_user.suspension_reason,
         )
 
     # Standard Citizen / User Profile
@@ -122,6 +137,11 @@ async def get_profile(
         emergency_contacts=profile.emergency_contacts,
         location_lat=decrypted_lat,
         location_lng=decrypted_lng,
+        is_suspended=current_user.is_currently_suspended,
+        suspended_until=current_user.suspended_until.isoformat() if current_user.suspended_until else None,
+        remaining_suspension_seconds=current_user.remaining_suspension_seconds,
+        suspension_count=current_user.suspension_count or 0,
+        suspension_reason=current_user.suspension_reason,
     )
 
 

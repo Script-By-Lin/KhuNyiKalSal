@@ -75,7 +75,12 @@ class BloodDonation(Base):
 
     def get_decrypted_phone(self) -> str:
         """Return decrypted donor phone number using stored salt."""
-        return decrypt_field(self.donor_phone, self.donor_phone_salt) or self.donor_phone
+        dec = decrypt_field(self.donor_phone, self.donor_phone_salt)
+        if dec:
+            return dec
+        if self.donor_phone and not self.donor_phone.startswith("gAAAAA"):
+            return self.donor_phone
+        return ""
 
     def set_salted_phone(self, raw_phone: str):
         """Encrypt and set donor phone with a cryptographic salt."""

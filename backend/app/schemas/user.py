@@ -25,6 +25,12 @@ class UserProfileResponse(BaseModel):
     nrc_number: Optional[str] = None
     assigned_region: Optional[str] = None
     is_active: Optional[bool] = None
+    # Suspension & penalty state
+    is_suspended: bool = False
+    suspended_until: Optional[str] = None
+    remaining_suspension_seconds: int = 0
+    suspension_count: int = 0
+    suspension_reason: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

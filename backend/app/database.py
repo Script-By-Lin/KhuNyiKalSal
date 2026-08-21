@@ -162,6 +162,13 @@ async def create_tables(drop: bool = False):
             "ALTER TABLE emergencies ALTER COLUMN status TYPE VARCHAR(50) USING status::text;",
             "ALTER TABLE accounts ALTER COLUMN role TYPE VARCHAR(50) USING role::text;",
 
+            # 8.1 Progressive 3-Tier Suspension Tracking on accounts
+            "ALTER TABLE accounts ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT FALSE;",
+            "ALTER TABLE accounts ADD COLUMN IF NOT EXISTS suspended_until TIMESTAMP WITH TIME ZONE;",
+            "ALTER TABLE accounts ADD COLUMN IF NOT EXISTS suspension_count INTEGER DEFAULT 0;",
+            "ALTER TABLE accounts ADD COLUMN IF NOT EXISTS suspension_reason VARCHAR(500);",
+            "CREATE INDEX IF NOT EXISTS ix_accounts_suspended ON accounts (is_suspended, suspended_until);",
+
             # 9. Normalize case values
             "UPDATE emergencies SET type = lower(type) WHERE type IS NOT NULL AND type != lower(type);",
             "UPDATE emergencies SET status = lower(status) WHERE status IS NOT NULL AND status != lower(status);",

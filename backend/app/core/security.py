@@ -105,7 +105,20 @@ async def get_current_user_and_session(
             detail="User account not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if not user.is_active:
+    # Auto-reactivate user if suspension period has elapsed
+    if user.suspended_until:
+        now_utc = datetime.now(timezone.utc)
+        target = user.suspended_until
+        if target.tzinfo is None:
+            target = target.replace(tzinfo=timezone.utc)
+        if now_utc >= target:
+            user.is_suspended = False
+            user.suspended_until = None
+            user.suspension_reason = None
+            user.is_active = True
+            await db.commit()
+
+    if not user.is_active and not user.is_currently_suspended:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated"
         )

@@ -47,7 +47,12 @@ class Organization(Base):
 
     def get_decrypted_phone(self) -> str:
         """Return decrypted phone number using stored salt."""
-        return decrypt_field(self.phone_number, self.phone_salt) or self.phone_number
+        dec = decrypt_field(self.phone_number, self.phone_salt)
+        if dec:
+            return dec
+        if self.phone_number and not self.phone_number.startswith("gAAAAA"):
+            return self.phone_number
+        return ""
 
     def set_salted_phone(self, raw_phone: str):
         """Encrypt and set phone number with a cryptographic salt."""

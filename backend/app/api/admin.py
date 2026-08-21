@@ -105,7 +105,9 @@ async def list_organizations(
         try:
             phone = org.get_decrypted_phone()
         except Exception:
-            phone = org.phone_number or ""
+            phone = ""
+        if phone and (str(phone).startswith("gAAAAA") or len(str(phone)) > 25):
+            phone = ""
 
         items.append({
             "account_id": str(org.account_id),
@@ -281,18 +283,25 @@ async def delete_organization(
         raise HTTPException(status_code=500, detail=f"Failed to delete organization: {str(e)}")
 
 
+class AdminSuspendUserRequest(BaseModel):
+    duration_days: int = 1
+    reason: Optional[str] = "Administrative suspension."
+
+
 @router.get("/users")
 async def list_users(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     search: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None),  # 'active', 'suspended', 'banned', 'all'
     current_user: Account = Depends(require_role("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Admin endpoint to list system users with pagination and search."""
+    """Admin endpoint to list system users with pagination, search, and suspension status filtering."""
+    now_utc = datetime.now(timezone.utc)
     query = select(Account).options(joinedload(Account.user_profile))
 
-    if search and search.strip():
+    if isinstance(search, str) and search.strip():
         term = f"%{search.strip().lower()}%"
         query = query.join(UserProfile, Account.id == UserProfile.account_id, isouter=True).where(
             or_(
@@ -301,24 +310,163 @@ async def list_users(
             )
         )
 
-    query = query.order_by(Account.created_at.desc()).offset(skip).limit(limit)
+    if isinstance(status_filter, str) and status_filter.strip():
+        s_filter = status_filter.strip().lower()
+        if s_filter == "suspended":
+            query = query.where(
+                Account.is_suspended == True,  # noqa: E712
+                Account.suspended_until > now_utc,
+                Account.suspension_count < 3,
+            )
+        elif s_filter == "banned":
+            query = query.where(
+                Account.is_suspended == True,  # noqa: E712
+                Account.suspended_until > now_utc,
+                Account.suspension_count >= 3,
+            )
+        elif s_filter == "active":
+            query = query.where(
+                Account.is_active == True,  # noqa: E712
+                or_(Account.suspended_until.is_(None), Account.suspended_until <= now_utc),
+            )
+
+    skip_val = skip if isinstance(skip, int) else 0
+    limit_val = limit if isinstance(limit, int) else 50
+    query = query.order_by(Account.created_at.desc()).offset(skip_val).limit(limit_val)
     result = await db.execute(query)
     accounts = result.scalars().all()
 
     items = []
     for acc in accounts:
         prof = acc.user_profile
+        is_susp = acc.is_currently_suspended
+        tier = acc.suspension_tier
+        
+        if is_susp and (acc.suspension_count or 0) >= 3:
+            status_label = "Banned (100 Years)"
+        elif is_susp and acc.suspension_count == 2:
+            status_label = "Suspended (10 Days)"
+        elif is_susp and acc.suspension_count == 1:
+            status_label = "Suspended (1 Day)"
+        elif not acc.is_active:
+            status_label = "Deactivated"
+        else:
+            status_label = "Active"
+
+        raw_phone = prof.get_decrypted_phone() if (prof and hasattr(prof, "get_decrypted_phone")) else (prof.phone_number if prof else "")
+        if raw_phone and str(raw_phone).startswith("gAAAAA"):
+            raw_phone = ""
+
         items.append({
             "account_id": str(acc.id),
             "email": acc.email,
             "role": acc.role.value if hasattr(acc.role, "value") else str(acc.role),
             "full_name": prof.full_name if prof else "User",
-            "phone_number": prof.phone_number if prof else "",
+            "phone_number": raw_phone or "",
             "blood_type": prof.blood_type if prof else None,
             "is_active": acc.is_active,
+            "is_suspended": is_susp,
+            "suspended_until": acc.suspended_until,
+            "remaining_suspension_seconds": acc.remaining_suspension_seconds,
+            "suspension_count": acc.suspension_count or 0,
+            "suspension_tier": tier,
+            "suspension_reason": acc.suspension_reason,
+            "status_label": status_label,
             "created_at": acc.created_at,
         })
     return items
+
+
+@router.post("/users/{user_id}/unsuspend")
+async def admin_unsuspend_user(
+    user_id: str,
+    current_user: Account = Depends(require_role("admin", "superadmin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin endpoint to lift/deactivate user suspension and restore full access."""
+    try:
+        u_uuid = uuid_module.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+
+    res = await db.execute(select(Account).where(Account.id == u_uuid))
+    account = res.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="User account not found")
+
+    account.is_suspended = False
+    account.suspended_until = None
+    account.suspension_reason = None
+    account.is_active = True
+
+    await db.commit()
+    await db.refresh(account)
+
+    # Broadcast real-time unsuspend notification to the user
+    try:
+        payload = {
+            "event": "ACCOUNT_UNSUSPENDED",
+            "is_suspended": False,
+            "message": "Your account suspension has been lifted by an administrator.",
+        }
+        await manager.send_personal(str(account.id), payload)
+    except Exception:
+        pass
+
+    return {
+        "message": f"Suspension successfully deactivated for {account.email}",
+        "account_id": str(account.id),
+        "is_suspended": False,
+        "is_active": True,
+    }
+
+
+@router.post("/users/{user_id}/suspend")
+async def admin_suspend_user(
+    user_id: str,
+    data: AdminSuspendUserRequest,
+    current_user: Account = Depends(require_role("admin", "superadmin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin endpoint to manually suspend a user for a specified duration."""
+    try:
+        u_uuid = uuid_module.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+
+    res = await db.execute(select(Account).where(Account.id == u_uuid))
+    account = res.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="User account not found")
+
+    now_utc = datetime.now(timezone.utc)
+    account.is_suspended = True
+    account.suspended_until = now_utc + timedelta(days=data.duration_days)
+    account.suspension_reason = data.reason
+    account.suspension_count = (account.suspension_count or 0) + 1
+
+    await db.commit()
+    await db.refresh(account)
+
+    try:
+        payload = {
+            "event": "ACCOUNT_SUSPENDED",
+            "is_suspended": True,
+            "suspended_until": account.suspended_until.isoformat(),
+            "remaining_seconds": account.remaining_suspension_seconds,
+            "suspension_tier": account.suspension_tier,
+            "suspension_reason": data.reason,
+        }
+        await manager.send_personal(str(account.id), payload)
+    except Exception:
+        pass
+
+    return {
+        "message": f"User {account.email} suspended for {data.duration_days} days.",
+        "account_id": str(account.id),
+        "suspended_until": account.suspended_until,
+        "is_suspended": True,
+    }
 
 
 @router.get("/emergencies")

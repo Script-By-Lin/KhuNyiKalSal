@@ -18,8 +18,16 @@ def generate_salt() -> str:
     return secrets.token_hex(16)
 
 
-def _derive_fernet_key(salt_hex: str) -> bytes:
-    """Derive a 32-byte URL-safe base64-encoded Fernet key using master SECRET_KEY and salt."""
+LEGACY_SECRET_KEYS = [
+    "your-super-secret-key-change-me-in-production",
+    "d7d5bf1ae69e3985b71db6d141e39b9c07c155@!$@e7ce44307736b396708c41a457@",
+    "your_super_secret_key",
+    "khunyikalsal-super-secret-key",
+]
+
+
+def _derive_fernet_key(salt_hex: str, master_key: Optional[str] = None) -> bytes:
+    """Derive a 32-byte URL-safe base64-encoded Fernet key using master SECRET_KEY (or provided key) and salt."""
     salt_bytes = bytes.fromhex(salt_hex)
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
@@ -27,7 +35,8 @@ def _derive_fernet_key(salt_hex: str) -> bytes:
         salt=salt_bytes,
         iterations=100000,
     )
-    key = kdf.derive(settings.SECRET_KEY.encode())
+    key_src = master_key or settings.SECRET_KEY
+    key = kdf.derive(key_src.encode())
     return base64.urlsafe_b64encode(key)
 
 
@@ -49,21 +58,35 @@ def encrypt_field(plaintext: Optional[str], salt: Optional[str] = None) -> Tuple
 def decrypt_field(ciphertext: Optional[str], salt: Optional[str]) -> Optional[str]:
     """
     Decrypt a text field using its associated salt.
-    Returns plaintext string. If input is legacy plaintext returns raw string;
-    if encrypted Fernet token fails decryption, returns None for security.
+    Returns plaintext string. Gracefully handles key rotation by trying active SECRET_KEY
+    then iterating through legacy fallback keys. If input is unencrypted text, returns raw text.
+    Never returns raw gAAAAA ciphertext.
     """
-    if not ciphertext or not salt:
-        return ciphertext
-    
-    try:
-        fernet_key = _derive_fernet_key(salt)
-        f = Fernet(fernet_key)
-        return f.decrypt(ciphertext.encode("utf-8")).decode("utf-8")
-    except Exception:
-        # If it is an encrypted Fernet payload that failed decryption, do not leak raw ciphertext
+    if not ciphertext:
+        return ""
+    if not salt:
         if isinstance(ciphertext, str) and ciphertext.startswith("gAAAAA"):
-            return None
+            return ""
         return ciphertext
+
+    # 1. Attempt decryption with active settings.SECRET_KEY
+    candidate_keys = [settings.SECRET_KEY] + [k for k in LEGACY_SECRET_KEYS if k != settings.SECRET_KEY]
+
+    for key in candidate_keys:
+        try:
+            fernet_key = _derive_fernet_key(salt, key)
+            f = Fernet(fernet_key)
+            decrypted = f.decrypt(ciphertext.encode("utf-8")).decode("utf-8")
+            if decrypted:
+                return decrypted
+        except Exception:
+            continue
+
+    # 2. Check if it is unencrypted legacy text (e.g. "09123456789")
+    if not ciphertext.startswith("gAAAAA"):
+        return ciphertext
+
+    return ""
 
 
 def encrypt_location(
