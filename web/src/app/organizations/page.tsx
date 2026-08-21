@@ -9,10 +9,10 @@ import { cleanDisplayPhone } from "@/lib/utils";
 import {
   Building2,
   Plus,
-  Trash2,
   Phone,
   MapPin,
   Shield,
+  ShieldCheck,
   X,
 } from "lucide-react";
 
@@ -65,28 +65,18 @@ export default function OrganizationsPage() {
     }
   };
 
-  const handleDeleteOrg = async (orgId: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
-    try {
-      await api.delete(`/admin/organizations/${orgId}`);
-      mutate();
-    } catch (err: any) {
-      alert(err.message || "Failed to delete organization.");
-    }
-  };
-
   return (
     <AppLayout title={t("Rescue Organization Registry", "ကယ်ဆယ်ရေး အဖွဲ့အစည်းများ စာရင်း")}>
       <div className="space-y-6">
-        {/* Top Action Bar */}
-        <div className="flex items-center justify-between p-4 glass-panel bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-main)]">
+        {/* Header Actions */}
+        <div className="flex flex-wrap items-center justify-between gap-4 p-5 glass-panel bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-main)] shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-blue-600/20 text-blue-500 border border-blue-500/30">
+            <div className="p-3 rounded-xl bg-blue-500/15 text-blue-600 border border-blue-500/30">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-extrabold text-sm text-[var(--text-main)]">
-                {t("Verified Command Stations", "အတည်ပြုပြီးသော ကယ်ဆယ်ရေး စခန်းများ")}
+                {t("Rescue Units & Stations Directory", "ကယ်ဆယ်ရေးစခန်းများ လမ်းညွှန်")}
               </h3>
               <p className="text-xs text-[var(--text-muted)]">
                 {(orgs || []).length} {t("Registered Rescue Units", "မှတ်ပုံတင်ထားသော အဖွဲ့များ")}
@@ -126,12 +116,10 @@ export default function OrganizationsPage() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleDeleteOrg(org.account_id || org.id, org.org_name)}
-                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <span className="p-1 rounded-lg text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Verified
+                  </span>
                 </div>
 
                 <div className="mt-4 space-y-2 text-xs text-[var(--text-muted)]">

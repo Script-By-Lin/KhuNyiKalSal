@@ -151,8 +151,10 @@ export default function SettingsPage() {
                   <Server className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-extrabold text-sm text-[var(--text-main)]">Backend API & Host Node</h4>
-                  <p className="text-xs text-[var(--text-muted)]">FastAPI (Python {backend.python_version || "3.12"})</p>
+                  <h4 className="font-extrabold text-sm text-[var(--text-main)]">
+                    Backend API ({telemetry?.service_tier || "Render Microservice"})
+                  </h4>
+                  <p className="text-xs text-[var(--text-muted)]">FastAPI (Python {backend.python_version || "3.11"})</p>
                 </div>
               </div>
               <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 font-extrabold text-[10px] uppercase border border-emerald-500/30">

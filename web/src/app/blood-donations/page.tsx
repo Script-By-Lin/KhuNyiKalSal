@@ -63,46 +63,42 @@ export default function BloodDonationsPage() {
         <div className="glass-panel bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-main)] overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-[var(--text-main)]">
-              <thead className="bg-[var(--bg-subtle)] text-[var(--text-muted)] font-extrabold uppercase tracking-wider border-b border-[var(--border-main)]">
+              <thead className="bg-[var(--bg-subtle)] text-[var(--text-muted)] font-extrabold uppercase tracking-wider border-b border-[var(--border-main)] text-[11px]">
                 <tr>
-                  <th className="py-3.5 px-5">Blood Group</th>
-                  <th className="py-3.5 px-4">Requester / Donor</th>
-                  <th className="py-3.5 px-4">Contact</th>
-                  <th className="py-3.5 px-4">Hospital / Location</th>
-                  <th className="py-3.5 px-4">Units Needed</th>
-                  <th className="py-3.5 px-5 text-right">Status</th>
+                  <th className="py-3 px-4 w-[15%]">Blood Group</th>
+                  <th className="py-3 px-4 w-[30%]">Requester / Patient</th>
+                  <th className="py-3 px-4 w-[30%]">Hospital / Location</th>
+                  <th className="py-3 px-3 w-[15%]">Units Needed</th>
+                  <th className="py-3 px-4 w-[10%] text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-main)]">
                 {filteredRequests.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-[var(--text-muted)]">
+                    <td colSpan={5} className="py-10 text-center text-[var(--text-muted)]">
                       No blood requests or pledges found.
                     </td>
                   </tr>
                 ) : (
                   filteredRequests.map((r: any) => (
                     <tr key={r.id} className="hover:bg-[var(--table-hover)] transition-colors">
-                      <td className="py-4 px-5">
+                      <td className="py-2.5 px-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-red-500/15 border border-red-500/30 flex items-center justify-center font-black text-red-600">
+                          <div className="w-8 h-8 rounded-lg bg-red-500/15 border border-red-500/30 flex items-center justify-center font-black text-red-600 text-xs">
                             {r.blood_type}
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-4 font-bold text-[var(--text-main)]">
+                      <td className="py-2.5 px-4 font-bold text-[var(--text-main)]">
                         {r.patient_name || r.donor_name || "Emergency Patient"}
                       </td>
-                      <td className="py-4 px-4 font-mono text-[var(--text-muted)]">
-                        📞 {cleanPhone(r.donor_phone || r.contact_phone)}
-                      </td>
-                      <td className="py-4 px-4 text-[var(--text-muted)]">
+                      <td className="py-2.5 px-4 text-[var(--text-muted)]">
                         {r.hospital_name || "General Hospital, Yangon"}
                       </td>
-                      <td className="py-4 px-4 font-bold text-[var(--text-main)]">
+                      <td className="py-2.5 px-3 font-bold text-[var(--text-main)]">
                         {r.units_needed || 1} Unit(s)
                       </td>
-                      <td className="py-4 px-5 text-right">
+                      <td className="py-2.5 px-4 text-right">
                         <span
                           className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border ${
                             r.status === "completed"
