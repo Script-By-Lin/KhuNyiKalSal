@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/emergency.dart';
@@ -6,6 +7,8 @@ import '../services/offline_service.dart';
 
 class EmergencyNotifier extends StateNotifier<AsyncValue<List<EmergencyModel>>> {
   final ApiService _api = ApiService();
+  String? lastError;
+  bool isLastNetworkError = false;
 
   EmergencyNotifier() : super(const AsyncValue.loading()) {
     OfflineService().onSOSQueueSynced.listen((count) {
@@ -55,15 +58,23 @@ class EmergencyNotifier extends StateNotifier<AsyncValue<List<EmergencyModel>>> 
     }
   }
 
-  String? lastError;
-
   Future<String?> createSOS(String type, double lat, double lng) async {
     lastError = null;
+    isLastNetworkError = false;
     try {
       final res = await _api.createSOS(type, lat, lng);
       await loadActive();
-      return res.data['emergency_id'];
+      return (res.data['emergency_id'] ?? res.data['id'])?.toString();
     } catch (e) {
+      if (e is DioException) {
+        if (e.response == null) {
+          // Genuine no-response network failure (socket error, timeout, DNS failure)
+          isLastNetworkError = true;
+        } else {
+          // Server responded with an actual error code (400, 403, 429, 500)
+          isLastNetworkError = false;
+        }
+      }
       lastError = _extractError(e);
       return null;
     }
@@ -71,16 +82,18 @@ class EmergencyNotifier extends StateNotifier<AsyncValue<List<EmergencyModel>>> 
 
   String _extractError(dynamic e) {
     try {
-      final dioErr = e as dynamic;
-      if (dioErr.response != null && dioErr.response.data != null) {
-        final data = dioErr.response.data;
-        if (data is Map && data.containsKey('detail')) {
-          return data['detail'].toString();
+      if (e is DioException) {
+        if (e.response != null && e.response!.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data.containsKey('detail')) {
+            return data['detail'].toString();
+          }
         }
+        return e.message ?? 'Emergency request failed. Please check connection.';
       }
-      return dioErr.message?.toString() ?? 'Emergency request failed';
-    } catch (_) {
       return e.toString();
+    } catch (_) {
+      return 'Emergency request failed.';
     }
   }
 

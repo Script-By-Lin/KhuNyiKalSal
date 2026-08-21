@@ -12,7 +12,6 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
-import '../services/offline_service.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/offline_sos_dialog.dart';
 import 'sos/emergency_type_sheet.dart';
@@ -225,6 +224,11 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
       backgroundColor: Colors.transparent,
       builder: (_) => EmergencyTypeSheet(
         onTypeSelected: (type) async {
+          final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
+          final messenger = ScaffoldMessenger.of(context);
+          final router = GoRouter.of(context);
+          final notifier = ref.read(emergencyProvider.notifier);
+
           Navigator.pop(context);
           double lat = 16.8661;
           double lng = 96.1951;
@@ -234,41 +238,35 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
             lng = pos.longitude;
           } catch (_) {}
 
-          final isOnline = await OfflineService().checkInternet();
-          if (!isOnline) {
-            if (!mounted) return;
-            Navigator.of(context, rootNavigator: true).push(
-              MaterialPageRoute(
-                fullscreenDialog: true,
-                builder: (ctx) => OfflineSOSDialog(
-                  emergencyType: type,
-                  lat: lat,
-                  lng: lng,
-                ),
-              ),
-            );
-            return;
-          }
-
-          final notifier = ref.read(emergencyProvider.notifier);
           final emergencyId = await notifier.createSOS(type, lat, lng);
 
           if (!mounted) return;
 
           if (emergencyId != null) {
-            context.go('/map');
+            router.go('/map');
           } else {
-            // Failed due to timeout or network -> Offer Offline fallback
-            Navigator.of(context, rootNavigator: true).push(
-              MaterialPageRoute(
-                fullscreenDialog: true,
-                builder: (ctx) => OfflineSOSDialog(
-                  emergencyType: type,
-                  lat: lat,
-                  lng: lng,
+            // Check if it was a true network connection failure vs API server response
+            if (notifier.isLastNetworkError) {
+              Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute(
+                  fullscreenDialog: true,
+                  builder: (ctx) => OfflineSOSDialog(
+                    emergencyType: type,
+                    lat: lat,
+                    lng: lng,
+                  ),
                 ),
-              ),
-            );
+              );
+            } else {
+              final errorMsg = notifier.lastError ?? (isMm ? 'SOS ပေးပို့ရန် မအောင်မြင်ပါ' : 'Failed to trigger SOS');
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(errorMsg, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  backgroundColor: AppTheme.primaryRed,
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+            }
           }
         },
       ),
