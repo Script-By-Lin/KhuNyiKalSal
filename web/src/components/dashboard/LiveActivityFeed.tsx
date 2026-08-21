@@ -99,7 +99,7 @@ export function LiveActivityFeed({ emergencies }: ActivityFeedProps) {
                     {e.type || "Emergency"}
                   </p>
                   <p className="text-[11px] text-[var(--text-muted)]">
-                    {e.user?.email || "Citizen User"} • {e.location_lat?.toFixed(4)}, {e.location_lng?.toFixed(4)}
+                    {e.user?.email || "Citizen User"} • {e.location_address || e.operating_region || "Emergency Response Sector"}
                   </p>
                 </div>
               </div>

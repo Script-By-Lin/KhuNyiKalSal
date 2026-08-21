@@ -173,11 +173,6 @@ export default function UsersPage() {
                             <p className="text-[var(--text-muted)] font-mono text-[11px]">
                               {u.email}
                             </p>
-                            {phone && (
-                              <p className="text-[var(--text-muted)] text-[11px] mt-0.5">
-                                📞 {phone}
-                              </p>
-                            )}
                           </div>
                         </td>
                         <td className="py-4 px-4">

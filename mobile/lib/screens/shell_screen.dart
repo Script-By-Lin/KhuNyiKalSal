@@ -9,6 +9,7 @@ import '../config/theme.dart';
 import '../providers/emergency_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_service.dart';

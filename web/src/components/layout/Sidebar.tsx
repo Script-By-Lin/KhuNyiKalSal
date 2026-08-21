@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   Radar,
+  AlertTriangle,
   Users,
   Building2,
   HeartHandshake,
@@ -28,6 +29,12 @@ export function Sidebar() {
       href: "/",
       label: t("Dashboard", "ဒက်ရှ်ဘုတ်"),
       icon: LayoutDashboard,
+    },
+    {
+      href: "/emergencies",
+      label: t("Emergency Cases", "အရေးပေါ်ဖြစ်စဉ်များ"),
+      icon: AlertTriangle,
+      badge: "SOS",
     },
     {
       href: "/radar",

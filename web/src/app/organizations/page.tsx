@@ -104,11 +104,11 @@ export default function OrganizationsPage() {
         </div>
 
         {/* Organizations Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {(orgs || []).map((org: any) => (
             <div
               key={org.account_id || org.id}
-              className="glass-panel bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-main)] hover:border-red-500/40 transition-all group relative flex flex-col justify-between shadow-sm"
+              className="glass-panel bg-[var(--bg-surface)] p-5 rounded-xl border border-[var(--border-main)] hover:border-red-500/40 transition-all group relative flex flex-col justify-between shadow-sm"
             >
               <div>
                 <div className="flex items-start justify-between">
@@ -141,9 +141,7 @@ export default function OrganizationsPage() {
                   </p>
                   <p className="flex items-center gap-2">
                     <MapPin className="w-3.5 h-3.5 text-[var(--text-subtle)]" />
-                    <span>
-                      {org.geo_lat?.toFixed(4)}, {org.geo_lng?.toFixed(4)} ({org.operating_regions || "Yangon"})
-                    </span>
+                    <span>Sector: {org.operating_regions || "Yangon Region"}</span>
                   </p>
                   <p className="flex items-center gap-2">
                     <Shield className="w-3.5 h-3.5 text-[var(--text-subtle)]" />

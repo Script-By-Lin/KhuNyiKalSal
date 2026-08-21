@@ -56,7 +56,7 @@ export default function RadarMapInner({ emergencies, organizations }: RadarMapPr
   const center: [number, number] = [16.8661, 96.1951]; // Yangon center default
 
   return (
-    <div className="h-[650px] w-full rounded-2xl overflow-hidden border border-[var(--border-main)] shadow-2xl relative bg-slate-950">
+    <div className="h-[calc(100vh-220px)] min-h-[600px] w-full rounded-2xl overflow-hidden border border-[var(--border-main)] shadow-2xl relative bg-slate-950">
       <MapContainer
         center={center}
         zoom={12}
@@ -144,9 +144,7 @@ export default function RadarMapInner({ emergencies, organizations }: RadarMapPr
                     </p>
                     <p className="mt-1 font-semibold">Status: {e.status || "Pending"}</p>
                     <p>Caller: {e.user?.email || "Citizen User"}</p>
-                    <p className="font-mono text-[10px] text-slate-500">
-                      Coords: {lat.toFixed(4)}, {lng.toFixed(4)}
-                    </p>
+                    <p className="text-[11px] text-slate-500">Zone: Active Incident Perimeter</p>
                   </div>
                 </Popup>
               </Marker>

@@ -44,7 +44,7 @@ export function AppLayout({
       <Sidebar />
       <div className="flex-1 ml-64 flex flex-col min-w-0">
         <Header title={title} />
-        <main className="flex-1 p-8 overflow-y-auto">{children}</main>
+        <main className="flex-1 p-6 overflow-y-auto w-full">{children}</main>
       </div>
     </div>
   );
