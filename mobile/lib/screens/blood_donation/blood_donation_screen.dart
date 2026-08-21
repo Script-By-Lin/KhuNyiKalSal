@@ -29,6 +29,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
 
   // Request Form Controllers (Patient Requisition)
   final _patientNameCtrl = TextEditingController();
+  final _reqAgeCtrl = TextEditingController();
   final _reqContactNameCtrl = TextEditingController();
   final _reqContactPhoneCtrl = TextEditingController();
   final _reqHospitalCtrl = TextEditingController();
@@ -44,6 +45,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
 
   // Request form state
   String? _reqBloodType;
+  String? _reqGender;
   int _reqUnits = 1;
   String _reqUrgency = 'Emergency / Immediate';
   LatLng? _reqCoords;
@@ -78,6 +80,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
     _medCtrl.dispose();
     _notesCtrl.dispose();
     _patientNameCtrl.dispose();
+    _reqAgeCtrl.dispose();
     _reqContactNameCtrl.dispose();
     _reqContactPhoneCtrl.dispose();
     _reqHospitalCtrl.dispose();
@@ -390,12 +393,29 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
 
   // ── SUBMIT BLOOD DONATION PLEDGE ──────────────────────────────────────────
   Future<void> _submitDonation() async {
-    if (_nameCtrl.text.trim().isEmpty || _phoneCtrl.text.trim().isEmpty) {
-      _snack('Please fill in Donor Name and Phone Number', Colors.orange);
+    if (_nameCtrl.text.trim().isEmpty) {
+      _snack('Please enter Donor Full Name', Colors.orange);
+      return;
+    }
+    if (_phoneCtrl.text.trim().isEmpty || _phoneCtrl.text.trim().length < 5) {
+      _snack('Please enter a valid Donor Phone Number', Colors.orange);
       return;
     }
     if (_selectedBloodType == null) {
       _snack('Please select your Blood Type', Colors.orange);
+      return;
+    }
+    if (_ageCtrl.text.trim().isEmpty) {
+      _snack('Please enter your Age', Colors.orange);
+      return;
+    }
+    final donorAge = int.tryParse(_ageCtrl.text.trim());
+    if (donorAge == null || donorAge < 18 || donorAge > 65) {
+      _snack('Blood donors must be between 18 and 65 years old.', Colors.orange);
+      return;
+    }
+    if (_selectedGender == null) {
+      _snack('Please select your Gender (Male / Female / Other)', Colors.orange);
       return;
     }
 
@@ -414,7 +434,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
         'donor_name': _nameCtrl.text.trim(),
         'donor_phone': _phoneCtrl.text.trim(),
         'blood_type': _selectedBloodType!,
-        'age': int.tryParse(_ageCtrl.text.trim()),
+        'age': donorAge,
         'gender': _selectedGender,
         'medical_notes': _medCtrl.text.trim().isNotEmpty ? _medCtrl.text.trim() : null,
         'target_org_id': targetOrgId,
@@ -436,7 +456,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
       }
     } catch (e) {
       setState(() => _submitting = false);
-      _snack('Failed to submit donation pledge. Please check connection.', Colors.red);
+      _snack('Failed to submit donation pledge. Please verify fields and connection.', Colors.red);
     }
   }
 
@@ -446,8 +466,17 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
       _snack('Please enter Patient Name', Colors.orange);
       return;
     }
-    if (_reqContactPhoneCtrl.text.trim().isEmpty) {
-      _snack('Please enter Contact Phone Number', Colors.orange);
+    if (_reqAgeCtrl.text.trim().isEmpty) {
+      _snack('Please enter Patient Age', Colors.orange);
+      return;
+    }
+    final patientAge = int.tryParse(_reqAgeCtrl.text.trim());
+    if (patientAge == null || patientAge < 1 || patientAge > 120) {
+      _snack('Please enter a valid Patient Age (1 - 120)', Colors.orange);
+      return;
+    }
+    if (_reqGender == null) {
+      _snack('Please select Patient Gender (Male / Female / Other)', Colors.orange);
       return;
     }
     if (_reqBloodType == null) {
@@ -456,6 +485,10 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
     }
     if (_reqHospitalCtrl.text.trim().isEmpty) {
       _snack('Please enter Hospital / Clinic Name & Ward', Colors.orange);
+      return;
+    }
+    if (_reqContactPhoneCtrl.text.trim().isEmpty || _reqContactPhoneCtrl.text.trim().length < 5) {
+      _snack('Please enter Contact Person Phone Number', Colors.orange);
       return;
     }
 
@@ -478,6 +511,8 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
       final payload = {
         'request_type': 'request',
         'patient_name': _patientNameCtrl.text.trim(),
+        'age': patientAge,
+        'gender': _reqGender,
         'donor_name': _reqContactNameCtrl.text.trim().isNotEmpty
             ? _reqContactNameCtrl.text.trim()
             : _patientNameCtrl.text.trim(),
@@ -503,7 +538,7 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
       }
     } catch (e) {
       setState(() => _submitting = false);
-      _snack('Failed to broadcast blood request. Please check connection.', Colors.red);
+      _snack('Failed to broadcast blood request. Please verify fields and connection.', Colors.red);
     }
   }
 
@@ -1253,6 +1288,35 @@ class _BloodDonationScreenState extends ConsumerState<BloodDonationScreen>
           const SizedBox(height: 12),
 
           _input(_patientNameCtrl, isMm ? 'လူနာအမည်' : 'Patient Full Name', Icons.person_add_alt_1),
+
+          Row(
+            children: [
+              Expanded(
+                child: _input(_reqAgeCtrl, isMm ? 'လူနာအသက်' : 'Patient Age', Icons.cake_outlined,
+                    keyboardType: TextInputType.number),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _reqGender,
+                    dropdownColor: Theme.of(context).cardColor,
+                    decoration: InputDecoration(
+                      labelText: isMm ? 'ကျား/မ' : 'Gender',
+                      filled: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    items: ['Male', 'Female', 'Other'].map((g) {
+                      return DropdownMenuItem(value: g, child: Text(g));
+                    }).toList(),
+                    onChanged: (val) => setState(() => _reqGender = val),
+                  ),
+                ),
+              ),
+            ],
+          ),
 
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
