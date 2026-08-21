@@ -31,6 +31,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
   Timer? _countdownTicker;
   bool _sosHolding = false;
   bool _sosActivated = false;
+  int _tickerCounter = 0;
 
   // Progressive 3-Tier Suspension State
   bool _isSuspended = false;
@@ -52,9 +53,15 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
         }
       });
 
-    // Countdown ticker for live Dynamic Island & Suspension countdown
+    // Countdown ticker for live Dynamic Island, Suspension countdown & fast real-time status sync
     _countdownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
+        _tickerCounter++;
+        // Fast periodic sync every 3 seconds to immediately detect admin ban/unban in real-time
+        if (_tickerCounter % 3 == 0) {
+          _checkSuspensionStatus();
+        }
+
         if (_isSuspended && _remainingSuspensionSeconds > 0) {
           setState(() {
             _remainingSuspensionSeconds--;
@@ -87,12 +94,14 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
           _suspensionTier = (event['suspension_tier'] as num?)?.toInt() ?? 1;
           _suspensionReason = event['suspension_reason'] ?? event['reason'];
         });
+        _checkSuspensionStatus();
       } else if (event['event'] == 'ACCOUNT_UNSUSPENDED') {
         setState(() {
           _isSuspended = false;
           _remainingSuspensionSeconds = 0;
           _suspensionReason = null;
         });
+        _checkSuspensionStatus();
       } else if (event['event'] == 'FAMILY_SOS_ALERT') {
         final senderName = event['sender_name'] ?? 'Family Member';
         final rel = event['relationship'] ?? 'Family';
@@ -164,13 +173,27 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
       final res = await ApiService().getProfile();
       if (mounted && res.data != null) {
         final data = res.data;
-        if (data['is_suspended'] == true) {
-          setState(() {
-            _isSuspended = true;
-            _remainingSuspensionSeconds = (data['remaining_suspension_seconds'] as num?)?.toInt() ?? 0;
-            _suspensionTier = (data['suspension_count'] as num?)?.toInt() ?? 1;
-            _suspensionReason = data['suspension_reason'];
-          });
+        final bool isSusp = data['is_suspended'] == true;
+        if (isSusp) {
+          final rem = (data['remaining_suspension_seconds'] as num?)?.toInt() ?? 0;
+          final tier = (data['suspension_count'] as num?)?.toInt() ?? 1;
+          final reason = data['suspension_reason'] as String?;
+          if (!_isSuspended || _remainingSuspensionSeconds != rem || _suspensionReason != reason) {
+            setState(() {
+              _isSuspended = true;
+              _remainingSuspensionSeconds = rem;
+              _suspensionTier = tier;
+              _suspensionReason = reason;
+            });
+          }
+        } else {
+          if (_isSuspended) {
+            setState(() {
+              _isSuspended = false;
+              _remainingSuspensionSeconds = 0;
+              _suspensionReason = null;
+            });
+          }
         }
       }
     } catch (_) {}
@@ -279,59 +302,46 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        final bg = isDark ? const Color(0xFF0F172A) : Colors.white;
-        final textMain = isDark ? Colors.white : const Color(0xFF0F172A);
-        final textMuted = isDark ? Colors.white70 : Colors.black54;
-
         final laws = [
           {
-            'section': isMm ? 'ရာဇသတ်ကြီး ဥပဒေပုဒ်မ ၁၈၂' : 'Myanmar Penal Code § 182',
-            'title': isMm ? 'မမှန်သတင်း ပေးပို့မှု' : 'False Information to Public Servants',
-            'desc': isMm
-                ? 'ပြည်သူ့ဝန်ထမ်း (သို့မဟုတ်) အရေးပေါ်ကယ်ဆယ်ရေးတပ်ဖွဲ့ထံသို့ မမှန်ကန်ကြောင်းသိလျက်နှင့် သတင်းမှားပေးပို့ခြင်း။'
-                : 'Giving false information to any public servant or rescue dispatcher with intent to cause injury or annoyance.',
-            'penalty': isMm ? 'ထောင်ဒဏ် (၆) လ သို့မဟုတ် ငွေဒဏ် (သို့မဟုတ်) ဒဏ်နှစ်ရပ်လုံး' : 'Imprisonment up to 6 months, or fine, or both',
+            'section': 'ရာဇသတ်ကြီး ဥပဒေပုဒ်မ ၁၈၂',
+            'title': 'မမှန်သတင်း ပေးပို့မှု',
+            'desc': 'ပြည်သူ့ဝန်ထမ်း (သို့မဟုတ်) အရေးပေါ်ကယ်ဆယ်ရေးတပ်ဖွဲ့ထံသို့ မမှန်ကန်ကြောင်းသိလျက်နှင့် သတင်းမှားပေးပို့ခြင်း။',
+            'penalty': 'ထောင်ဒဏ် (၆) လ သို့မဟုတ် ငွေဒဏ် (သို့မဟုတ်) ဒဏ်နှစ်ရပ်လုံး',
             'icon': Icons.gavel_rounded,
-            'color': Colors.redAccent,
+            'color': const Color(0xFFDC2626),
           },
           {
-            'section': isMm ? 'ရာဇသတ်ကြီး ဥပဒေပုဒ်မ ၅၀၅(ခ)' : 'Myanmar Penal Code § 505(b)',
-            'title': isMm ? 'ပြည်သူ့အေးချမ်းမှုကို ထိခိုက်စေသော သတင်းမှား' : 'Public Alarm & Emergency Disruption',
-            'desc': isMm
-                ? 'ပြည်သူလူထုအတွင်း ထိတ်လန့်တကြားဖြစ်စေရန် သို့မဟုတ် အရေးပေါ်လိုင်းများအား အနှောင့်အယှက်ဖြစ်စေရန် ကြံရွယ်ပြုလုပ်မှု။'
-                : 'Making or circulating rumors/alarms causing fear or public panic, disrupting critical emergency response networks.',
-            'penalty': isMm ? 'ထောင်ဒဏ် (၂) နှစ်အထိ သို့မဟုတ် ငွေဒဏ်' : 'Imprisonment up to 2 years, or fine, or both',
+            'section': 'ရာဇသတ်ကြီး ဥပဒေပုဒ်မ ၅၀၅(ခ)',
+            'title': 'ပြည်သူ့အေးချမ်းမှုကို ထိခိုက်စေသော သတင်းမှား',
+            'desc': 'ပြည်သူလူထုအတွင်း ထိတ်လန့်တကြားဖြစ်စေရန် သို့မဟုတ် အရေးပေါ်လိုင်းများအား အနှောင့်အယှက်ဖြစ်စေရန် ကြံရွယ်ပြုလုပ်မှု။',
+            'penalty': 'ထောင်ဒဏ် (၂) နှစ်အထိ သို့မဟုတ် ငွေဒဏ်',
             'icon': Icons.warning_amber_rounded,
-            'color': Colors.amber,
+            'color': const Color(0xFFD97706),
           },
           {
-            'section': isMm ? 'ဆက်သွယ်ရေး ဥပဒေပုဒ်မ ၆၆(ဃ)' : 'Telecommunications Law § 66(d)',
-            'title': isMm ? 'အရေးပေါ် ဆက်သွယ်ရေးလိုင်း နှောင့်ယှက်မှု' : 'Misuse of Emergency Telecom Network',
-            'desc': isMm
-                ? 'အရေးပေါ် ဆက်သွယ်ရေးကွန်ရက်ကို အသုံးပြု၍ နှောင့်ယှက်ခြင်း၊ ခြိမ်းခြောက်ခြင်း၊ အတုအယောင် သတင်းမှားလွှင့်ခြင်း။'
-                : 'Extorting, coercing, restraining wrongfully, defaming, or creating false distress signals on telecommunications network.',
-            'penalty': isMm ? 'ထောင်ဒဏ် (၂) နှစ်အထိ သို့မဟုတ် ငွေဒဏ်' : 'Imprisonment up to 2 years, or fine, or both',
+            'section': 'ဆက်သွယ်ရေး ဥပဒေပုဒ်မ ၆၆(ဃ)',
+            'title': 'အရေးပေါ် ဆက်သွယ်ရေးလိုင်း နှောင့်ယှက်မှု',
+            'desc': 'အရေးပေါ် ဆက်သွယ်ရေးကွန်ရက်ကို အသုံးပြု၍ နှောင့်ယှက်ခြင်း၊ ခြိမ်းခြောက်ခြင်း၊ အတုအယောင် သတင်းမှားလွှင့်ခြင်း။',
+            'penalty': 'ထောင်ဒဏ် (၂) နှစ်အထိ သို့မဟုတ် ငွေဒဏ်',
             'icon': Icons.cell_tower,
-            'color': Colors.blueAccent,
+            'color': const Color(0xFF2563EB),
           },
           {
-            'section': isMm ? 'သဘာဝဘေးအန္တရာယ် စီမံခန့်ခွဲမှု ဥပဒေပုဒ်မ ၃၀' : 'Disaster Management Law § 30',
-            'title': isMm ? 'ကယ်ဆယ်ရေးလုပ်ငန်း အဟန့်အတား' : 'Obstruction of Emergency Relief',
-            'desc': isMm
-                ? 'အရေးပေါ် ကယ်ဆယ်ရေးလုပ်ငန်းများကို အဟန့်အတားဖြစ်စေသော မဟုတ်မမှန် သတင်းထုတ်လွှင့်မှုများ ပြုလုပ်ခြင်း။'
-                : 'Creating hoax disaster alarms that obstruct active search, rescue, medical aid, or emergency supply distribution.',
-            'penalty': isMm ? 'ထောင်ဒဏ် (၁) နှစ်အထိ သို့မဟုတ် ငွေဒဏ်' : 'Imprisonment up to 1 year, or fine, or both',
+            'section': 'သဘာဝဘေးအန္တရာယ် စီမံခန့်ခွဲမှု ဥပဒေပုဒ်မ ၃၀',
+            'title': 'ကယ်ဆယ်ရေးလုပ်ငန်း အဟန့်အတား',
+            'desc': 'အရေးပေါ် ကယ်ဆယ်ရေးလုပ်ငန်းများကို အဟန့်အတားဖြစ်စေသော မဟုတ်မမှန် သတင်းထုတ်လွှင့်မှုများ ပြုလုပ်ခြင်း။',
+            'penalty': 'ထောင်ဒဏ် (၁) နှစ်အထိ သို့မဟုတ် ငွေဒဏ်',
             'icon': Icons.shield_rounded,
-            'color': Colors.orangeAccent,
+            'color': const Color(0xFFEA580C),
           },
         ];
 
         return Container(
           height: MediaQuery.of(ctx).size.height * 0.85,
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             children: [
@@ -341,7 +351,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                 height: 4,
                 margin: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: textMuted.withValues(alpha: 0.3),
+                  color: Colors.black26,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -354,131 +364,113 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(14),
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.menu_book_rounded, color: AppTheme.primaryRed, size: 24),
+                      child: const Icon(Icons.menu_book_rounded, color: Color(0xFFDC2626), size: 24),
                     ),
                     const SizedBox(width: 14),
-                    Expanded(
+                    const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isMm ? 'အရေးပေါ်လိုင်း အလွဲသုံးစားမှုဆိုင်ရာ ဥပဒေများ' : 'Emergency Anti-Hoax Laws & Penalties',
+                            'အရေးပေါ်လိုင်း အလွဲသုံးစားမှုဆိုင်ရာ ဥပဒေများ',
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: textMain,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF0F172A),
                             ),
                           ),
                           Text(
-                            isMm ? 'မြန်မာနိုင်ငံ တည်ဆဲဥပဒေ ပြဋ္ဌာန်းချက်များ' : 'Applicable Myanmar Legal Regulations',
-                            style: TextStyle(fontSize: 12, color: textMuted),
+                            'မြန်မာနိုင်ငံ တည်ဆဲဥပဒေ ပြဋ္ဌာန်းချက်များနှင့် ပြစ်ဒဏ်များ',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close),
-                      color: textMuted,
+                      color: const Color(0xFF64748B),
                       onPressed: () => Navigator.pop(ctx),
                     ),
                   ],
                 ),
               ),
 
-              const Divider(height: 1),
+              const Divider(height: 1, color: Color(0xFFE2E8F0)),
 
-              // Laws List
+              // Laws List (Flat clean full-screen style)
               Expanded(
                 child: ListView.separated(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   itemCount: laws.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 14),
+                  separatorBuilder: (context, index) => const Divider(height: 24, color: Color(0xFFF1F5F9)),
                   itemBuilder: (ctx, idx) {
                     final item = laws[idx];
                     final color = item['color'] as Color;
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(item['icon'] as IconData, color: color, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                item['section'] as String,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13,
+                                  color: color,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(item['icon'] as IconData, color: color, size: 18),
+                        const SizedBox(height: 6),
+                        Text(
+                          item['title'] as String,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item['desc'] as String,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF475569),
+                            height: 1.45,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'ပြစ်ဒဏ် - ',
+                              style: TextStyle(
+                                color: Color(0xFFDC2626),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  item['section'] as String,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                    color: color,
-                                  ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                item['penalty'] as String,
+                                style: const TextStyle(
+                                  color: Color(0xFFDC2626),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            item['title'] as String,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: textMain,
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            item['desc'] as String,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: textMuted,
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.gavel, size: 14, color: AppTheme.primaryRed),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    '${isMm ? "ပြစ်ဒဏ်" : "Penalty"}: ${item['penalty']}',
-                                    style: const TextStyle(
-                                      color: AppTheme.primaryRed,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -486,20 +478,21 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
 
               // Bottom Dismiss
               Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 child: SizedBox(
                   width: double.infinity,
-                  height: 48,
+                  height: 46,
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(ctx),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryRed,
+                      backgroundColor: const Color(0xFFDC2626),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
                     ),
-                    child: Text(
-                      isMm ? 'နားလည်ပါသည် (ပိတ်မည်)' : 'I Understand & Agree',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    child: const Text(
+                      'နားလည်ပါသည် (ပိတ်မည်)',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   ),
                 ),
@@ -511,280 +504,283 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
     );
   }
 
-  // ── FULL-SCREEN SUSPENSION & BAN LOCKOUT VIEW ─────────────────────────────
+  // ── FULL-SCREEN SUSPENSION & BAN LOCKOUT VIEW (FLAT CLEAN FULL-SCREEN, NO CARDS) ──
   Widget _buildFullScreenBanLockout(BuildContext context, bool isMm) {
     final timerStr = _formatDuration(_remainingSuspensionSeconds);
 
-    final title = _suspensionTier == 1
-        ? (isMm ? 'အကောင့် (၁) ရက် ယာယီဆိုင်းငံ့ထားပါသည်' : '1-Day Suspension (1st Offense)')
-        : (_suspensionTier == 2
-            ? (isMm ? 'အကောင့် (၁၀) ရက် ဆိုင်းငံ့ထားပါသည်' : '10-Days Suspension (2nd Offense)')
-            : (isMm ? 'အကောင့်အား (၁၀၀) နှစ် ပိတ်ပင်ထားပါသည်' : 'Permanent Ban (100 Years)'));
+    // Accurately determine tier from remaining seconds or explicit suspension tier
+    final bool is100Years = _suspensionTier >= 3 || _remainingSuspensionSeconds > 30 * 86400;
+    final bool is10Days = !is100Years && (_suspensionTier == 2 || _remainingSuspensionSeconds > 86400);
 
-    final subtext = _suspensionTier >= 3
-        ? (isMm
-            ? 'အရေးပေါ် ကယ်ဆယ်ရေးလိုင်းများအား ထပ်တလဲလဲ အလွဲသုံးစားပြုလုပ်ခဲ့သောကြောင့် အပြီးတိုင် ပိတ်ပင်ထားပါသည်။ စီမံခန့်ခွဲသူ (Admin) ထံသို့ ဆက်သွယ်ပါ။'
-            : 'Permanently banned due to repeated false alarm violations. Please contact System Administrator.')
-        : (isMm
-            ? '၂၄ နာရီအတွင်း အရေးပေါ် SOS အချက်ပြမှုများအား အကြိမ်ကြိမ် ပယ်ဖျက်ခဲ့ခြင်းကြောင့် ဖြစ်ပါသည်။ စစ်မှန်သော ကယ်ဆယ်ရေးလုပ်ငန်းများ မနှောင့်နှေးစေရန် လုပ်ဆောင်ချက်အားလုံးကို ဆိုင်းငံ့ထားပါသည်။'
-            : 'Suspended due to multiple emergency SOS cancellations within 24 hours. All operations are locked to protect emergency dispatch lines.');
+    final title = is100Years
+        ? 'အကောင့်အား (၁၀၀) နှစ် အပြီးတိုင် ပိတ်ပင်ထားပါသည်'
+        : (is10Days
+            ? 'အကောင့်အား (၁၀) ရက် ဆိုင်းငံ့ထားပါသည်'
+            : 'အကောင့်အား (၁) ရက် ယာယီဆိုင်းငံ့ထားပါသည်');
+
+    final tierSubtitle = is100Years
+        ? 'အဆင့် ၃ ပြစ်ဒဏ် (Permanent Ban)'
+        : (is10Days ? 'အဆင့် ၂ ပြစ်ဒဏ် (Tier 2 - 10 Days)' : 'အဆင့် ၁ ပြစ်ဒဏ် (Tier 1 - 24 Hours)');
+
+    final subtext = is100Years
+        ? 'အရေးပေါ် ကယ်ဆယ်ရေးလိုင်းများအား ထပ်တလဲလဲ အလွဲသုံးစားပြုလုပ်ခဲ့သောကြောင့် အပြီးတိုင် ပိတ်ပင်ထားပါသည်။ စီမံခန့်ခွဲသူ (Admin) ထံသို့ ဆက်သွယ်ပါ။'
+        : '၂၄ နာရီအတွင်း အရေးပေါ် SOS အချက်ပြမှုများအား အကြိမ်ကြိမ် ပယ်ဖျက်ခဲ့ခြင်းကြောင့် ဖြစ်ပါသည်။ စစ်မှန်သော ကယ်ဆယ်ရေးလုပ်ငန်းများ မနှောင့်နှေးစေရန် လုပ်ဆောင်ချက်အားလုံးကို ဆိုင်းငံ့ထားပါသည်။';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF07090E),
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 20),
-
-              // Glowing Shield Icon
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF1E1010),
-                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.6), width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.redAccent.withValues(alpha: 0.35),
-                      blurRadius: 30,
-                      spreadRadius: 4,
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.gavel_rounded,
-                    color: Colors.redAccent,
-                    size: 48,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Suspension Status Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Icon(Icons.lock_person, size: 14, color: Colors.redAccent),
-                    const SizedBox(width: 6),
+                    const SizedBox(height: 12),
+
+                    // Top Emblem
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFFFEE2E2),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.gavel_rounded,
+                          color: Color(0xFFDC2626),
+                          size: 40,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Status Pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.lock_rounded, size: 14, color: Color(0xFFDC2626)),
+                          SizedBox(width: 6),
+                          Text(
+                            'လုပ်ဆောင်ချက်များ အားလုံး ပိတ်ပင်ထားပါသည်',
+                            style: TextStyle(
+                              color: Color(0xFF991B1B),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Headline Title
                     Text(
-                      isMm ? 'လုပ်ဆောင်ချက်များ ပိတ်ပင်ထားပါသည်' : 'ACCOUNT ACCESS RESTRICTED',
+                      title,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
-                        color: Colors.redAccent,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        height: 1.35,
+                      ),
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    Text(
+                      tierSubtitle,
+                      style: const TextStyle(
+                        color: Color(0xFFDC2626),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    const SizedBox(height: 24),
+
+                    // ── FLAT FULL-SCREEN COUNTDOWN SECTION (NO CARD) ──
+                    const Text(
+                      'ပြန်လည်ဖွင့်လှစ်ရန် ကျန်ရှိချိန်',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
                       ),
                     ),
-                  ],
-                ),
-              ),
 
-              const SizedBox(height: 14),
+                    const SizedBox(height: 8),
 
-              // Title
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  height: 1.3,
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Live Digital Countdown Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF1B1414), Color(0xFF110808)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.red.withValues(alpha: 0.15),
-                      blurRadius: 20,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
                     Text(
-                      isMm ? 'ပြန်လည်ဖွင့်လှစ်ရန် ကျန်ရှိချိန်' : 'REMAINING SUSPENSION TIME',
+                      is100Years ? "အပြီးတိုင် ပိတ်ပင်ထားသည်" : timerStr,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _suspensionTier >= 3 ? (isMm ? "အပြီးတိုင် ပိတ်ပင်ထားသည်" : "100 YEARS BAN") : timerStr,
-                      style: TextStyle(
-                        color: _suspensionTier >= 3 ? Colors.redAccent : const Color(0xFFFF5252),
-                        fontSize: _suspensionTier >= 3 ? 20 : 32,
+                        color: is100Years ? const Color(0xFFDC2626) : const Color(0xFFBE123C),
+                        fontSize: is100Years ? 22 : (is10Days ? 28 : 36),
                         fontWeight: FontWeight.w900,
                         fontFamily: 'monospace',
-                        letterSpacing: 2,
+                        letterSpacing: is10Days ? 1 : 2,
                       ),
                     ),
-                    const SizedBox(height: 8),
+
+                    const SizedBox(height: 6),
+
                     Text(
-                      _suspensionTier >= 3
-                          ? (isMm ? "စီမံခန့်ခွဲသူမှသာ ဖွင့်ပေးနိုင်ပါမည်" : "Requires Administrator Un-ban")
-                          : (isMm ? "သတ်မှတ်ချိန်ပြည့်ပါက အလိုအလျောက် ပွင့်ပါမည်" : "Auto-reactivates when timer reaches 0"),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 11,
+                      is100Years
+                          ? "စီမံခန့်ခွဲသူ (Admin) မှသာ ပြန်လည်ဖွင့်ပေးနိုင်ပါမည်"
+                          : "သတ်မှတ်ချိန်ပြည့်ပါက အလိုအလျောက် ပြန်လည်အသုံးပြုနိုင်ပါမည်",
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ],
-                ),
-              ),
 
-              const SizedBox(height: 16),
+                    const SizedBox(height: 24),
+                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    const SizedBox(height: 20),
 
-              // Reason & Description Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0E131F),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF1E293B)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                    // ── FLAT REASON & NOTICE SECTION (NO CARD) ──
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.info_outline, color: Colors.amber, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          isMm ? 'ပိတ်ပင်ရသည့် အကြောင်းရင်း' : 'Suspension Reason & Notice',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                        const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Icon(Icons.info_outline, color: Color(0xFFD97706), size: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'ပိတ်ပင်ရသည့် အကြောင်းရင်းနှင့် သတိပေးချက်',
+                                style: TextStyle(
+                                  color: Color(0xFF1E293B),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                _suspensionReason ?? subtext,
+                                style: const TextStyle(
+                                  color: Color(0xFF475569),
+                                  fontSize: 13,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _suspensionReason ?? subtext,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 12,
-                        height: 1.4,
-                      ),
-                    ),
+
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
+            ),
 
-              const SizedBox(height: 24),
-
-              // Action 1: View Legal Laws & Penalties Button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: () => _showLegalLawsSheet(context, isMm),
-                  icon: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 20),
-                  label: Text(
-                    isMm ? 'ဥပဒေနှင့် ပြစ်ဒဏ်များ ကြည့်ရန်' : 'VIEW LEGAL LAWS & PENALTIES',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.3),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFDC2626),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 4,
-                  ),
-                ),
+            // ── BOTTOM FULL-WIDTH ACTIONS ──
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
               ),
-
-              const SizedBox(height: 12),
-
-              // Action 2: Check Status / Re-check
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    await _checkSuspensionStatus();
-                    if (!mounted) return;
-                    if (!_isSuspended) {
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(isMm ? 'အကောင့်ပြန်လည် အသုံးပြုနိုင်ပါပြီ!' : 'Account reactivated successfully!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    } else {
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(isMm ? 'ဆိုင်းငံ့ကာလ ကျန်ရှိနေသေးပါသည်' : 'Account is still suspended.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.refresh_rounded, size: 18, color: Colors.white70),
-                  label: Text(
-                    isMm ? 'အကောင့်အခြေအနေ ပြန်စစ်မည်' : 'RE-CHECK STATUS',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showLegalLawsSheet(context, true),
+                      icon: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 20),
+                      label: const Text(
+                        'ဥပဒေနှင့် ပြစ်ဒဏ်များ ကြည့်ရန်',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                    ),
                   ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF334155)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+
+                  const SizedBox(height: 10),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        await _checkSuspensionStatus();
+                        if (!mounted) return;
+                        if (!_isSuspended) {
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('အကောင့်ပြန်လည် အသုံးပြုနိုင်ပါပြီ!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } else {
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('ဆိုင်းငံ့ကာလ ကျန်ရှိနေသေးပါသည်'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF334155)),
+                      label: const Text(
+                        'အကောင့်အခြေအနေ ပြန်စစ်မည်',
+                        style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
                   ),
-                ),
+
+                  const SizedBox(height: 8),
+
+                  TextButton.icon(
+                    onPressed: () async {
+                      final router = GoRouter.of(context);
+                      await ref.read(authProvider.notifier).logout();
+                      if (mounted) router.go('/login');
+                    },
+                    icon: const Icon(Icons.logout_rounded, size: 16, color: Color(0xFF64748B)),
+                    label: const Text(
+                      'အကောင့်မှ ထွက်မည်',
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 12),
-
-              // Action 3: Logout
-              TextButton.icon(
-                onPressed: () async {
-                  final router = GoRouter.of(context);
-                  await ref.read(authProvider.notifier).logout();
-                  if (mounted) router.go('/login');
-                },
-                icon: const Icon(Icons.logout_rounded, size: 16, color: Colors.white54),
-                label: Text(
-                  isMm ? 'အကောင့်မှ ထွက်မည်' : 'Log Out / Switch Account',
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-              ),
-
-              const SizedBox(height: 10),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

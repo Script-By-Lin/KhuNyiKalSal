@@ -128,4 +128,12 @@ class Account(Base):
     @property
     def suspension_tier(self) -> int:
         """Returns suspension tier level (1: 1 day, 2: 10 days, 3: 100 years)."""
+        if self.suspended_until:
+            rem_sec = self.remaining_suspension_seconds
+            if rem_sec > 30 * 86400:  # > 30 days -> 100 years ban
+                return 3
+            elif rem_sec > 86400:     # > 24 hours -> 10 days
+                return 2
+            elif rem_sec > 0:
+                return 1
         return min(3, max(1, self.suspension_count)) if self.suspension_count else 1

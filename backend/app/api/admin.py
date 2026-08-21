@@ -364,6 +364,8 @@ async def admin_unsuspend_user(
             "message": "Your account suspension has been lifted by an administrator.",
         }
         await manager.send_personal(str(account.id), payload)
+        if str(u_uuid) != str(account.id):
+            await manager.send_personal(str(u_uuid), payload)
     except Exception:
         pass
 
@@ -397,7 +399,13 @@ async def admin_suspend_user(
     account.is_suspended = True
     account.suspended_until = now_utc + timedelta(days=data.duration_days)
     account.suspension_reason = data.reason
-    account.suspension_count = (account.suspension_count or 0) + 1
+    
+    if data.duration_days >= 365:
+        account.suspension_count = 3
+    elif data.duration_days >= 5:
+        account.suspension_count = 2
+    else:
+        account.suspension_count = max(1, (account.suspension_count or 0))
 
     await db.commit()
     await db.refresh(account)
@@ -412,6 +420,8 @@ async def admin_suspend_user(
             "suspension_reason": data.reason,
         }
         await manager.send_personal(str(account.id), payload)
+        if str(u_uuid) != str(account.id):
+            await manager.send_personal(str(u_uuid), payload)
     except Exception:
         pass
 
