@@ -8,7 +8,6 @@ workflows:
       xcode: latest
       cocoapods: default
       vars:
-        # Define environment variables if needed
         FLUTTER_ROOT_DIR: "mobile"
     scripts:
       - name: Set up code signing settings on Xcode project (if configured)
@@ -17,12 +16,7 @@ workflows:
       - name: Get Flutter packages
         script: |
           cd $FLUTTER_ROOT_DIR
-          flutter pub get
-          flutter precache --ios
-      - name: Install CocoaPods dependencies
-        script: |
-          cd $FLUTTER_ROOT_DIR/ios
-          pod install
+          flutter packages pub get
       - name: Flutter build iOS (.ipa)
         script: |
           cd $FLUTTER_ROOT_DIR
@@ -46,7 +40,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - linlinaung.devops@gmail.com # Update with your email
+          - linlinaung.devops@gmail.com
         notify:
           failure: true
           success: true
