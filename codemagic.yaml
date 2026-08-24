@@ -18,6 +18,7 @@ workflows:
         script: |
           cd $FLUTTER_ROOT_DIR
           flutter pub get
+          flutter precache --ios
       - name: Install CocoaPods dependencies
         script: |
           cd $FLUTTER_ROOT_DIR/ios
