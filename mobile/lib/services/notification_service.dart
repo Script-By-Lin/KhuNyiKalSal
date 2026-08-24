@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -18,50 +20,84 @@ class NotificationService {
       'High priority siren and vibration alerts for SOS emergencies that wake up the device';
 
   Future<void> init({Function(String? payload)? onNotificationTap}) async {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    try {
+      const AndroidInitializationSettings initializationSettingsAndroid =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    const InitializationSettings initializationSettings =
-        InitializationSettings(
-      android: initializationSettingsAndroid,
-    );
+      const DarwinInitializationSettings initializationSettingsDarwin =
+          DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
 
-    await flutterLocalNotificationsPlugin.initialize(
-      settings: initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        if (onNotificationTap != null) {
-          onNotificationTap(response.payload);
-        }
-      },
-    );
+      const InitializationSettings initializationSettings =
+          InitializationSettings(
+        android: initializationSettingsAndroid,
+        iOS: initializationSettingsDarwin,
+        macOS: initializationSettingsDarwin,
+      );
 
-    await _createNotificationChannels();
-    await _requestPermissions();
+      await flutterLocalNotificationsPlugin.initialize(
+        settings: initializationSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          if (onNotificationTap != null) {
+            onNotificationTap(response.payload);
+          }
+        },
+      );
+
+      if (Platform.isAndroid) {
+        await _createNotificationChannels();
+      }
+      await _requestPermissions();
+    } catch (e) {
+      debugPrint('NotificationService init warning: $e');
+    }
   }
 
   Future<void> _createNotificationChannels() async {
-    final androidPlugin = flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+    try {
+      final androidPlugin = flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
 
-    if (androidPlugin != null) {
-      final sirenChannel = AndroidNotificationChannel(
-        sirenChannelId,
-        sirenChannelName,
-        description: sirenChannelDesc,
-        importance: Importance.max,
-        playSound: true,
-        enableVibration: true,
-        vibrationPattern: Int64List.fromList([0, 1000, 300, 1000, 300, 1000, 300, 1000]),
-        audioAttributesUsage: AudioAttributesUsage.alarm,
-      );
+      if (androidPlugin != null) {
+        final sirenChannel = AndroidNotificationChannel(
+          sirenChannelId,
+          sirenChannelName,
+          description: sirenChannelDesc,
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          vibrationPattern: Int64List.fromList([0, 1000, 300, 1000, 300, 1000, 300, 1000]),
+          audioAttributesUsage: AudioAttributesUsage.alarm,
+        );
 
-      await androidPlugin.createNotificationChannel(sirenChannel);
+        await androidPlugin.createNotificationChannel(sirenChannel);
+      }
+    } catch (e) {
+      debugPrint('Error creating notification channel: $e');
     }
   }
 
   Future<void> _requestPermissions() async {
-    await Permission.notification.request();
+    try {
+      if (Platform.isIOS) {
+        await flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+                IOSFlutterLocalNotificationsPlugin>()
+            ?.requestPermissions(
+              alert: true,
+              badge: true,
+              sound: true,
+            );
+      } else {
+        await Permission.notification.request();
+      }
+    } catch (e) {
+      debugPrint('Notification permission error: $e');
+    }
   }
 
   Future<void> triggerUrgentHapticAlarm() async {
@@ -79,30 +115,47 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
-    final AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-      sirenChannelId,
-      sirenChannelName,
-      channelDescription: sirenChannelDesc,
-      importance: Importance.max,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-      vibrationPattern: Int64List.fromList([0, 1000, 300, 1000, 300, 1000, 300, 1000]),
-      category: AndroidNotificationCategory.alarm,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-      fullScreenIntent: true, // Wake up locked screen
-      visibility: NotificationVisibility.public,
-    );
-    final NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
+    try {
+      final AndroidNotificationDetails androidPlatformChannelSpecifics =
+          AndroidNotificationDetails(
+        sirenChannelId,
+        sirenChannelName,
+        channelDescription: sirenChannelDesc,
+        importance: Importance.max,
+        priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+        vibrationPattern: Int64List.fromList([0, 1000, 300, 1000, 300, 1000, 300, 1000]),
+        category: AndroidNotificationCategory.alarm,
+        audioAttributesUsage: AudioAttributesUsage.alarm,
+        fullScreenIntent: true,
+        visibility: NotificationVisibility.public,
+      );
 
-    await flutterLocalNotificationsPlugin.show(
-      id: id,
-      title: title,
-      body: body,
-      notificationDetails: platformChannelSpecifics,
-      payload: payload,
-    );
+      const DarwinNotificationDetails darwinPlatformChannelSpecifics =
+          DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        interruptionLevel: InterruptionLevel.timeSensitive,
+      );
+
+      final NotificationDetails platformChannelSpecifics =
+          NotificationDetails(
+        android: androidPlatformChannelSpecifics,
+        iOS: darwinPlatformChannelSpecifics,
+        macOS: darwinPlatformChannelSpecifics,
+      );
+
+      await flutterLocalNotificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: platformChannelSpecifics,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Error showing emergency alert: $e');
+    }
   }
 }
