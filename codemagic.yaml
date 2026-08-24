@@ -1,0 +1,51 @@
+workflows:
+  ios-release:
+    name: iOS Release Build
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      vars:
+        # Define environment variables if needed
+        FLUTTER_ROOT_DIR: "mobile"
+    scripts:
+      - name: Set up code signing settings on Xcode project (if configured)
+        script: |
+          xcode-project use-profiles || echo "No code signing profiles configured yet. Proceeding with unsigned build..."
+      - name: Get Flutter packages
+        script: |
+          cd $FLUTTER_ROOT_DIR
+          flutter pub get
+      - name: Install CocoaPods dependencies
+        script: |
+          cd $FLUTTER_ROOT_DIR/ios
+          pod install
+      - name: Flutter build iOS (.ipa)
+        script: |
+          cd $FLUTTER_ROOT_DIR
+          if [ -f /Users/builder/export_options.plist ]; then
+            echo "Building signed IPA with Codemagic export options..."
+            flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
+          else
+            echo "Building unsigned iOS app and packaging as IPA..."
+            flutter build ios --release --no-codesign
+            cd build/ios/iphoneos
+            mkdir -p Payload
+            cp -r Runner.app Payload/
+            zip -r ../../../Runner-unsigned.ipa Payload
+            cd ../../..
+          fi
+    artifacts:
+      - mobile/build/ios/ipa/*.ipa
+      - mobile/Runner-unsigned.ipa
+      - mobile/build/ios/archive/Runner.xcarchive
+      - /Users/builder/Library/Logs/Gym/*.log
+    publishing:
+      email:
+        recipients:
+          - linlinaung.devops@gmail.com # Update with your email
+        notify:
+          failure: true
+          success: true
