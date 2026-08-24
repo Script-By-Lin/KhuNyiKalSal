@@ -1,6 +1,6 @@
 workflows:
   ios-release:
-    name: iOS Release Build
+    name: iOS IPA Build (Khu Nyi Kal Sal)
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -10,31 +10,42 @@ workflows:
       vars:
         FLUTTER_ROOT_DIR: "mobile"
     scripts:
-      - name: Set up code signing settings on Xcode project (if configured)
+      - name: Configure code signing (if certificates are provided)
         script: |
-          xcode-project use-profiles || echo "No code signing profiles configured yet. Proceeding with unsigned build..."
-      - name: Get Flutter packages
+          xcode-project use-profiles || echo "No code signing profiles found in Codemagic. Proceeding with fallback..."
+      - name: Get Flutter dependencies
         script: |
           cd $FLUTTER_ROOT_DIR
           flutter packages pub get
-      - name: Flutter build iOS (.ipa)
+      - name: Build iOS Application & Package IPA
         script: |
           cd $FLUTTER_ROOT_DIR
-          if [ -f /Users/builder/export_options.plist ]; then
+          
+          # Attempt signed IPA build if certificate environment is active
+          if [ -n "$CM_CERTIFICATE" ]; then
             echo "Building signed IPA with Codemagic export options..."
-            flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
-          else
-            echo "Building unsigned iOS app and packaging as IPA..."
-            flutter build ios --release --no-codesign
-            cd build/ios/iphoneos
-            mkdir -p Payload
-            cp -r Runner.app Payload/
-            zip -r ../../../Runner-unsigned.ipa Payload
-            cd ../../..
+            if flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist; then
+              echo "Signed IPA built successfully!"
+              exit 0
+            fi
+            echo "Signed build failed. Falling back to unsigned build..."
           fi
+
+          echo "Building iOS binary without code signing..."
+          flutter build ios --release --no-codesign
+          
+          echo "Packaging Runner.app into installable .ipa..."
+          cd build/ios/iphoneos
+          rm -rf Payload
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r -q ../../../KhuNyiKalSal.ipa Payload
+          cd ../../..
+          
+          echo "Successfully generated: mobile/KhuNyiKalSal.ipa"
     artifacts:
       - mobile/build/ios/ipa/*.ipa
-      - mobile/Runner-unsigned.ipa
+      - mobile/KhuNyiKalSal.ipa
       - mobile/build/ios/archive/Runner.xcarchive
       - /Users/builder/Library/Logs/Gym/*.log
     publishing:
