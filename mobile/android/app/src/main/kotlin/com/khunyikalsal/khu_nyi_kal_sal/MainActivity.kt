@@ -1,7 +1,6 @@
 package com.khunyikalsal.khu_nyi_kal_sal
 
 import android.content.Intent
-import android.os.Bundle
 import android.view.KeyEvent
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -39,9 +38,10 @@ class MainActivity : FlutterActivity() {
     private fun handleIntent(intent: Intent?) {
         if (intent == null) return
         val action = intent.action
-        if ("com.khunyikalsal.ACTION_QUICK_SOS" == action) {
+        val shortcutAction = intent.getStringExtra("shortcut_action")
+        if ("com.khunyikalsal.ACTION_QUICK_SOS" == action || "quick_sos" == shortcutAction) {
             methodChannel?.invokeMethod("onQuickSosShortcut", null)
-        } else if ("com.khunyikalsal.ACTION_DISASTER_RADAR" == action) {
+        } else if ("com.khunyikalsal.ACTION_DISASTER_RADAR" == action || "disaster_radar" == shortcutAction) {
             methodChannel?.invokeMethod("onDisasterRadarShortcut", null)
         }
     }
