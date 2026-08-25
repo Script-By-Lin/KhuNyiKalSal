@@ -1,8 +1,20 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+import 'api_service.dart';
+
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {}
+}
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -10,6 +22,8 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
+
+  String? _lastCachedFcmToken;
 
   NotificationService._internal();
 
@@ -65,8 +79,123 @@ class NotificationService {
         await _createNotificationChannels();
       }
       await _requestPermissions();
+
+      // Initialize Firebase Cloud Messaging for closed-app & background push notifications
+      await _initFirebaseMessaging(onNotificationTap);
     } catch (e) {
       debugPrint('NotificationService init warning: $e');
+    }
+  }
+
+  Future<void> _initFirebaseMessaging(Function(String? payload)? onNotificationTap) async {
+    try {
+      await Firebase.initializeApp();
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        criticalAlert: true,
+      );
+
+      final token = await messaging.getToken();
+      if (token != null) {
+        _lastCachedFcmToken = token;
+        debugPrint('FCM Token generated: $token');
+        await syncDeviceToken(token);
+      }
+
+      messaging.onTokenRefresh.listen((newToken) async {
+        _lastCachedFcmToken = newToken;
+        await syncDeviceToken(newToken);
+      });
+
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        final notification = message.notification;
+        final data = message.data;
+        if (notification != null) {
+          final type = data['type'] ?? data['event'] ?? '';
+          if (type == 'ANNOUNCEMENT' || type == 'NEW_ANNOUNCEMENT') {
+            showAnnouncementNotification(
+              id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              title: notification.title ?? 'Official Announcement',
+              body: notification.body ?? '',
+              payload: json.encode(data),
+            );
+          } else if (type == 'EPHEMERAL_BROADCAST') {
+            showEphemeralBroadcastNotification(
+              id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              title: notification.title ?? 'Khu Nyi Kal Sal',
+              body: notification.body ?? '',
+              category: data['category'] ?? 'DAILY_QUOTE',
+              payload: json.encode(data),
+            );
+          } else if (type == 'DISASTER_ALERT' || type == 'NEW_DISASTER_ALERT') {
+            showDisasterProximityAlarm(
+              id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              title: notification.title ?? 'Disaster Warning',
+              body: notification.body ?? '',
+              payload: json.encode(data),
+            );
+          } else if (type == 'BLOOD_REQUEST' || type == 'NEW_BLOOD_SUPPLY_REQUEST' || type == 'BLOOD_REQUEST_ACCEPTED') {
+            showBloodNotification(
+              id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              title: notification.title ?? 'Blood Donation Alert',
+              body: notification.body ?? '',
+              payload: json.encode(data),
+            );
+          } else {
+            showEmergencyAlert(
+              id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              title: notification.title ?? 'Emergency Alert',
+              body: notification.body ?? '',
+              payload: json.encode(data),
+            );
+          }
+        }
+      });
+
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        if (onNotificationTap != null) {
+          onNotificationTap(json.encode(message.data));
+        }
+      });
+
+      final initialMessage = await messaging.getInitialMessage();
+      if (initialMessage != null && onNotificationTap != null) {
+        onNotificationTap(json.encode(initialMessage.data));
+      }
+    } catch (e) {
+      debugPrint('Firebase messaging initialization warning: $e');
+    }
+  }
+
+  Future<void> syncSavedDeviceToken() async {
+    if (_lastCachedFcmToken != null) {
+      await syncDeviceToken(_lastCachedFcmToken!);
+    } else {
+      try {
+        final token = await FirebaseMessaging.instance.getToken();
+        if (token != null) {
+          _lastCachedFcmToken = token;
+          await syncDeviceToken(token);
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<void> syncDeviceToken(String fcmToken) async {
+    try {
+      final api = ApiService();
+      final hasToken = await api.getToken();
+      if (hasToken != null) {
+        await api.registerDeviceToken(fcmToken);
+        debugPrint('Device token synced with backend: ${fcmToken.substring(0, 10)}...');
+      }
+    } catch (e) {
+      debugPrint('Device token sync error: $e');
     }
   }
 

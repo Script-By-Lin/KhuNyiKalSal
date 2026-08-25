@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 import '../services/api_service.dart';
 import '../services/websocket_service.dart';
+import '../services/notification_service.dart';
 
 /// Auth state
 class AuthState {
@@ -69,6 +69,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: data['email'],
       );
       _ws.connect(data['id'], token: token);
+      NotificationService().syncSavedDeviceToken();
       return role;
     } catch (_) {
       // If access token failed, attempt refresh token
@@ -92,6 +93,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
             email: meData['email'],
           );
           _ws.connect(meData['id'], token: rData['access_token']);
+          NotificationService().syncSavedDeviceToken();
           return role;
         } catch (_) {}
       }
@@ -119,6 +121,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: email,
       );
       _ws.connect(data['user_id'], token: data['access_token']);
+      NotificationService().syncSavedDeviceToken();
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -146,6 +149,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: data['email'],
       );
       _ws.connect(body['user_id'], token: body['access_token']);
+      NotificationService().syncSavedDeviceToken();
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _extractError(e));

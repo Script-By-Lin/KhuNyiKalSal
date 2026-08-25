@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "929957459195",
+    "project_id": "khunyikalsal",
+    "storage_bucket": "khunyikalsal.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:929957459195:android:dde15400534082e4922c5e",
+        "android_client_info": {
+          "package_name": "com.khunyikalsal.khu_nyi_kal_sal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBQpyK5-xNjUrew0NjprLZ8ZAOW0aMQSM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
