@@ -15,7 +15,7 @@ from sqlalchemy import text
 
 from app.database import create_tables, async_session_maker
 from app.websocket.manager import manager
-from app.api import auth, users, organizations, volunteers, emergency, admin, family, blood_donation, announcements, support
+from app.api import auth, users, organizations, volunteers, emergency, admin, family, blood_donation, announcements, support, weather
 from app.api import websocket as ws
 
 from zoneinfo import ZoneInfo
@@ -124,6 +124,9 @@ app.include_router(
 )
 app.include_router(
     support.router, prefix="/api/support", tags=["Support & Donation"]
+)
+app.include_router(
+    weather.router, prefix="/api/weather", tags=["Weather & Disasters"]
 )
 app.include_router(ws.router, tags=["WebSocket"])
 

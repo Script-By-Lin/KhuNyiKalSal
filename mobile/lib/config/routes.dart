@@ -27,6 +27,7 @@ import '../screens/more/more_screen.dart';
 import '../screens/blood_donation/blood_donation_screen.dart';
 import '../screens/announcements/announcements_screen.dart';
 import '../screens/support/support_us_screen.dart';
+import '../screens/weather/weather_disaster_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -94,6 +95,8 @@ final goRouter = GoRouter(
     GoRoute(path: '/announcements', builder: (_, _) => const AnnouncementsScreen()),
     GoRoute(path: '/support-us', builder: (_, _) => const SupportUsScreen()),
     GoRoute(path: '/change-password', builder: (_, _) => const ChangePasswordScreen()),
+    GoRoute(path: '/weather-disaster', builder: (_, _) => const WeatherDisasterScreen()),
+    GoRoute(path: '/weather', builder: (_, _) => const WeatherDisasterScreen()),
 
     // ── Role dashboards ──────────────────────────────────────────────────
     GoRoute(

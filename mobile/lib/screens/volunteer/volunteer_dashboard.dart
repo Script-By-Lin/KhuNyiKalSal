@@ -556,6 +556,69 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
 
           const SizedBox(height: 24),
 
+          // ── Field Operations & Hazard Radar ─────────────────────────
+          Text(
+            isMm ? 'ကယ်ဆယ်ရေးနှင့် သဘာဝဘေး စောင့်ကြည့်ရေး' : 'Field Operations & Hazard Radar',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
+          ),
+          const SizedBox(height: 10),
+          Card(
+            color: cardBg,
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: cardBorder),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.deepOrange.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.thunderstorm_outlined, color: Colors.deepOrange, size: 22),
+                  ),
+                  title: Text(
+                    isMm ? 'ရာသီဥတုနှင့် သဘာဝဘေး သတိပေးချက်' : 'Weather & Disaster Radar',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    isMm ? 'နေ့စဉ် မိုးလေဝသ၊ မုန်တိုင်းနှင့် ငလျင် သတိပေးချက်များ' : 'Live weather, storm track & seismic alerts',
+                    style: TextStyle(fontSize: 12, color: textSecondary),
+                  ),
+                  trailing: Icon(Icons.chevron_right, color: textSecondary.withValues(alpha: 0.5), size: 20),
+                  onTap: () => context.push('/weather-disaster'),
+                ),
+                Divider(height: 1, color: cardBorder),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.medical_services_outlined, color: AppTheme.primaryRed, size: 22),
+                  ),
+                  title: Text(
+                    isMm ? 'အရေးပေါ် ရှေးဦးသူနာပြုစုနည်း' : 'First Aid Manual',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    isMm ? 'အော့ဖ်လိုင်း ဆေးဘက်ဆိုင်ရာ ကုသနည်းများ' : 'Offline emergency protocols',
+                    style: TextStyle(fontSize: 12, color: textSecondary),
+                  ),
+                  trailing: Icon(Icons.chevron_right, color: textSecondary.withValues(alpha: 0.5), size: 20),
+                  onTap: () => context.push('/first-aid'),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
           // ── Account & Security ──────────────────────────────────────
           Text(
             isMm ? 'အကောင့်နှင့် လုံခြုံရေး' : 'Account & Security',

@@ -262,6 +262,17 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               ),
               const SizedBox(height: 12),
               _menuTile(
+                icon: Icons.thunderstorm_outlined,
+                color: Colors.deepOrange,
+                title: isMm ? 'ရာသီဥတုနှင့် သဘာဝဘေး သတိပေးချက်' : 'Weather & Disaster Radar',
+                subtitle: isMm ? 'နေ့စဉ် မိုးလေဝသ၊ မုန်တိုင်းနှင့် ငလျင် သတိပေးချက်များ' : 'Daily forecasts, cyclone alerts & earthquake radar',
+                onTap: () => context.push('/weather-disaster'),
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+              ),
+              _menuTile(
                 icon: Icons.medical_services_outlined,
                 color: AppTheme.primaryRed,
                 title: isMm ? 'အရေးပေါ် ရှေးဦးသူနာပြုစုနည်း' : 'First Aid Guide',

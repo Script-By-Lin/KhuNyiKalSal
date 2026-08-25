@@ -403,6 +403,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 14),
               _InfoTile(
+                icon: Icons.thunderstorm_outlined,
+                title: isMm ? 'ရာသီဥတုနှင့် သဘာဝဘေး သတိပေးချက်' : 'Weather & Disaster Radar',
+                subtitle: isMm ? 'နေ့စဉ် မိုးလေဝသ၊ မုန်တိုင်းနှင့် ငလျင် သတိပေးချက်များ' : 'Live daily forecasts, storms & earthquake alerts',
+                onTap: () => context.push('/weather-disaster'),
+              ),
+              const SizedBox(height: 10),
+              _InfoTile(
                 icon: Icons.medical_services_outlined,
                 title: isMm ? 'အော့ဖ်လိုင်း ရှေးဦးပြုစုနည်းများ' : 'Offline First-Aid Guides',
                 subtitle: isMm ? '၁၀၀% အင်တာနက်မလိုဘဲ ဖတ်ရှုနိုင်သော နည်းလမ်းများ' : '100% offline emergency survival protocols',
