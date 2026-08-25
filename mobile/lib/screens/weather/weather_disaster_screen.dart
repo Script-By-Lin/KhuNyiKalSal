@@ -89,20 +89,55 @@ class _WeatherDisasterScreenState extends ConsumerState<WeatherDisasterScreen>
   }
 
   String _getTownshipName(double lat, double lon) {
-    if ((lat - 16.8).abs() < 0.5 && (lon - 96.15).abs() < 0.5) {
-      return 'Yangon (ရန်ကုန်)';
-    } else if ((lat - 21.97).abs() < 0.5 && (lon - 96.08).abs() < 0.5) {
-      return 'Mandalay (မန္တလေး)';
-    } else if ((lat - 19.74).abs() < 0.5 && (lon - 96.12).abs() < 0.5) {
-      return 'Naypyitaw (နေပြည်တော်)';
-    } else if ((lat - 20.15).abs() < 0.5 && (lon - 92.9).abs() < 0.5) {
-      return 'Sittwe / Rakhine (စစ်တွေ/ရခိုင်)';
-    } else if ((lat - 16.48).abs() < 0.5 && (lon - 97.62).abs() < 0.5) {
-      return 'Mawlamyine / Mon (မော်လမြိုင်/မွန်)';
-    } else if ((lat - 16.98).abs() < 0.5 && (lon - 94.54).abs() < 0.5) {
-      return 'Pathein / Ayeyarwady (ပုသိမ်/ဧရာဝတီ)';
+    const cities = [
+      {'name': 'Yangon (ရန်ကုန်)', 'lat': 16.8661, 'lon': 96.1951},
+      {'name': 'Mandalay (မန္တလေး)', 'lat': 21.9750, 'lon': 96.0836},
+      {'name': 'Naypyitaw (နေပြည်တော်)', 'lat': 19.7450, 'lon': 96.1297},
+      {'name': 'Taunggyi / Shan (တောင်ကြီး/ရှမ်း)', 'lat': 20.7833, 'lon': 97.0333},
+      {'name': 'Bago (ပဲခူး)', 'lat': 17.3352, 'lon': 96.4817},
+      {'name': 'Mawlamyine / Mon (မော်လမြိုင်/မွန်)', 'lat': 16.4905, 'lon': 97.6283},
+      {'name': 'Pathein / Ayeyarwady (ပုသိမ်/ဧရာဝတီ)', 'lat': 16.7792, 'lon': 94.7325},
+      {'name': 'Monywa / Sagaing (မုံရွာ/စစ်ကိုင်း)', 'lat': 22.1100, 'lon': 95.1386},
+      {'name': 'Meiktila (မိတ္ထီလာ)', 'lat': 20.8784, 'lon': 95.8647},
+      {'name': 'Sittwe / Rakhine (စစ်တွေ/ရခိုင်)', 'lat': 20.1444, 'lon': 92.8969},
+      {'name': 'Myitkyina / Kachin (မြစ်ကြီးနား/ကချင်)', 'lat': 25.3833, 'lon': 97.3964},
+      {'name': 'Pyay (ပြည်)', 'lat': 18.8242, 'lon': 95.2231},
+      {'name': 'Hpa-An / Kayin (ဘားအံ/ကရင်)', 'lat': 16.8897, 'lon': 97.6331},
+      {'name': 'Lashio / Shan (လားရှိုး)', 'lat': 22.9333, 'lon': 97.7500},
+      {'name': 'Dawei / Tanintharyi (ထားဝယ်/တနင်္သာရီ)', 'lat': 14.0833, 'lon': 98.2000},
+      {'name': 'Myeik (မြိတ်)', 'lat': 12.4394, 'lon': 98.6003},
+      {'name': 'Magway (မကွေး)', 'lat': 20.1500, 'lon': 94.9400},
+      {'name': 'Hakha / Chin (ဟားခါး/ချင်း)', 'lat': 22.6456, 'lon': 93.6053},
+      {'name': 'Loikaw / Kayah (လွိုင်ကော်/ကယား)', 'lat': 19.6742, 'lon': 97.2092},
+      {'name': 'Pyin Oo Lwin (ပြင်ဦးလွင်)', 'lat': 22.0333, 'lon': 96.4667},
+      {'name': 'Kalay (ကလေး)', 'lat': 23.2000, 'lon': 94.0667},
+      {'name': 'Pakokku (ပခုက္ကူ)', 'lat': 21.3333, 'lon': 95.0833},
+      {'name': 'Kyaukphyu (ကျောက်ဖြူ)', 'lat': 19.4300, 'lon': 93.5500},
+      {'name': 'Thandwe / Ngapali (သံတွဲ/ငပလီ)', 'lat': 18.4667, 'lon': 94.3667},
+      {'name': 'Kawthaung (ကော့သောင်း)', 'lat': 9.9833, 'lon': 98.5500},
+      {'name': 'Shwebo (ရွှေဘို)', 'lat': 22.5667, 'lon': 95.7000},
+      {'name': 'Mogok (မိုးကုတ်)', 'lat': 22.9167, 'lon': 96.5000},
+      {'name': 'Taungoo (တောင်ငူ)', 'lat': 18.9400, 'lon': 96.4300},
+      {'name': 'Hinthada (ဟင်္သာတ)', 'lat': 17.6500, 'lon': 95.4600},
+      {'name': 'Pyapon (ဖျာပုံ)', 'lat': 16.2833, 'lon': 95.6833},
+    ];
+
+    String closestCity = 'Yangon (ရန်ကုန်)';
+    double minDistance = double.infinity;
+
+    for (var c in cities) {
+      final cLat = c['lat'] as double;
+      final cLon = c['lon'] as double;
+      final dLat = (lat - cLat);
+      final dLon = (lon - cLon);
+      final distSq = dLat * dLat + dLon * dLon;
+      if (distSq < minDistance) {
+        minDistance = distSq;
+        closestCity = c['name'] as String;
+      }
     }
-    return '${lat.toStringAsFixed(2)}°N, ${lon.toStringAsFixed(2)}°E';
+
+    return closestCity;
   }
 
   Future<void> _makePhoneCall(String phoneNumber) async {
@@ -147,10 +182,12 @@ class _WeatherDisasterScreenState extends ConsumerState<WeatherDisasterScreen>
                         unselectedLabelColor: isDark ? Colors.white60 : Colors.grey.shade600,
                         indicatorColor: AppTheme.primaryRed,
                         indicatorWeight: 3,
+                        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        unselectedLabelStyle: const TextStyle(fontSize: 12),
                         tabs: [
                           Tab(
                             icon: const Icon(Icons.wb_sunny_outlined, size: 20),
-                            text: isMm ? 'နေ့စဉ် မိုးလေဝသ' : 'Daily Weather',
+                            text: isMm ? 'မိုးလေဝသ' : 'Daily Weather',
                           ),
                           Tab(
                             icon: Badge(
@@ -159,11 +196,11 @@ class _WeatherDisasterScreenState extends ConsumerState<WeatherDisasterScreen>
                               backgroundColor: hasCriticalAlert ? Colors.red : Colors.orange,
                               child: const Icon(Icons.warning_amber_rounded, size: 20),
                             ),
-                            text: isMm ? 'ဘေးအန္တရာယ် သတိပေးချက်' : 'Disaster Radar',
+                            text: isMm ? 'သဘာဝဘေး' : 'Disaster Radar',
                           ),
                           Tab(
                             icon: const Icon(Icons.health_and_safety_outlined, size: 20),
-                            text: isMm ? 'ကာကွယ်ရေး လမ်းညွှန်' : 'Safety Protocols',
+                            text: isMm ? 'လမ်းညွှန်' : 'Safety Protocols',
                           ),
                         ],
                       ),
@@ -842,8 +879,30 @@ class _WeatherDisasterScreenState extends ConsumerState<WeatherDisasterScreen>
     final w = _weather;
     final aqi = w?.airQualitySummary['aqi'] ?? 40;
     final aqiStatus = isMm
-        ? (w?.airQualitySummary['status_my'] ?? 'ကောင်းမွန်သည်')
+        ? (w?.airQualitySummary['status_my'] ?? 'ကောင်းမွန်')
         : (w?.airQualitySummary['status_en'] ?? 'Good');
+
+    final floodLevel = w?.floodRiskLevel ?? 'LOW';
+    String floodText;
+    Color floodColor;
+    switch (floodLevel) {
+      case 'SEVERE':
+        floodText = isMm ? 'အထူးစိုးရိမ်ရ' : 'Severe';
+        floodColor = Colors.purple;
+        break;
+      case 'HIGH':
+        floodText = isMm ? 'မြင့်မား' : 'High';
+        floodColor = Colors.red;
+        break;
+      case 'MODERATE':
+        floodText = isMm ? 'အသင့်အတင့်' : 'Moderate';
+        floodColor = Colors.orange;
+        break;
+      default:
+        floodText = isMm ? 'နည်းပါး' : 'Low';
+        floodColor = Colors.green;
+        break;
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -865,59 +924,112 @@ class _WeatherDisasterScreenState extends ConsumerState<WeatherDisasterScreen>
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Row(
             children: [
+              // ── Air Quality Index Tile ──────────────
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isMm ? 'လေထုအရည်အသွေး (AQI)' : 'Air Quality Index',
-                      style: TextStyle(fontSize: 11, color: textSecondary),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Text(
-                          '$aqi',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isMm ? 'လေထုအရည်အသွေး' : 'Air Quality',
+                        style: TextStyle(fontSize: 11, color: textSecondary, fontWeight: FontWeight.w500),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            '$aqi',
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.green),
                           ),
-                          child: Text(
-                            aqiStatus,
-                            style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold),
+                          const SizedBox(width: 4),
+                          const Text(
+                            'AQI',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                      ],
-                    ),
-                  ],
+                        child: Text(
+                          aqiStatus,
+                          style: const TextStyle(fontSize: 10.5, color: Colors.green, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
+              const SizedBox(width: 12),
+
+              // ── Flood Risk Indicator Tile ───────────
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isMm ? 'ရေကြီးနိုင်ခြေ အဆင့်' : 'Flood Risk Index',
-                      style: TextStyle(fontSize: 11, color: textSecondary),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      w?.floodRiskLevel ?? 'LOW',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: w?.floodRiskLevel == 'HIGH' ? Colors.red : Colors.blue,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: floodColor.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: floodColor.withValues(alpha: 0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isMm ? 'ရေကြီးနိုင်ခြေ' : 'Flood Risk',
+                        style: TextStyle(fontSize: 11, color: textSecondary, fontWeight: FontWeight.w500),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.waves_rounded, size: 18, color: floodColor),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              floodLevel,
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: floodColor),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: floodColor.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          floodText,
+                          style: TextStyle(fontSize: 10.5, color: floodColor, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],

@@ -19,18 +19,8 @@ class HardwareTriggerService {
     }
 
     _channel.setMethodCallHandler((call) async {
-      switch (call.method) {
-        case 'onEmergencyTripleClick':
-          _handleTripleClick();
-          break;
-        case 'onQuickSosShortcut':
-          _handleQuickSosShortcut();
-          break;
-        case 'onDisasterRadarShortcut':
-          _handleDisasterRadarShortcut();
-          break;
-        default:
-          break;
+      if (call.method == 'onEmergencyTripleClick') {
+        _handleTripleClick();
       }
     });
   }
@@ -45,18 +35,5 @@ class HardwareTriggerService {
         goRouter.push('/home');
       } catch (_) {}
     }
-  }
-
-  void _handleQuickSosShortcut() {
-    NotificationService().triggerUrgentHapticAlarm();
-    try {
-      goRouter.go('/home');
-    } catch (_) {}
-  }
-
-  void _handleDisasterRadarShortcut() {
-    try {
-      goRouter.push('/weather-disaster');
-    } catch (_) {}
   }
 }

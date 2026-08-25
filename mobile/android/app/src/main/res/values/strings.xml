@@ -1,8 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Khu Nyi Kal Sal</string>
-    <string name="shortcut_sos_short">Quick SOS</string>
-    <string name="shortcut_sos_long">Emergency SOS</string>
-    <string name="shortcut_disaster_short">Disaster Radar</string>
-    <string name="shortcut_disaster_long">Weather and Disaster Radar</string>
 </resources>

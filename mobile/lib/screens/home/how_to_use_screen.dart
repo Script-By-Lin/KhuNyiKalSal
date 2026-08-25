@@ -122,14 +122,6 @@ class HowToUseScreen extends ConsumerWidget {
           ),
           _Step(
             number: '6',
-            title: isMm ? 'အက်ပ် အမြန်ခလုတ်များ (Android Shortcuts)' : 'Android App Shortcuts',
-            description: isMm
-                ? 'ဖုန်းပင်မမျက်နှာပြင်ရှိ အက်ပ်အိုင်ကွန်ကို ဖိထားပြီး "🚨 Quick SOS" သို့မဟုတ် "🌪️ Disaster Radar" ကို ၁ ချက်နှိပ် တိုက်ရိုက်ဖွင့်လှစ် အသုံးပြုနိုင်ပါသည်။'
-                : 'Long-press the app icon on your home screen to instantly access Quick SOS or Disaster Radar via Android Shortcuts.',
-            icon: Icons.widgets_outlined,
-          ),
-          _Step(
-            number: '7',
             title: isMm ? 'အကူအညီ လာရောက်မှုကို စောင့်ဆိုင်းပါ' : 'Live Tracking & Response',
             description: isMm
                 ? 'စေတနာ့ဝန်ထမ်း ကယ်ဆယ်ရေးသမားမှ သင့်အချက်ပြမှုကို လက်ခံလိုက်ပါက "အကူအညီ လာနေပါပြီ!" ဟု မြင်တွေ့ရပြီး ကယ်ဆယ်ရေးယာဉ် တည်နေရာကို မြေပုံပေါ်တွင် အချိန်နှင့်တပြေးညီ ကြည့်ရှုနိုင်ပါသည်။'

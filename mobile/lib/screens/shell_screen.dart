@@ -230,6 +230,53 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
             ],
           ),
         );
+      } else if (eventType == 'NEW_ANNOUNCEMENT') {
+        final title = event['title'] ?? 'Official Bulletin';
+        final content = event['content'] ?? '';
+        final isPinned = event['is_pinned'] == true;
+        final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
+
+        NotificationService().showAnnouncementNotification(
+          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          title: '${isPinned ? "🚨 [URGENT] " : "📢 "} $title',
+          body: content,
+          isPinned: isPinned,
+          payload: json.encode({'type': 'ANNOUNCEMENT', 'route': '/announcements'}),
+        );
+
+        ScaffoldMessenger.of(context).showMaterialBanner(
+          MaterialBanner(
+            padding: const EdgeInsets.all(14),
+            backgroundColor: isPinned ? AppTheme.primaryRed : const Color(0xFF1E3A8A),
+            leading: Icon(
+              isPinned ? Icons.warning_amber_rounded : Icons.campaign_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+            content: Text(
+              '${isPinned ? "🚨 " : "📢 "}$title\n$content',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+                  context.push('/announcements');
+                },
+                child: Text(
+                  isMm ? 'ဖတ်ရှုရန်' : 'READ',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
+              TextButton(
+                onPressed: () => ScaffoldMessenger.of(context).hideCurrentMaterialBanner(),
+                child: const Text('DISMISS', style: TextStyle(color: Colors.white70)),
+              ),
+            ],
+          ),
+        );
       } else if (eventType == 'NEW_DISASTER_ALERT') {
         DisasterMonitorService().triggerManualCheck();
       } else if (eventType == 'SOS_ASSIGNED') {

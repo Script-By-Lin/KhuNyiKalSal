@@ -42,6 +42,19 @@ async def get_user_device_tokens(user_ids: List[uuid.UUID], db: AsyncSession) ->
     return list(set(tokens))
 
 
+async def get_all_active_device_tokens(db: AsyncSession) -> List[str]:
+    """Retrieve all registered device tokens across all users for broadcast announcements & news."""
+    result = await db.execute(
+        select(UserSession.fcm_token)
+        .where(
+            UserSession.is_active == True,  # noqa: E712
+            UserSession.fcm_token.isnot(None),
+        )
+    )
+    tokens = [t for t in result.scalars().all() if t and t.strip()]
+    return list(set(tokens))
+
+
 def _send_fcm_urllib(token: str, payload: dict, server_key: str) -> None:
     """Synchronous fallback to deliver FCM push via standard library urllib."""
     try:

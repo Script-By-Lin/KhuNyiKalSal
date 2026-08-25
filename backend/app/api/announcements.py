@@ -102,15 +102,45 @@ async def create_announcement(
     await db.refresh(announcement)
 
     # Real-time WebSocket broadcast to all connected clients
+    alert_payload = {
+        "event": "NEW_ANNOUNCEMENT",
+        "announcement_id": str(announcement.id),
+        "title": announcement.title,
+        "content": announcement.content,
+        "category": announcement.category,
+        "author_name": announcement.author_name,
+        "is_pinned": announcement.is_pinned,
+        "created_at": announcement.created_at.isoformat(),
+    }
     try:
-        await manager.broadcast_all({
-            "event": "NEW_ANNOUNCEMENT",
-            "announcement_id": str(announcement.id),
-            "title": announcement.title,
-            "category": announcement.category,
-        })
+        await manager.broadcast_all(alert_payload)
     except Exception:
         pass
+
+    # Push Notification dispatch to all user devices (delivered even if app is closed)
+    try:
+        from app.services.push_service import get_all_active_device_tokens, send_emergency_push
+        tokens = await get_all_active_device_tokens(db)
+        if tokens:
+            prefix = "🚨 [URGENT BULLETIN]" if announcement.is_pinned else "📢 [OFFICIAL ANNOUNCEMENT]"
+            await send_emergency_push(
+                tokens=tokens,
+                title=f"{prefix} {announcement.title}",
+                body=f"{announcement.content[:140]}..." if len(announcement.content) > 140 else announcement.content,
+                data={
+                    "type": "ANNOUNCEMENT",
+                    "event": "NEW_ANNOUNCEMENT",
+                    "announcement_id": str(announcement.id),
+                    "route": "/announcements",
+                    "title": announcement.title,
+                    "content": announcement.content,
+                    "category": announcement.category,
+                },
+                is_siren_alarm=announcement.is_pinned,
+            )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to dispatch announcement push: {e}")
 
     return AnnouncementResponse(
         id=str(announcement.id),

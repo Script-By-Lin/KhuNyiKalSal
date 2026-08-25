@@ -28,6 +28,11 @@ class NotificationService {
   static const String bloodChannelDesc =
       'Notifications for urgent patient blood requests, donor matches, and organization appointment approvals';
 
+  static const String announcementChannelId = 'announcement_alerts_v1';
+  static const String announcementChannelName = '📢 Official Announcements & News';
+  static const String announcementChannelDesc =
+      'Audible alerts for emergency broadcasts, disaster announcements, and government weather news';
+
   Future<void> init({Function(String? payload)? onNotificationTap}) async {
     try {
       const AndroidInitializationSettings initializationSettingsAndroid =
@@ -103,9 +108,19 @@ class NotificationService {
           enableVibration: true,
         );
 
+        final announcementChannel = AndroidNotificationChannel(
+          announcementChannelId,
+          announcementChannelName,
+          description: announcementChannelDesc,
+          importance: Importance.high,
+          playSound: true,
+          enableVibration: true,
+        );
+
         await androidPlugin.createNotificationChannel(sirenChannel);
         await androidPlugin.createNotificationChannel(disasterChannel);
         await androidPlugin.createNotificationChannel(bloodChannel);
+        await androidPlugin.createNotificationChannel(announcementChannel);
       }
     } catch (e) {
       debugPrint('Error creating notification channel: $e');
@@ -287,6 +302,59 @@ class NotificationService {
       );
     } catch (e) {
       debugPrint('Error showing blood notification: $e');
+    }
+  }
+
+  /// Displays audible notification for Admin announcements, news bulletins, and weather warnings
+  Future<void> showAnnouncementNotification({
+    required int id,
+    required String title,
+    required String body,
+    bool isPinned = false,
+    String? payload,
+  }) async {
+    try {
+      if (isPinned) {
+        triggerUrgentHapticAlarm();
+      }
+
+      final AndroidNotificationDetails androidPlatformChannelSpecifics =
+          AndroidNotificationDetails(
+        isPinned ? sirenChannelId : announcementChannelId,
+        isPinned ? sirenChannelName : announcementChannelName,
+        channelDescription: isPinned ? sirenChannelDesc : announcementChannelDesc,
+        importance: isPinned ? Importance.max : Importance.high,
+        priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+        category: isPinned ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.event,
+        visibility: NotificationVisibility.public,
+      );
+
+      final DarwinNotificationDetails darwinPlatformChannelSpecifics =
+          DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        interruptionLevel: isPinned ? InterruptionLevel.critical : InterruptionLevel.timeSensitive,
+      );
+
+      final NotificationDetails platformChannelSpecifics =
+          NotificationDetails(
+        android: androidPlatformChannelSpecifics,
+        iOS: darwinPlatformChannelSpecifics,
+        macOS: darwinPlatformChannelSpecifics,
+      );
+
+      await flutterLocalNotificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: platformChannelSpecifics,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Error showing announcement notification: $e');
     }
   }
 }

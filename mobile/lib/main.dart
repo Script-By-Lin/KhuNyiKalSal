@@ -24,6 +24,10 @@ void main() async {
             goRouter.push(data['route'].toString());
             return;
           }
+          if (data['type'] == 'ANNOUNCEMENT' || data['event'] == 'NEW_ANNOUNCEMENT') {
+            goRouter.push('/announcements');
+            return;
+          }
           if (data['event'] == 'BLOOD_REQUEST_ACCEPTED' || data['event'] == 'NEW_BLOOD_SUPPLY_REQUEST' || data['type'] == 'BLOOD_REQUEST') {
             goRouter.push('/blood-donation');
             return;
