@@ -479,6 +479,8 @@ export default function AnnouncementsPage() {
               </form>
             </div>
           </div>
+        )}
+
         {/* Ephemeral Broadcast Modal (Zero-DB Daily Quote / Temporary Alert) */}
         {isEphemeralOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
