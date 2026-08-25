@@ -49,6 +49,14 @@ class UpdateAnnouncementRequest(BaseModel):
     is_active: Optional[bool] = None
 
 
+class BroadcastEphemeralRequest(BaseModel):
+    title: str
+    message: str
+    category: str = "DAILY_QUOTE"  # 'DAILY_QUOTE', 'MISSING_PERSON', 'COMMUNITY_NOTE', 'INSPIRATION', 'QUICK_ALERT'
+    author_name: Optional[str] = "Command Center"
+    sound_type: Optional[str] = "default"
+
+
 @router.get("", response_model=List[AnnouncementResponse])
 @router.get("/", response_model=List[AnnouncementResponse])
 async def list_announcements(
@@ -153,6 +161,70 @@ async def create_announcement(
         created_at=announcement.created_at,
         updated_at=announcement.updated_at,
     )
+
+
+@router.post("/broadcast-ephemeral", status_code=status.HTTP_200_OK)
+async def broadcast_ephemeral_quote_or_alert(
+    data: BroadcastEphemeralRequest,
+    current_user: Account = Depends(require_role("admin", "superadmin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Admin endpoint to push a real-time Daily Quote, Missing Person Alert, or Ephemeral Bulletin.
+    DOES NOT store anything in the database!
+    Delivers instant WebSocket notification and FCM/APNs push notification with sound to all users.
+    """
+    title = data.title.strip()
+    message = data.message.strip()
+    category = data.category.strip()
+
+    # 1. Real-time WebSocket broadcast to all connected active clients
+    ws_payload = {
+        "event": "EPHEMERAL_BROADCAST",
+        "type": "EPHEMERAL_BROADCAST",
+        "category": category,
+        "title": title,
+        "message": message,
+        "author_name": data.author_name or current_user.full_name or "Command Center",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        await manager.broadcast_all(ws_payload)
+    except Exception:
+        pass
+
+    # 2. Push Notification dispatch to all registered user device tokens
+    recipient_count = 0
+    try:
+        from app.services.push_service import get_all_active_device_tokens, send_emergency_push
+        tokens = await get_all_active_device_tokens(db)
+        recipient_count = len(tokens)
+        if tokens:
+            prefix = "🔍 [MISSING PERSON]" if category == "MISSING_PERSON" else ("💬 [DAILY QUOTE]" if category == "DAILY_QUOTE" else "✨ [COMMUNITY]")
+            await send_emergency_push(
+                tokens=tokens,
+                title=f"{prefix} {title}",
+                body=message[:140] + ("..." if len(message) > 140 else ""),
+                data={
+                    "type": "EPHEMERAL_BROADCAST",
+                    "event": "EPHEMERAL_BROADCAST",
+                    "category": category,
+                    "title": title,
+                    "message": message,
+                },
+                is_siren_alarm=(category == "MISSING_PERSON"),
+            )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to dispatch ephemeral push: {e}")
+
+    return {
+        "success": True,
+        "message": "Ephemeral broadcast dispatched successfully to all user devices (not saved to DB).",
+        "recipients_count": recipient_count,
+        "title": title,
+        "category": category,
+    }
 
 
 @router.put("/{announcement_id}", response_model=AnnouncementResponse)

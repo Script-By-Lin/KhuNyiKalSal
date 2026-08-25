@@ -363,4 +363,62 @@ class NotificationService {
       debugPrint('Error showing announcement notification: $e');
     }
   }
+
+  /// Displays audible notification for temporary ephemeral broadcasts, Daily Quotes, and Missing Person alerts
+  Future<void> showEphemeralBroadcastNotification({
+    required int id,
+    required String title,
+    required String body,
+    String category = 'DAILY_QUOTE',
+    String? payload,
+  }) async {
+    try {
+      final isUrgent = category == 'MISSING_PERSON';
+      if (isUrgent) {
+        triggerUrgentHapticAlarm();
+      } else {
+        HapticFeedback.mediumImpact();
+      }
+
+      final AndroidNotificationDetails androidPlatformChannelSpecifics =
+          AndroidNotificationDetails(
+        isUrgent ? sirenChannelId : announcementChannelId,
+        isUrgent ? sirenChannelName : announcementChannelName,
+        channelDescription: isUrgent ? sirenChannelDesc : announcementChannelDesc,
+        importance: Importance.max,
+        priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+        vibrationPattern: Int64List.fromList(isUrgent ? [0, 1000, 300, 1000] : [0, 400, 150, 400]),
+        category: isUrgent ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.event,
+        audioAttributesUsage: isUrgent ? AudioAttributesUsage.alarm : AudioAttributesUsage.notification,
+        visibility: NotificationVisibility.public,
+      );
+
+      final DarwinNotificationDetails darwinPlatformChannelSpecifics =
+          DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        interruptionLevel: isUrgent ? InterruptionLevel.critical : InterruptionLevel.active,
+      );
+
+      final NotificationDetails platformChannelSpecifics =
+          NotificationDetails(
+        android: androidPlatformChannelSpecifics,
+        iOS: darwinPlatformChannelSpecifics,
+        macOS: darwinPlatformChannelSpecifics,
+      );
+
+      await flutterLocalNotificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: platformChannelSpecifics,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Error showing ephemeral broadcast notification: $e');
+    }
+  }
 }

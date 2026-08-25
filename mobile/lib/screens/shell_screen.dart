@@ -277,6 +277,44 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
             ],
           ),
         );
+      } else if (eventType == 'EPHEMERAL_BROADCAST') {
+        final title = event['title'] ?? 'Community Broadcast';
+        final message = event['message'] ?? '';
+        final category = event['category'] ?? 'DAILY_QUOTE';
+        final isMissingPerson = category == 'MISSING_PERSON';
+        final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
+
+        NotificationService().showEphemeralBroadcastNotification(
+          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          title: '${isMissingPerson ? "🔍 [MISSING PERSON] " : "✨ "} $title',
+          body: message,
+          category: category,
+          payload: json.encode({'type': 'EPHEMERAL_BROADCAST', 'category': category}),
+        );
+
+        ScaffoldMessenger.of(context).showMaterialBanner(
+          MaterialBanner(
+            padding: const EdgeInsets.all(14),
+            backgroundColor: isMissingPerson ? const Color(0xFFC2410C) : const Color(0xFF4338CA),
+            leading: Icon(
+              isMissingPerson ? Icons.person_search_rounded : Icons.format_quote_rounded,
+              color: Colors.white,
+              size: 30,
+            ),
+            content: Text(
+              '${isMissingPerson ? "🔍 " : "✨ "}$title\n$message',
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => ScaffoldMessenger.of(context).hideCurrentMaterialBanner(),
+                child: Text(isMm ? 'သိရှိပါပြီ' : 'GOT IT', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
       } else if (eventType == 'NEW_DISASTER_ALERT') {
         DisasterMonitorService().triggerManualCheck();
       } else if (eventType == 'SOS_ASSIGNED') {
