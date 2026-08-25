@@ -112,9 +112,11 @@ class NotificationService {
           announcementChannelId,
           announcementChannelName,
           description: announcementChannelDesc,
-          importance: Importance.high,
+          importance: Importance.max,
           playSound: true,
           enableVibration: true,
+          vibrationPattern: Int64List.fromList([0, 500, 200, 500]),
+          audioAttributesUsage: AudioAttributesUsage.notification,
         );
 
         await androidPlugin.createNotificationChannel(sirenChannel);
@@ -316,6 +318,8 @@ class NotificationService {
     try {
       if (isPinned) {
         triggerUrgentHapticAlarm();
+      } else {
+        HapticFeedback.heavyImpact();
       }
 
       final AndroidNotificationDetails androidPlatformChannelSpecifics =
@@ -323,11 +327,13 @@ class NotificationService {
         isPinned ? sirenChannelId : announcementChannelId,
         isPinned ? sirenChannelName : announcementChannelName,
         channelDescription: isPinned ? sirenChannelDesc : announcementChannelDesc,
-        importance: isPinned ? Importance.max : Importance.high,
+        importance: Importance.max,
         priority: Priority.high,
         playSound: true,
         enableVibration: true,
+        vibrationPattern: Int64List.fromList(isPinned ? [0, 1000, 300, 1000] : [0, 500, 200, 500]),
         category: isPinned ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.event,
+        audioAttributesUsage: isPinned ? AudioAttributesUsage.alarm : AudioAttributesUsage.notification,
         visibility: NotificationVisibility.public,
       );
 

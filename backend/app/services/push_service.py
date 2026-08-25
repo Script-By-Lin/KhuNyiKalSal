@@ -88,7 +88,7 @@ async def send_emergency_push(
     if not tokens:
         return 0
 
-    channel_id = "emergency_siren_channel" if is_siren_alarm else "general_alerts_channel"
+    channel_id = "emergency_siren_channel_v5" if is_siren_alarm else "announcement_alerts_v1"
     sound_name = "emergency_siren" if is_siren_alarm else "default"
 
     # Stringify all data values for standard FCM payload compatibility
@@ -116,7 +116,18 @@ async def send_emergency_push(
                             "sound": sound_name,
                             "priority": "high",
                             "visibility": "public",
+                            "default_sound": True,
+                            "default_vibrate_timings": True,
                         },
+                    },
+                    "apns": {
+                        "payload": {
+                            "aps": {
+                                "sound": sound_name,
+                                "badge": 1,
+                                "content-available": 1,
+                            }
+                        }
                     },
                     "data": serialized_data,
                 }
