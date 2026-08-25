@@ -103,9 +103,11 @@ class NotificationService {
           bloodChannelId,
           bloodChannelName,
           description: bloodChannelDesc,
-          importance: Importance.high,
+          importance: Importance.max,
           playSound: true,
           enableVibration: true,
+          vibrationPattern: Int64List.fromList([0, 500, 200, 500]),
+          audioAttributesUsage: AudioAttributesUsage.notification,
         );
 
         final announcementChannel = AndroidNotificationChannel(
@@ -273,11 +275,13 @@ class NotificationService {
         bloodChannelId,
         bloodChannelName,
         channelDescription: bloodChannelDesc,
-        importance: Importance.high,
+        importance: Importance.max,
         priority: Priority.high,
         playSound: true,
         enableVibration: true,
+        vibrationPattern: Int64List.fromList([0, 500, 200, 500]),
         category: AndroidNotificationCategory.message,
+        audioAttributesUsage: AudioAttributesUsage.notification,
         visibility: NotificationVisibility.public,
       );
 

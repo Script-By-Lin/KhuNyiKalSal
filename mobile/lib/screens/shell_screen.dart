@@ -278,15 +278,16 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
           ),
         );
       } else if (eventType == 'EPHEMERAL_BROADCAST') {
-        final title = event['title'] ?? 'Community Broadcast';
-        final message = event['message'] ?? '';
         final category = event['category'] ?? 'DAILY_QUOTE';
+        final isDailyQuote = category == 'DAILY_QUOTE';
         final isMissingPerson = category == 'MISSING_PERSON';
+        final title = isDailyQuote ? 'Khu Nyi Kal Sal' : (event['title'] ?? 'Khu Nyi Kal Sal');
+        final message = event['message'] ?? '';
         final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
 
         NotificationService().showEphemeralBroadcastNotification(
           id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          title: '${isMissingPerson ? "🔍 [MISSING PERSON] " : "✨ "} $title',
+          title: isDailyQuote ? 'Khu Nyi Kal Sal' : (isMissingPerson ? '🔍 [MISSING PERSON] $title' : title),
           body: message,
           category: category,
           payload: json.encode({'type': 'EPHEMERAL_BROADCAST', 'category': category}),
@@ -299,10 +300,10 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
             leading: Icon(
               isMissingPerson ? Icons.person_search_rounded : Icons.format_quote_rounded,
               color: Colors.white,
-              size: 30,
+              size: 28,
             ),
             content: Text(
-              '${isMissingPerson ? "🔍 " : "✨ "}$title\n$message',
+              isDailyQuote ? 'Khu Nyi Kal Sal\n$message' : (isMissingPerson ? '🔍 $title\n$message' : '$title\n$message'),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5),

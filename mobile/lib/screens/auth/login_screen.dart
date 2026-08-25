@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -21,6 +22,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
+  bool _rememberMe = true;
+  final _storage = const FlutterSecureStorage();
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
 
@@ -33,6 +36,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final rememberMeStr = await _storage.read(key: 'remember_me');
+      if (rememberMeStr == 'true' || rememberMeStr == null) {
+        final savedEmail = await _storage.read(key: 'saved_email');
+        final savedPassword = await _storage.read(key: 'saved_password');
+        if (mounted) {
+          setState(() {
+            _rememberMe = true;
+            if (savedEmail != null && savedEmail.isNotEmpty) {
+              _emailCtrl.text = savedEmail;
+            }
+            if (savedPassword != null && savedPassword.isNotEmpty) {
+              _passwordCtrl.text = savedPassword;
+            }
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() => _rememberMe = false);
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -65,6 +94,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final success = await auth.login(email, password);
 
     if (success && mounted) {
+      try {
+        if (_rememberMe) {
+          await _storage.write(key: 'remember_me', value: 'true');
+          await _storage.write(key: 'saved_email', value: email);
+          await _storage.write(key: 'saved_password', value: password);
+        } else {
+          await _storage.write(key: 'remember_me', value: 'false');
+          await _storage.delete(key: 'saved_email');
+          await _storage.delete(key: 'saved_password');
+        }
+      } catch (_) {}
+
+      if (!mounted) return;
+
       final role = ref.read(authProvider).role;
       if (role != null) {
         final lowerRole = role.toLowerCase();
@@ -151,29 +194,64 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
 
-                    // ── Forgot Password Button ────────────────────────────
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => _showForgotPasswordModal(context, isMm, isDark),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          isMm ? 'လျှို့ဝှက်နံပါတ် မေ့နေပါသလား?' : 'Forgot Password?',
-                          style: const TextStyle(
-                            color: AppTheme.primaryRed,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13.5,
+                    // ── Remember Me & Forgot Password Row ─────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        InkWell(
+                          onTap: () => setState(() => _rememberMe = !_rememberMe),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: Checkbox(
+                                    value: _rememberMe,
+                                    onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                                    activeColor: AppTheme.primaryRed,
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  isMm ? 'အကောင့်မှတ်ထားမည်' : 'Remember Me',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: isDark ? Colors.white70 : Colors.grey.shade700,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
+                        TextButton(
+                          onPressed: () => _showForgotPasswordModal(context, isMm, isDark),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            isMm ? 'လျှို့ဝှက်နံပါတ် မေ့နေပါသလား?' : 'Forgot Password?',
+                            style: const TextStyle(
+                              color: AppTheme.primaryRed,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
 
                     // ── Error ─────────────────────────────────────────────
                     if (authState.error != null)

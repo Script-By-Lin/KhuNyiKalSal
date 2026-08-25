@@ -26,9 +26,25 @@ export default function LoginPage() {
   const { theme, toggleTheme, language, setLanguage, t } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    try {
+      const savedRemember = localStorage.getItem("admin_remember_me");
+      if (savedRemember === "true" || savedRemember === null) {
+        const savedEmail = localStorage.getItem("admin_saved_email");
+        const savedPassword = localStorage.getItem("admin_saved_password");
+        if (savedEmail) setEmail(savedEmail);
+        if (savedPassword) setPassword(savedPassword);
+        setRememberMe(true);
+      } else {
+        setRememberMe(false);
+      }
+    } catch (_) {}
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +65,16 @@ export default function LoginPage() {
             "ဝင်ရောက်ခွင့်မပြုပါ - ဤဝက်ဘ်ဆိုက်သည် စူပါအက်ဒမင်များအတွက်သာ သီးသန့်ဖြစ်ပါသည်။"
           )
         );
+      }
+
+      if (rememberMe) {
+        localStorage.setItem("admin_remember_me", "true");
+        localStorage.setItem("admin_saved_email", email.trim().toLowerCase());
+        localStorage.setItem("admin_saved_password", password);
+      } else {
+        localStorage.setItem("admin_remember_me", "false");
+        localStorage.removeItem("admin_saved_email");
+        localStorage.removeItem("admin_saved_password");
       }
 
       login(res.access_token, {
@@ -235,6 +261,20 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-700 text-red-600 focus:ring-0 cursor-pointer"
+                />
+                <span className="text-xs font-semibold text-[var(--text-muted)]">
+                  {t("Remember credentials", "အကောင့်နှင့် လျှို့ဝှက်နံပါတ် မှတ်ထားမည်")}
+                </span>
+              </label>
             </div>
 
             <button

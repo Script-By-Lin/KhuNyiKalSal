@@ -179,11 +179,13 @@ async def broadcast_ephemeral_quote_or_alert(
     category = data.category.strip()
 
     # 1. Real-time WebSocket broadcast to all connected active clients
+    display_title = "Khu Nyi Kal Sal" if category == "DAILY_QUOTE" else (title if title else "Khu Nyi Kal Sal")
+
     ws_payload = {
         "event": "EPHEMERAL_BROADCAST",
         "type": "EPHEMERAL_BROADCAST",
         "category": category,
-        "title": title,
+        "title": display_title,
         "message": message,
         "author_name": data.author_name or current_user.full_name or "Command Center",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -200,16 +202,22 @@ async def broadcast_ephemeral_quote_or_alert(
         tokens = await get_all_active_device_tokens(db)
         recipient_count = len(tokens)
         if tokens:
-            prefix = "🔍 [MISSING PERSON]" if category == "MISSING_PERSON" else ("💬 [DAILY QUOTE]" if category == "DAILY_QUOTE" else "✨ [COMMUNITY]")
+            if category == "DAILY_QUOTE":
+                push_title = "Khu Nyi Kal Sal"
+            elif category == "MISSING_PERSON":
+                push_title = f"🔍 [MISSING PERSON] {title}"
+            else:
+                push_title = title if title else "Khu Nyi Kal Sal"
+
             await send_emergency_push(
                 tokens=tokens,
-                title=f"{prefix} {title}",
-                body=message[:140] + ("..." if len(message) > 140 else ""),
+                title=push_title,
+                body=message,
                 data={
                     "type": "EPHEMERAL_BROADCAST",
                     "event": "EPHEMERAL_BROADCAST",
                     "category": category,
-                    "title": title,
+                    "title": push_title,
                     "message": message,
                 },
                 is_siren_alarm=(category == "MISSING_PERSON"),
@@ -222,7 +230,7 @@ async def broadcast_ephemeral_quote_or_alert(
         "success": True,
         "message": "Ephemeral broadcast dispatched successfully to all user devices (not saved to DB).",
         "recipients_count": recipient_count,
-        "title": title,
+        "title": display_title,
         "category": category,
     }
 

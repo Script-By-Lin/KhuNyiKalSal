@@ -92,9 +92,9 @@ export default function AnnouncementsPage() {
       label: "Daily Quote",
       labelMm: "နေ့စဉ် အားပေးစကား",
       icon: Quote,
-      defaultTitle: "✨ နေ့စဉ် အားပေးစကား (Daily Inspiration)",
+      defaultTitle: "Khu Nyi Kal Sal",
       defaultMessage:
-        "အဆိုးဆုံး အချိန်တွေဟာ သင့်ရဲ့ အကောင်းဆုံး ခွန်အားတွေကို မွေးဖွားပေးနိုင်ပါတယ်။ စိတ်ဓာတ်မကျပါနဲ့။",
+        "အဆိုးဆုံး အချိန်တွေဟာ သင့်ရဲ့ အကောင်းဆုံး ခွန်အားတွေကို မွေးဖွားပေးနိုင်ပါတယ်။",
     },
     {
       id: "MISSING_PERSON",
@@ -553,30 +553,48 @@ export default function AnnouncementsPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block font-bold text-[11px] text-[var(--text-muted)] uppercase mb-1">
-                    {t("Broadcast Title / Header", "ခေါင်းစဉ်")}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={ephemeralTitle}
-                    onChange={(e) => setEphemeralTitle(e.target.value)}
-                    placeholder="e.g. ✨ နေ့စဉ် အားပေးစကား / 🔍 အရေးပေါ် လူပျောက်ရှာဖွေရေး"
-                    className="w-full panel-input rounded-xl p-3 text-sm"
-                  />
-                </div>
+                {ephemeralCategory === "DAILY_QUOTE" ? (
+                  <div>
+                    <label className="block font-bold text-[11px] text-[var(--text-muted)] uppercase mb-1">
+                      {t("App Header Title", "အက်ပ် ခေါင်းစဉ်")}
+                    </label>
+                    <div className="w-full panel-input rounded-xl p-3 text-sm font-extrabold bg-[var(--bg-subtle)] text-indigo-400 flex items-center justify-between">
+                      <span>Khu Nyi Kal Sal</span>
+                      <span className="text-[10px] text-[var(--text-muted)] font-normal">Fixed App Title</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block font-bold text-[11px] text-[var(--text-muted)] uppercase mb-1">
+                      {t("Broadcast Title / Header", "ခေါင်းစဉ်")}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={ephemeralTitle}
+                      onChange={(e) => setEphemeralTitle(e.target.value)}
+                      placeholder="e.g. 🔍 အရေးပေါ် လူပျောက်ရှာဖွေရေး"
+                      className="w-full panel-input rounded-xl p-3 text-sm"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block font-bold text-[11px] text-[var(--text-muted)] uppercase mb-1">
-                    {t("Message / Quote / Details", "အကြောင်းအရာ / စာသား")}
+                    {ephemeralCategory === "DAILY_QUOTE"
+                      ? t("One-Sentence Quote", "စာတစ်ကြောင်း အားပေးစကား (One-Sentence Quote)")
+                      : t("Message / Alert Details", "အကြောင်းအရာ / စာသား")}
                   </label>
                   <textarea
                     required
-                    rows={3}
+                    rows={ephemeralCategory === "DAILY_QUOTE" ? 2 : 3}
                     value={ephemeralMessage}
                     onChange={(e) => setEphemeralMessage(e.target.value)}
-                    placeholder="Enter inspiring quote, missing person details & contact phone, or safety note..."
+                    placeholder={
+                      ephemeralCategory === "DAILY_QUOTE"
+                        ? "Enter inspiring one-sentence quote..."
+                        : "Enter missing person details & contact phone, or safety note..."
+                    }
                     className="w-full panel-input rounded-xl p-3 text-sm"
                   />
                 </div>
@@ -590,14 +608,16 @@ export default function AnnouncementsPage() {
                   <div className="p-3.5 rounded-xl border border-indigo-500/20 bg-indigo-950/30 space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-indigo-300">
-                        {ephemeralTitle || "✨ Daily Quote Title"}
+                        {ephemeralCategory === "DAILY_QUOTE"
+                          ? "Khu Nyi Kal Sal"
+                          : ephemeralTitle || "Khu Nyi Kal Sal"}
                       </span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold ml-auto">
                         Just Now • with sound 🔔
                       </span>
                     </div>
-                    <p className="text-xs text-white/90 leading-relaxed">
-                      {ephemeralMessage || "Your inspirational quote or alert message will appear here..."}
+                    <p className="text-xs text-white/90 leading-relaxed italic">
+                      &ldquo;{ephemeralMessage || "အဆိုးဆုံး အချိန်တွေဟာ သင့်ရဲ့ အကောင်းဆုံး ခွန်အားတွေကို မွေးဖွားပေးနိုင်ပါတယ်။"}&rdquo;
                     </p>
                   </div>
                 </div>
