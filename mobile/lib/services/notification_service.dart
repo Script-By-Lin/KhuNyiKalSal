@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -18,6 +17,16 @@ class NotificationService {
   static const String sirenChannelName = '🚨 Critical Emergency Siren & Alarms';
   static const String sirenChannelDesc =
       'High priority siren and vibration alerts for SOS emergencies that wake up the device';
+
+  static const String disasterChannelId = 'disaster_proximity_siren_v1';
+  static const String disasterChannelName = '🌪️ Natural Disaster Emergency Radar';
+  static const String disasterChannelDesc =
+      'Audible alarms and warning sirens for earthquakes, severe storms, and floods near your location in Myanmar';
+
+  static const String bloodChannelId = 'blood_donation_alerts_v1';
+  static const String bloodChannelName = '🩸 Blood Requests & Donation Alerts';
+  static const String bloodChannelDesc =
+      'Notifications for urgent patient blood requests, donor matches, and organization appointment approvals';
 
   Future<void> init({Function(String? payload)? onNotificationTap}) async {
     try {
@@ -74,7 +83,29 @@ class NotificationService {
           audioAttributesUsage: AudioAttributesUsage.alarm,
         );
 
+        final disasterChannel = AndroidNotificationChannel(
+          disasterChannelId,
+          disasterChannelName,
+          description: disasterChannelDesc,
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          vibrationPattern: Int64List.fromList([0, 1200, 400, 1200, 400, 1200, 400, 1200]),
+          audioAttributesUsage: AudioAttributesUsage.alarm,
+        );
+
+        final bloodChannel = AndroidNotificationChannel(
+          bloodChannelId,
+          bloodChannelName,
+          description: bloodChannelDesc,
+          importance: Importance.high,
+          playSound: true,
+          enableVibration: true,
+        );
+
         await androidPlugin.createNotificationChannel(sirenChannel);
+        await androidPlugin.createNotificationChannel(disasterChannel);
+        await androidPlugin.createNotificationChannel(bloodChannel);
       }
     } catch (e) {
       debugPrint('Error creating notification channel: $e');
@@ -156,6 +187,106 @@ class NotificationService {
       );
     } catch (e) {
       debugPrint('Error showing emergency alert: $e');
+    }
+  }
+
+  /// Plays high-priority loud siren alert for natural disasters occurring near the user in Myanmar
+  Future<void> showDisasterProximityAlarm({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    try {
+      triggerUrgentHapticAlarm();
+
+      final AndroidNotificationDetails androidPlatformChannelSpecifics =
+          AndroidNotificationDetails(
+        disasterChannelId,
+        disasterChannelName,
+        channelDescription: disasterChannelDesc,
+        importance: Importance.max,
+        priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+        vibrationPattern: Int64List.fromList([0, 1200, 400, 1200, 400, 1200, 400, 1200]),
+        category: AndroidNotificationCategory.alarm,
+        audioAttributesUsage: AudioAttributesUsage.alarm,
+        fullScreenIntent: true,
+        visibility: NotificationVisibility.public,
+      );
+
+      const DarwinNotificationDetails darwinPlatformChannelSpecifics =
+          DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        interruptionLevel: InterruptionLevel.critical,
+      );
+
+      final NotificationDetails platformChannelSpecifics =
+          NotificationDetails(
+        android: androidPlatformChannelSpecifics,
+        iOS: darwinPlatformChannelSpecifics,
+        macOS: darwinPlatformChannelSpecifics,
+      );
+
+      await flutterLocalNotificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: platformChannelSpecifics,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Error showing disaster proximity alarm: $e');
+    }
+  }
+
+  /// Displays audible notification for incoming blood requests & donor approvals
+  Future<void> showBloodNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    try {
+      final AndroidNotificationDetails androidPlatformChannelSpecifics =
+          AndroidNotificationDetails(
+        bloodChannelId,
+        bloodChannelName,
+        channelDescription: bloodChannelDesc,
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+        category: AndroidNotificationCategory.message,
+        visibility: NotificationVisibility.public,
+      );
+
+      const DarwinNotificationDetails darwinPlatformChannelSpecifics =
+          DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final NotificationDetails platformChannelSpecifics =
+          NotificationDetails(
+        android: androidPlatformChannelSpecifics,
+        iOS: darwinPlatformChannelSpecifics,
+        macOS: darwinPlatformChannelSpecifics,
+      );
+
+      await flutterLocalNotificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: platformChannelSpecifics,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Error showing blood notification: $e');
     }
   }
 }

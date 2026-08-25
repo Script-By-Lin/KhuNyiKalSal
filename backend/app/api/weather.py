@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.announcement import Announcement
+from app.websocket.manager import manager
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +142,8 @@ class DisasterAlertItem(BaseModel):
     source: str
     action_advice_en: str
     action_advice_my: str
+    is_emergency_proximity: bool = False
+    affected_region: Optional[str] = "Myanmar"
 
 
 class SafetyGuideItem(BaseModel):
@@ -348,6 +351,11 @@ async def get_current_weather(
     )
 
 
+def is_in_myanmar_region(lat_val: float, lon_val: float) -> bool:
+    """Check if coordinates fall inside Myanmar territory or adjacent borderline zones (Lat 8.5–29.0, Lon 91.0–102.5)."""
+    return 8.5 <= lat_val <= 29.0 and 91.0 <= lon_val <= 102.5
+
+
 @router.get("/disasters", response_model=List[DisasterAlertItem])
 async def get_disaster_alerts(
     lat: float = Query(16.8661, description="User latitude"),
@@ -355,14 +363,15 @@ async def get_disaster_alerts(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Aggregates active real-time natural disaster alerts from:
-    1. USGS Live Earthquakes (M2.5+ past 24 hours & significant events)
-    2. GDACS Global Disaster Alert & Coordination Feeds (Cyclones, Floods, Tsunamis)
-    3. Official broadcast bulletins from the Emergency Operations Center DB
+    Aggregates active real-time natural disaster alerts focused on Myanmar:
+    1. USGS Live Earthquakes (filtered for Myanmar region along Sagaing fault, Shan, Rakhine, etc.)
+    2. GDACS Multi-Hazard Alerts (Bay of Bengal / Andaman Sea Cyclones, Myanmar River Floods, Tsunamis)
+    3. Official EOC emergency broadcast announcements
+    Marks `is_emergency_proximity = True` if the event is near the user's location (<= 150 km).
     """
     alerts: List[DisasterAlertItem] = []
 
-    # 1. Fetch Real-time Earthquakes from USGS
+    # 1. Fetch Real-time Earthquakes from USGS (Myanmar & immediate borderline fault lines)
     try:
         usgs_url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson"
         async with httpx.AsyncClient(timeout=8.0) as client:
@@ -376,15 +385,17 @@ async def get_disaster_alerts(
                     eq_lon, eq_lat = coords[0], coords[1]
                     eq_depth = coords[2] if len(coords) > 2 else 10.0
                     mag = float(props.get("mag") or 0.0)
-                    place = props.get("place", "Unknown location")
+                    place = props.get("place", "Myanmar Region")
                     ts = props.get("time", 0) / 1000.0
                     dt = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
 
                     dist_km = haversine_distance_km(lat, lon, eq_lat, eq_lon)
+                    in_mm = is_in_myanmar_region(eq_lat, eq_lon)
 
-                    # Filter: Include if nearby (< 2000 km) or major (M >= 5.5)
-                    if dist_km <= 2000 or mag >= 5.5:
-                        severity = "CRITICAL" if mag >= 6.0 or (mag >= 4.5 and dist_km < 300) else ("WARNING" if mag >= 4.5 else "ADVISORY")
+                    # Strictly focus on Myanmar or events within 450 km of user
+                    if in_mm or dist_km <= 450 or (mag >= 5.5 and dist_km <= 800):
+                        is_near = dist_km <= 150.0 or (mag >= 5.0 and dist_km <= 250.0)
+                        severity = "CRITICAL" if mag >= 5.5 or (mag >= 4.0 and is_near) else ("WARNING" if mag >= 4.0 else "ADVISORY")
                         color = "RED" if severity == "CRITICAL" else ("ORANGE" if severity == "WARNING" else "YELLOW")
 
                         alerts.append(
@@ -393,8 +404,8 @@ async def get_disaster_alerts(
                                 type="EARTHQUAKE",
                                 title=f"M{mag:.1f} Earthquake — {place}",
                                 title_my=f"ပြင်းအား {mag:.1f} ငလျင်လှုပ်ခတ်မှု — {place}",
-                                description=f"An earthquake of magnitude {mag:.1f} occurred at a depth of {eq_depth:.1f} km, approximately {dist_km:.0f} km from your location.",
-                                description_my=f"ပြင်းအား {mag:.1f} ရှိသော ငလျင်သည် အနက် {eq_depth:.1f} ကီလိုမီတာတွင် ဖြစ်ပေါ်ခဲ့ပြီး သင်ရှိရာနေရာမှ {dist_km:.0f} ကီလိုမီတာ အကွာတွင် တည်ရှိပါသည်။",
+                                description=f"An earthquake of magnitude {mag:.1f} occurred at depth {eq_depth:.1f} km, approx. {dist_km:.0f} km from your current location.",
+                                description_my=f"ပြင်းအား {mag:.1f} ရှိသော ငလျင်သည် အနက် {eq_depth:.1f} ကီလိုမီတာတွင် ဖြစ်ပေါ်ခဲ့ပြီး သင်ရှိရာမှ {dist_km:.0f} ကီလိုမီတာ အကွာတွင် တည်ရှိပါသည်။",
                                 severity=severity,
                                 alert_color=color,
                                 latitude=eq_lat,
@@ -403,15 +414,17 @@ async def get_disaster_alerts(
                                 magnitude=mag,
                                 depth_km=eq_depth,
                                 timestamp=dt,
-                                source="USGS Seismology",
+                                source="USGS Seismology (Myanmar Network)",
                                 action_advice_en="Drop, Cover, and Hold On. Stay away from glass windows, heavy furniture, and power lines.",
                                 action_advice_my="ဝပ်ပါ၊ အကာအကွယ်ယူပါ၊ မြဲမြံစွာကိုင်ထားပါ။ ပြတင်းပေါက်မှန်များနှင့် လျှပ်စစ်လိုင်းများနှင့် ဝေးရာတွင် နေပါ။",
+                                is_emergency_proximity=is_near,
+                                affected_region="Myanmar",
                             )
                         )
     except Exception as e:
         logger.warning(f"USGS Earthquake fetch notice: {e}")
 
-    # 2. Fetch GDACS Global Alerts (Cyclones, Floods, Earthquakes)
+    # 2. Fetch GDACS Global Alerts (Cyclones in Bay of Bengal/Andaman Sea, Myanmar floods, Tsunamis)
     try:
         gdacs_url = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?eventlist=TC;FL;EQ;TS"
         async with httpx.AsyncClient(timeout=8.0) as client:
@@ -424,20 +437,22 @@ async def get_disaster_alerts(
                     coords = geom.get("coordinates", [0, 0])
                     g_lon, g_lat = coords[0], coords[1]
                     event_type = props.get("eventtype", "TC")
-                    event_name = props.get("eventname", "Disaster Alert")
+                    event_name = props.get("eventname", "Hazard Alert")
                     alert_level = props.get("alertlevel", "Green").upper()
                     description = props.get("description", "")
                     ts_str = props.get("fromdate", datetime.now(timezone.utc).isoformat())
 
                     dist_km = haversine_distance_km(lat, lon, g_lat, g_lon)
+                    in_mm_sea = is_in_myanmar_region(g_lat, g_lon)
 
-                    # Only show if in region (< 3500 km) or Red alert
-                    if dist_km <= 3500 or alert_level in ["RED", "ORANGE"]:
+                    # Only show if inside Myanmar territory / Bay of Bengal / Andaman Sea or within 600km
+                    if in_mm_sea or dist_km <= 600 or (alert_level in ["RED", "ORANGE"] and dist_km <= 1200):
                         mapped_type = "CYCLONE" if event_type == "TC" else ("FLOOD" if event_type == "FL" else ("TSUNAMI" if event_type == "TS" else "DISASTER"))
-                        severity = "CRITICAL" if alert_level == "RED" else ("WARNING" if alert_level == "ORANGE" else "ADVISORY")
-                        color = "RED" if alert_level == "RED" else ("ORANGE" if alert_level == "ORANGE" else "YELLOW")
+                        is_near = dist_km <= 200.0 or alert_level == "RED"
+                        severity = "CRITICAL" if (alert_level == "RED" or is_near) else ("WARNING" if alert_level == "ORANGE" else "ADVISORY")
+                        color = "RED" if severity == "CRITICAL" else ("ORANGE" if severity == "WARNING" else "YELLOW")
 
-                        title_en = f"{mapped_type.title()} Alert: {event_name}"
+                        title_en = f"{mapped_type.title()} Warning: {event_name}"
                         title_my = f"{'မုန်တိုင်းသတိပေးချက်' if mapped_type == 'CYCLONE' else ('ရေကြီးမှုသတိပေးချက်' if mapped_type == 'FLOOD' else 'သဘာဝဘေးသတိပေးချက်')}: {event_name}"
 
                         alerts.append(
@@ -446,7 +461,7 @@ async def get_disaster_alerts(
                                 type=mapped_type,
                                 title=title_en,
                                 title_my=title_my,
-                                description=f"{description} (Approx. {dist_km:.0f} km away)",
+                                description=f"{description} ({dist_km:.0f} km away from your location)",
                                 description_my=f"{title_my} ဖြစ်ပေါ်နေပြီး သင်ရှိရာမှ {dist_km:.0f} ကီလိုမီတာ အကွာတွင် တည်ရှိပါသည်။ ဒေသခံများ သတိထားပါ။",
                                 severity=severity,
                                 alert_color=color,
@@ -454,47 +469,52 @@ async def get_disaster_alerts(
                                 longitude=g_lon,
                                 distance_km=dist_km,
                                 timestamp=ts_str,
-                                source="GDACS Global Hazards",
-                                action_advice_en="Monitor official meteorological channels, prepare emergency go-bag, and secure fragile outdoor items.",
+                                source="GDACS Global Hazards (Myanmar/SE Asia)",
+                                action_advice_en="Monitor meteorological bulletins, prepare emergency go-bag, and secure outdoor items.",
                                 action_advice_my="မိုးလေဝသသတင်းများကို အထူးဂရုပြုနားထောင်ပါ၊ အရေးပေါ်အသုံးအဆောင်အိတ် အသင့်ပြင်ဆင်ထားပါ။",
+                                is_emergency_proximity=is_near,
+                                affected_region="Myanmar",
                             )
                         )
     except Exception as e:
         logger.warning(f"GDACS alert fetch notice: {e}")
 
     # 3. Pull Official Announcements from DB tagged under Weather or Disaster
-    try:
-        q = select(Announcement).where(
-            Announcement.is_active == True,  # noqa: E712
-            Announcement.category.in_(["Weather", "Disaster", "Emergency", "Natural Disaster"]),
-        ).order_by(Announcement.created_at.desc()).limit(5)
-        res = await db.execute(q)
-        official_announcements = res.scalars().all()
+    if db is not None and hasattr(db, "execute"):
+        try:
+            q = select(Announcement).where(
+                Announcement.is_active == True,  # noqa: E712
+                Announcement.category.in_(["Weather", "Disaster", "Emergency", "Natural Disaster"]),
+            ).order_by(Announcement.created_at.desc()).limit(5)
+            res = await db.execute(q)
+            official_announcements = res.scalars().all()
 
-        for a in official_announcements:
-            alerts.append(
-                DisasterAlertItem(
-                    id=f"ann-{a.id}",
-                    type="OFFICIAL_ANNOUNCEMENT",
-                    title=f"🚨 Official Bulletin: {a.title}",
-                    title_my=f"🚨 ဌာနဆိုင်ရာ အရေးပေါ်ကြေညာချက်: {a.title}",
-                    description=a.content,
-                    description_my=a.content,
-                    severity="CRITICAL" if a.is_pinned else "WARNING",
-                    alert_color="RED" if a.is_pinned else "ORANGE",
-                    distance_km=0.0,
-                    timestamp=a.created_at.isoformat(),
-                    source=f"EOC — {a.author_name}",
-                    action_advice_en="Follow official emergency instructions and contact hotlines if in distress.",
-                    action_advice_my="အရေးပေါ်လမ်းညွှန်ချက်များကို တိကျစွာလိုက်နာပါ၊ အကူအညီလိုအပ်ပါက အရေးပေါ်ဖုန်းခေါ်ဆိုပါ။",
+            for a in official_announcements:
+                alerts.append(
+                    DisasterAlertItem(
+                        id=f"ann-{a.id}",
+                        type="OFFICIAL_ANNOUNCEMENT",
+                        title=f"🚨 Official Bulletin: {a.title}",
+                        title_my=f"🚨 ဌာနဆိုင်ရာ အရေးပေါ်ကြေညာချက်: {a.title}",
+                        description=a.content,
+                        description_my=a.content,
+                        severity="CRITICAL" if a.is_pinned else "WARNING",
+                        alert_color="RED" if a.is_pinned else "ORANGE",
+                        distance_km=0.0,
+                        timestamp=a.created_at.isoformat(),
+                        source=f"EOC Myanmar — {a.author_name}",
+                        action_advice_en="Follow official emergency instructions and contact hotlines if in distress.",
+                        action_advice_my="အရေးပေါ်လမ်းညွှန်ချက်များကို တိကျစွာလိုက်နာပါ၊ အကူအညီလိုအပ်ပါက အရေးပေါ်ဖုန်းခေါ်ဆိုပါ။",
+                        is_emergency_proximity=True,
+                        affected_region="Myanmar",
+                    )
                 )
-            )
-    except Exception as e:
-        logger.warning(f"DB announcements fetch notice: {e}")
+        except Exception as e:
+            logger.warning(f"DB announcements fetch notice: {e}")
 
-    # Sort alerts by severity (CRITICAL > WARNING > ADVISORY) and distance
+    # Sort alerts by proximity flag, severity (CRITICAL > WARNING > ADVISORY), and distance
     severity_rank = {"CRITICAL": 0, "WARNING": 1, "ADVISORY": 2}
-    alerts.sort(key=lambda x: (severity_rank.get(x.severity, 3), x.distance_km or 99999))
+    alerts.sort(key=lambda x: (0 if x.is_emergency_proximity else 1, severity_rank.get(x.severity, 3), x.distance_km or 99999))
 
     return alerts
 

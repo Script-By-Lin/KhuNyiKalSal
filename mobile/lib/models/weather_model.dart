@@ -178,6 +178,8 @@ class DisasterAlert {
   final String source;
   final String actionAdviceEn;
   final String actionAdviceMy;
+  final bool isEmergencyProximity;
+  final String affectedRegion;
 
   const DisasterAlert({
     required this.id,
@@ -198,6 +200,8 @@ class DisasterAlert {
     required this.source,
     required this.actionAdviceEn,
     required this.actionAdviceMy,
+    this.isEmergencyProximity = false,
+    this.affectedRegion = 'Myanmar',
   });
 
   factory DisasterAlert.fromJson(Map<String, dynamic> json) {
@@ -220,6 +224,8 @@ class DisasterAlert {
       source: json['source']?.toString() ?? 'EOC',
       actionAdviceEn: json['action_advice_en']?.toString() ?? '',
       actionAdviceMy: json['action_advice_my']?.toString() ?? '',
+      isEmergencyProximity: json['is_emergency_proximity'] as bool? ?? false,
+      affectedRegion: json['affected_region']?.toString() ?? 'Myanmar',
     );
   }
 

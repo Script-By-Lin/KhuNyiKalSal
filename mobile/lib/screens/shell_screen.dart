@@ -12,6 +12,7 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
+import '../services/disaster_monitor_service.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/offline_sos_dialog.dart';
 import 'sos/emergency_type_sheet.dart';
@@ -81,13 +82,16 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
     Future.microtask(() {
       ref.read(emergencyProvider.notifier).loadActive();
       _checkSuspensionStatus();
+      DisasterMonitorService().startMonitoring();
     });
 
-    // Listen to global WebSocket events (e.g. Family SOS, Account Suspension)
+    // Listen to global WebSocket events (e.g. Family SOS, Account Suspension, Blood, Disasters)
     final auth = ref.read(authProvider.notifier);
     auth.ws.events.listen((event) {
       if (!mounted) return;
-      if (event['event'] == 'ACCOUNT_SUSPENDED') {
+      final eventType = event['event']?.toString() ?? '';
+
+      if (eventType == 'ACCOUNT_SUSPENDED') {
         setState(() {
           _isSuspended = true;
           _remainingSuspensionSeconds = (event['remaining_seconds'] as num?)?.toInt() ?? 86400;
@@ -95,14 +99,14 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
           _suspensionReason = event['suspension_reason'] ?? event['reason'];
         });
         _checkSuspensionStatus();
-      } else if (event['event'] == 'ACCOUNT_UNSUSPENDED') {
+      } else if (eventType == 'ACCOUNT_UNSUSPENDED') {
         setState(() {
           _isSuspended = false;
           _remainingSuspensionSeconds = 0;
           _suspensionReason = null;
         });
         _checkSuspensionStatus();
-      } else if (event['event'] == 'FAMILY_SOS_ALERT') {
+      } else if (eventType == 'FAMILY_SOS_ALERT') {
         final senderName = event['sender_name'] ?? 'Family Member';
         final rel = event['relationship'] ?? 'Family';
         final type = (event['emergency_type'] ?? 'EMERGENCY').toString().toUpperCase();
@@ -115,7 +119,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
           payload: json.encode(event),
         );
 
-        // Show global alert
+        // Show global alert banner
         ScaffoldMessenger.of(context).showMaterialBanner(
           MaterialBanner(
             padding: const EdgeInsets.all(16),
@@ -149,9 +153,88 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
             ],
           ),
         );
-      } else if (event['event'] == 'SOS_ASSIGNED') {
+      } else if (eventType == 'NEW_BLOOD_SUPPLY_REQUEST') {
+        final bType = event['blood_type'] ?? 'Blood';
+        final units = event['units'] ?? 1;
+        final hospital = event['hospital_name'] ?? 'Hospital';
+        final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
+
+        NotificationService().showBloodNotification(
+          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          title: '🩸 Urgent $bType Blood Request ($units Units)!',
+          body: 'Patient in critical need at $hospital. Tap to respond or pledge.',
+          payload: json.encode({'event': 'NEW_BLOOD_SUPPLY_REQUEST', 'route': '/blood-donation'}),
+        );
+
+        ScaffoldMessenger.of(context).showMaterialBanner(
+          MaterialBanner(
+            padding: const EdgeInsets.all(14),
+            backgroundColor: const Color(0xFFC2185B),
+            leading: const Icon(Icons.water_drop, color: Colors.white, size: 28),
+            content: Text(
+              isMm
+                  ? '🩸 အရေးပေါ် သွေးလိုအပ်ချက် - $bType ($units ယူနစ်)\nနေရာ - $hospital'
+                  : '🩸 Urgent Blood Supply: $bType ($units Units) at $hospital',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+                  context.push('/blood-donation');
+                },
+                child: const Text('VIEW REQUEST', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+              TextButton(
+                onPressed: () => ScaffoldMessenger.of(context).hideCurrentMaterialBanner(),
+                child: const Text('DISMISS', style: TextStyle(color: Colors.white70)),
+              ),
+            ],
+          ),
+        );
+      } else if (eventType == 'BLOOD_REQUEST_ACCEPTED') {
+        final orgName = event['org_name'] ?? 'Rescue Medical Org';
+        final location = event['pickup_location_message'] ?? event['appointment_location'] ?? 'Medical Center';
+        final isMm = ref.read(settingsProvider).locale.languageCode == 'my';
+
+        NotificationService().showBloodNotification(
+          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          title: '✅ Blood Request Accepted by $orgName!',
+          body: 'Pickup Location: $location',
+          payload: json.encode({'event': 'BLOOD_REQUEST_ACCEPTED', 'route': '/blood-donation'}),
+        );
+
+        ScaffoldMessenger.of(context).showMaterialBanner(
+          MaterialBanner(
+            padding: const EdgeInsets.all(14),
+            backgroundColor: const Color(0xFF2E7D32),
+            leading: const Icon(Icons.check_circle_outline, color: Colors.white, size: 28),
+            content: Text(
+              isMm
+                  ? '✅ သွေးတောင်းခံမှုကို $orgName မှ လက်ခံဆောင်ရွက်ပေးပါပြီ!\nယူဆောင်ရမည့်နေရာ - $location'
+                  : '✅ Blood Request Accepted by $orgName!\nPickup: $location',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+                  context.push('/blood-donation');
+                },
+                child: const Text('DETAILS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+              TextButton(
+                onPressed: () => ScaffoldMessenger.of(context).hideCurrentMaterialBanner(),
+                child: const Text('DISMISS', style: TextStyle(color: Colors.white70)),
+              ),
+            ],
+          ),
+        );
+      } else if (eventType == 'NEW_DISASTER_ALERT') {
+        DisasterMonitorService().triggerManualCheck();
+      } else if (eventType == 'SOS_ASSIGNED') {
         ref.read(emergencyProvider.notifier).loadActive();
-      } else if (event['event'] == 'VOLUNTEER_ACCEPTED' || event['event'] == 'EMERGENCY_ACCEPTED') {
+      } else if (eventType == 'VOLUNTEER_ACCEPTED' || eventType == 'EMERGENCY_ACCEPTED') {
         ref.read(emergencyProvider.notifier).markAccepted(
           event['emergency_id'] ?? '',
           assignedOrgId: event['assigned_org_id'],
@@ -162,7 +245,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
           title: '✅ SOS Accepted!',
           body: 'A rescue team has accepted your distress call and is en route.',
         );
-      } else if (event['event'] == 'EMERGENCY_COMPLETED' || event['event'] == 'SOS_CANCELLED') {
+      } else if (eventType == 'EMERGENCY_COMPLETED' || eventType == 'SOS_CANCELLED') {
         ref.read(emergencyProvider.notifier).loadActive();
       }
     });
@@ -215,6 +298,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
   void dispose() {
     _countdownTicker?.cancel();
     _sosCtrl.dispose();
+    DisasterMonitorService().stopMonitoring();
     super.dispose();
   }
 

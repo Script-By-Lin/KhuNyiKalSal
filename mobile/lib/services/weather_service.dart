@@ -278,8 +278,10 @@ class WeatherService {
 
       final distKm = LocationService.calculateDistance(lat, lon, eqLat, eqLon) / 1000.0;
 
-      if (distKm <= 2000 || mag >= 5.5) {
-        final isCritical = mag >= 6.0 || (mag >= 4.5 && distKm < 300);
+      final inMyanmar = (eqLat >= 8.5 && eqLat <= 29.0 && eqLon >= 91.0 && eqLon <= 102.5);
+      if (inMyanmar || distKm <= 450 || (mag >= 5.5 && distKm <= 800)) {
+        final isNear = distKm <= 150.0 || (mag >= 5.0 && distKm <= 250.0);
+        final isCritical = mag >= 5.5 || (mag >= 4.0 && isNear);
         alerts.add(DisasterAlert(
           id: 'usgs-${props['code'] ?? 'eq'}',
           type: 'EARTHQUAKE',
@@ -287,17 +289,19 @@ class WeatherService {
           titleMy: 'ပြင်းအား ${mag.toStringAsFixed(1)} ငလျင် — $place',
           description: 'Magnitude $mag at depth ${depth.toStringAsFixed(1)} km, approx ${distKm.toStringAsFixed(0)} km away.',
           descriptionMy: 'ပြင်းအား $mag ငလျင်သည် သင်ရှိရာမှ ${distKm.toStringAsFixed(0)} km အကွာတွင် လှုပ်ခတ်ခဲ့ပါသည်။',
-          severity: isCritical ? 'CRITICAL' : (mag >= 4.5 ? 'WARNING' : 'ADVISORY'),
-          alertColor: isCritical ? 'RED' : (mag >= 4.5 ? 'ORANGE' : 'YELLOW'),
+          severity: isCritical ? 'CRITICAL' : (mag >= 4.0 ? 'WARNING' : 'ADVISORY'),
+          alertColor: isCritical ? 'RED' : (mag >= 4.0 ? 'ORANGE' : 'YELLOW'),
           latitude: eqLat,
           longitude: eqLon,
           distanceKm: distKm,
           magnitude: mag,
           depthKm: depth,
           timestamp: DateTime.fromMillisecondsSinceEpoch(props['time'] ?? 0).toIso8601String(),
-          source: 'USGS Seismology',
+          source: 'USGS Seismology (Myanmar)',
           actionAdviceEn: 'Drop, Cover, and Hold On.',
           actionAdviceMy: 'ဝပ်ပါ၊ အကာအကွယ်ယူပါ၊ မြဲမြံစွာကိုင်ထားပါ။',
+          isEmergencyProximity: isNear,
+          affectedRegion: 'Myanmar',
         ));
       }
     }

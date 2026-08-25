@@ -9,14 +9,29 @@ import 'providers/settings_provider.dart';
 
 import 'dart:convert';
 import 'services/notification_service.dart';
+import 'services/hardware_trigger_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  HardwareTriggerService().init();
+
   await NotificationService().init(
     onNotificationTap: (payload) {
       if (payload != null && payload.isNotEmpty) {
         try {
           final data = json.decode(payload);
+          if (data['route'] != null) {
+            goRouter.push(data['route'].toString());
+            return;
+          }
+          if (data['event'] == 'BLOOD_REQUEST_ACCEPTED' || data['event'] == 'NEW_BLOOD_SUPPLY_REQUEST' || data['type'] == 'BLOOD_REQUEST') {
+            goRouter.push('/blood-donation');
+            return;
+          }
+          if (data['type'] == 'DISASTER_ALERT' || data['event'] == 'NEW_DISASTER_ALERT') {
+            goRouter.push('/weather-disaster');
+            return;
+          }
           final loc = data['location'] ?? data;
           final lat = (loc['lat'] as num?)?.toDouble();
           final lng = (loc['lng'] as num?)?.toDouble();

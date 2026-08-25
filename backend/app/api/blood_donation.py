@@ -157,6 +157,12 @@ async def create_blood_donation(
             notified_ids.add(oid_str)
             org_account_ids.append(org_obj.account_id)
 
+        # Broadcast real-time urgent blood bulletin to all active volunteers and donors
+        try:
+            await manager.broadcast_all(alert_payload)
+        except Exception:
+            pass
+
         # Dispatch Push Notifications to organization staff
         if org_account_ids:
             try:
