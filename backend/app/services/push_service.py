@@ -1,8 +1,4 @@
-"""
-Push Notification Service — High-priority Emergency FCM Push Dispatcher.
-Wakes up devices even when the app is completely closed or locked.
-"""
-
+import os
 import json
 import uuid
 import logging
@@ -16,6 +12,13 @@ try:
 except ImportError:
     httpx = None
 
+try:
+    import firebase_admin
+    from firebase_admin import credentials, messaging
+except ImportError:
+    firebase_admin = None
+    messaging = None
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +26,60 @@ from app.models.session import UserSession
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+_firebase_initialized = False
+
+
+def _init_firebase_admin() -> bool:
+    """Initialize Firebase Admin SDK using service account key file or default credentials."""
+    global _firebase_initialized
+    if _firebase_initialized:
+        return True
+
+    if firebase_admin is None:
+        return False
+
+    # 1. Check environment variable (e.g. for Railway / Cloud deployment)
+    env_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON")
+    if env_json:
+        try:
+            cert_dict = json.loads(env_json)
+            cred = credentials.Certificate(cert_dict)
+            firebase_admin.initialize_app(cred)
+            _firebase_initialized = True
+            logger.info("Firebase Admin SDK initialized successfully via FIREBASE_SERVICE_ACCOUNT_JSON environment variable")
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to initialize Firebase from env json: {e}")
+
+    # 2. Check local candidate json files (in .gitignore)
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    candidate_paths = [
+        os.path.join(base_dir, "firebase-service-account.json"),
+        *[os.path.join(base_dir, f) for f in os.listdir(base_dir) if ("firebase-adminsdk" in f or "serviceAccountKey" in f) and f.endswith(".json")]
+    ]
+
+    for sa_path in candidate_paths:
+        try:
+            if os.path.exists(sa_path):
+                cred = credentials.Certificate(sa_path)
+                firebase_admin.initialize_app(cred)
+                _firebase_initialized = True
+                logger.info(f"Firebase Admin SDK initialized successfully with {sa_path}")
+                return True
+        except Exception as e:
+            logger.warning(f"Failed to initialize Firebase with {sa_path}: {e}")
+
+    try:
+        if os.environ.get("FIREBASE_CONFIG") or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+            firebase_admin.initialize_app()
+            _firebase_initialized = True
+            logger.info("Firebase Admin SDK initialized with environment credentials")
+            return True
+    except Exception as e:
+        logger.warning(f"Firebase Admin initialization warning: {e}")
+
+    return False
 
 
 async def get_user_device_tokens(user_ids: List[uuid.UUID], db: AsyncSession) -> List[str]:
@@ -55,25 +112,6 @@ async def get_all_active_device_tokens(db: AsyncSession) -> List[str]:
     return list(set(tokens))
 
 
-def _send_fcm_urllib(token: str, payload: dict, server_key: str) -> None:
-    """Synchronous fallback to deliver FCM push via standard library urllib."""
-    try:
-        data_bytes = json.dumps(payload).encode('utf-8')
-        req = urllib.request.Request(
-            "https://fcm.googleapis.com/fcm/send",
-            data=data_bytes,
-            headers={
-                "Authorization": f"key={server_key}",
-                "Content-Type": "application/json",
-            },
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=8) as response:
-            logger.info(f"FCM Push (urllib) for {token[:8]}...: {response.status}")
-    except Exception as e:
-        logger.error(f"FCM urllib push error: {e}")
-
-
 async def send_emergency_push(
     tokens: List[str],
     title: str,
@@ -96,58 +134,51 @@ async def send_emergency_push(
     serialized_data["click_action"] = "FLUTTER_NOTIFICATION_CLICK"
     serialized_data["channel_id"] = channel_id
 
-    # If FCM Server Key is configured, dispatch HTTP POST to FCM v1 / legacy endpoint
-    if settings.FCM_SERVER_KEY:
+    # ── PRIMARY DISPATCH: Firebase Admin SDK (Modern FCM HTTP v1) ──────────
+    if _init_firebase_admin() and messaging is not None:
         try:
-            for token in tokens:
-                payload = {
-                    "to": token,
-                    "priority": "high",
-                    "notification": {
-                        "title": title,
-                        "body": body,
-                        "sound": sound_name,
-                        "android_channel_id": channel_id,
-                    },
-                    "android": {
-                        "priority": "high",
-                        "notification": {
-                            "channel_id": channel_id,
-                            "sound": sound_name,
-                            "priority": "high",
-                            "visibility": "public",
-                            "default_sound": True,
-                            "default_vibrate_timings": True,
-                        },
-                    },
-                    "apns": {
-                        "payload": {
-                            "aps": {
-                                "sound": sound_name,
-                                "badge": 1,
-                                "content-available": 1,
-                            }
-                        }
-                    },
-                    "data": serialized_data,
-                }
-                
-                if httpx is not None:
-                    async with httpx.AsyncClient(timeout=8.0) as client:
-                        headers = {
-                            "Authorization": f"key={settings.FCM_SERVER_KEY}",
-                            "Content-Type": "application/json",
-                        }
-                        res = await client.post(
-                            "https://fcm.googleapis.com/fcm/send",
-                            json=payload,
-                            headers=headers,
-                        )
-                        logger.info(f"FCM Push for {token[:8]}...: {res.status_code}")
-                else:
-                    await asyncio.to_thread(_send_fcm_urllib, token, payload, settings.FCM_SERVER_KEY)
+            android_config = messaging.AndroidConfig(
+                priority="high",
+                notification=messaging.AndroidNotification(
+                    title=title,
+                    body=body,
+                    sound=sound_name,
+                    channel_id=channel_id,
+                    priority="high",
+                    visibility="public",
+                    default_sound=True,
+                    default_vibrate_timings=True,
+                ),
+            )
+
+            apns_config = messaging.APNSConfig(
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(
+                        sound=sound_name,
+                        badge=1,
+                        content_available=True,
+                    )
+                )
+            )
+
+            multicast_msg = messaging.MulticastMessage(
+                tokens=tokens,
+                notification=messaging.Notification(
+                    title=title,
+                    body=body,
+                ),
+                data=serialized_data,
+                android=android_config,
+                apns=apns_config,
+            )
+
+            response = await asyncio.to_thread(messaging.send_each_for_multicast, multicast_msg)
+            logger.info(
+                f"✅ [FCM v1 Multicast] Success: {response.success_count}/{len(tokens)} | Failure: {response.failure_count}"
+            )
+            return response.success_count
         except Exception as e:
-            logger.error(f"Failed to dispatch FCM push notification: {e}")
+            logger.error(f"FCM v1 Multicast dispatch error: {e}")
 
     logger.info(
         f"🚨 [EMERGENCY PUSH DISPATCH] Target Tokens: {len(tokens)} | Title: '{title}' | Siren: {is_siren_alarm}"

@@ -41,3 +41,9 @@ Thumbs.db
 scratch/
 frontend/scratch/
 
+# Firebase & Google Cloud Secrets
+*firebase-adminsdk*.json
+firebase-service-account.json
+backend/firebase-service-account.json
+backend/*firebase-adminsdk*.json
+

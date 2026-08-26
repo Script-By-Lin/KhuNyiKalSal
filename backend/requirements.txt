@@ -16,3 +16,4 @@ redis
 alembic
 gunicorn
 httpx
+firebase-admin
