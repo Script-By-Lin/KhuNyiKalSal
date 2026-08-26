@@ -28,11 +28,15 @@ void main() async {
             goRouter.push('/announcements');
             return;
           }
+          if (data['type'] == 'EPHEMERAL_BROADCAST' || data['event'] == 'EPHEMERAL_BROADCAST') {
+            goRouter.push('/announcements');
+            return;
+          }
           if (data['event'] == 'BLOOD_REQUEST_ACCEPTED' || data['event'] == 'NEW_BLOOD_SUPPLY_REQUEST' || data['type'] == 'BLOOD_REQUEST') {
             goRouter.push('/blood-donation');
             return;
           }
-          if (data['type'] == 'DISASTER_ALERT' || data['event'] == 'NEW_DISASTER_ALERT') {
+          if (data['type'] == 'DISASTER_ALERT' || data['event'] == 'NEW_DISASTER_ALERT' || data['type'] == 'EARTHQUAKE') {
             goRouter.push('/weather-disaster');
             return;
           }
