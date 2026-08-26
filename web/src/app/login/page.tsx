@@ -30,8 +30,10 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   React.useEffect(() => {
+    setMounted(true);
     try {
       const savedRemember = localStorage.getItem("admin_remember_me");
       if (savedRemember === "true" || savedRemember === null) {
@@ -88,6 +90,14 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen w-screen flex items-center justify-center bg-slate-950 text-white">
+        <div className="w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-screen flex flex-col lg:flex-row bg-[var(--bg-main)] text-[var(--text-main)] relative overflow-hidden select-none">

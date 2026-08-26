@@ -144,7 +144,7 @@ async def create_announcement(
                     "content": announcement.content,
                     "category": announcement.category,
                 },
-                is_siren_alarm=announcement.is_pinned,
+                is_siren_alarm=True,
             )
     except Exception as e:
         import logging
@@ -220,7 +220,7 @@ async def broadcast_ephemeral_quote_or_alert(
                     "title": push_title,
                     "message": message,
                 },
-                is_siren_alarm=(category == "MISSING_PERSON"),
+                is_siren_alarm=True,
             )
     except Exception as e:
         import logging
