@@ -40,21 +40,47 @@ void main() async {
             goRouter.push('/weather-disaster');
             return;
           }
+          if (data['event'] == 'FAMILY_SOS_ALERT' || data['type'] == 'FAMILY_ALERT' || data['type'] == 'FAMILY_SOS') {
+            final loc = data['location'] ?? data;
+            final lat = (loc['lat'] as num?)?.toDouble();
+            final lng = (loc['lng'] as num?)?.toDouble();
+            if (lat != null && lng != null) {
+              goRouter.push('/map', extra: {
+                'lat': lat,
+                'lng': lng,
+                'title': data['title'] ?? data['message'] ?? '🚨 Family Emergency SOS Target',
+                'returnRoute': '/family-alerts',
+              });
+              return;
+            }
+            goRouter.push('/family-alerts');
+            return;
+          }
           final loc = data['location'] ?? data;
           final lat = (loc['lat'] as num?)?.toDouble();
           final lng = (loc['lng'] as num?)?.toDouble();
           if (lat != null && lng != null) {
-            goRouter.push('/mission-map', extra: {
+            if (data['event'] == 'SOS_CREATED') {
+              goRouter.push('/mission-map', extra: {
+                'lat': lat,
+                'lng': lng,
+                'title': data['title'] ?? data['message'] ?? '🚨 Emergency SOS Target',
+                'returnRoute': '/org-dashboard',
+              });
+              return;
+            }
+            goRouter.push('/map', extra: {
               'lat': lat,
               'lng': lng,
-              'title': data['title'] ?? data['message'] ?? '🚨 Emergency SOS Target',
+              'title': data['title'] ?? data['message'] ?? '🚨 Emergency Target',
+              'returnRoute': '/home',
             });
             return;
           }
         } catch (_) {}
       }
-      // Default to family alerts or map
-      goRouter.go('/family-alerts');
+      // Default to home
+      goRouter.go('/home');
     },
   );
   runApp(const ProviderScope(child: KhuNyiKalSalApp()));

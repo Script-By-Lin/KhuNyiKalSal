@@ -34,6 +34,13 @@ class _VolunteerDashboardState extends ConsumerState<VolunteerDashboard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final role = ref.read(authProvider).role?.toLowerCase();
+      if (role != 'volunteer' && role != 'admin' && role != 'superadmin') {
+        if (mounted) context.go('/home');
+      }
+    });
+
     _loadAlerts();
     _loadProfile();
     _listenForAlerts();

@@ -84,6 +84,13 @@ class _OrgDashboardState extends ConsumerState<OrgDashboard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final role = ref.read(authProvider).role?.toLowerCase();
+      if (role != 'organization' && role != 'admin' && role != 'superadmin') {
+        if (mounted) context.go('/home');
+      }
+    });
+
     _initRealtimeTracking();
     _fetchAllData();
     _listenForEvents();

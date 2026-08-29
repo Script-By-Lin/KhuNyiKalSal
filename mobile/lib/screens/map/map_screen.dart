@@ -348,6 +348,23 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
+  void _handleReturnNavigation() {
+    if (widget.returnRoute != null) {
+      context.go(widget.returnRoute!);
+    } else if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      final role = ref.read(authProvider).role?.toLowerCase();
+      if (role == 'organization') {
+        context.go('/org-dashboard');
+      } else if (role == 'volunteer') {
+        context.go('/volunteer-dashboard');
+      } else {
+        context.go('/home');
+      }
+    }
+  }
+
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -744,16 +761,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     children: [
                       IconButton(
                         icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                        tooltip: 'Return to Dashboard',
-                        onPressed: () {
-                          if (widget.returnRoute != null) {
-                            context.go(widget.returnRoute!);
-                          } else if (Navigator.of(context).canPop()) {
-                            Navigator.of(context).pop();
-                          } else {
-                            context.go('/org-dashboard');
-                          }
-                        },
+                        tooltip: 'Return',
+                        onPressed: _handleReturnNavigation,
                       ),
                       const SizedBox(width: 4),
                       Expanded(
@@ -958,15 +967,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                   style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
                                 ),
                               ),
-                              onPressed: () {
-                                if (widget.returnRoute != null) {
-                                  context.go(widget.returnRoute!);
-                                } else if (Navigator.of(context).canPop()) {
-                                  Navigator.of(context).pop();
-                                } else {
-                                  context.go('/org-dashboard');
-                                }
-                              },
+                              onPressed: _handleReturnNavigation,
                             ),
                           ),
                         ],

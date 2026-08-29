@@ -386,6 +386,7 @@ class _FamilyAlertsScreenState extends ConsumerState<FamilyAlertsScreen> {
                                     'lat': lat,
                                     'lng': lng,
                                     'title': '$senderName ($relationship) • $type',
+                                    'returnRoute': '/family-alerts',
                                   });
                                 },
                               ),

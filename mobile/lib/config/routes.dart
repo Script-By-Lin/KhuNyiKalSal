@@ -58,6 +58,7 @@ final goRouter = GoRouter(
             OrganizationModel? previewOrg;
             Map<String, double>? targetLoc;
             String? targetTitle;
+            String? returnRoute;
             
             if (extra is OrganizationModel) {
               previewOrg = extra;
@@ -72,11 +73,15 @@ final goRouter = GoRouter(
               if (extra['title'] != null) {
                 targetTitle = extra['title'].toString();
               }
+              if (extra['returnRoute'] != null) {
+                returnRoute = extra['returnRoute'].toString();
+              }
             }
             return MapScreen(
               previewOrg: previewOrg,
               targetLocation: targetLoc,
               targetTitle: targetTitle,
+              returnRoute: returnRoute,
             );
           },
         ),

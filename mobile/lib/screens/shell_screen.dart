@@ -139,6 +139,8 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
                     context.go('/map', extra: {
                       'lat': (loc['lat'] as num).toDouble(),
                       'lng': (loc['lng'] as num).toDouble(),
+                      'title': '🚨 $type SOS from $senderName ($rel)',
+                      'returnRoute': '/family-alerts',
                     });
                   } else {
                     context.go('/family-alerts');

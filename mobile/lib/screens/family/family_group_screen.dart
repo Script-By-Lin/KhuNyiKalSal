@@ -881,7 +881,7 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        isCreator ? 'ADMIN (Group Creator)' : 'MEMBER',
+                        isCreator ? (isMm ? 'မိသားစု အဖွဲ့ ဦးဆောင်သူ' : 'ADMIN (Group Creator)') : (isMm ? 'မိသားစုဝင်' : 'MEMBER'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
@@ -925,8 +925,12 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
                 const SizedBox(height: 6),
                 Text(
                   isCreator
-                      ? 'You are the Group Admin. You can update, add/remove members, or delete the group.'
-                      : 'You are a linked family member in this emergency alert circle.',
+                      ? (isMm
+                          ? 'သင်သည် ဤမိသားစုအဖွဲ့၏ စီမံခန့်ခွဲသူ (Group Admin) ဖြစ်ပါသည်။ မိသားစုဝင်များ ထည့်သွင်း/ဖယ်ရှားခြင်း ပြုလုပ်နိုင်ပါသည်။'
+                          : 'You are the Family Group Admin. You can update, add/remove members, or delete the group.')
+                      : (isMm
+                          ? 'သင်သည် ဤမိသားစု အရေးပေါ် သတိပေးချက် အဖွဲ့ဝင်တစ်ဦး ဖြစ်ပါသည်။'
+                          : 'You are a linked family member in this emergency alert circle.'),
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
@@ -950,7 +954,7 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
                   ),
                   icon: const Icon(Icons.person_add, size: 18, color: Colors.white),
                   label: Text(
-                    isMm ? '+ အဖွဲ့ဝင်ထည့်မည်' : '+ Add Member',
+                    isMm ? '+ မိသားစုဝင် ထည့်မည်' : '+ Add Family Member',
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                   onPressed: _showAddMemberDialog,
@@ -961,7 +965,9 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 8, bottom: 4),
               child: Text(
-                '🔒 Only the group creator can add or remove members.',
+                isMm
+                    ? '🔒 မိသားစု အဖွဲ့ ဦးဆောင်သူ (Group Creator) မှသာ မိသားစုဝင်များကို ထည့်သွင်း/ဖယ်ရှားနိုင်ပါသည်။'
+                    : '🔒 Only the family group creator can add or remove members.',
                 style: TextStyle(color: Colors.orange.shade800, fontSize: 12, fontWeight: FontWeight.w500),
               ),
             ),
@@ -1202,7 +1208,7 @@ class _FamilyGroupScreenState extends ConsumerState<FamilyGroupScreen> {
                       const Icon(Icons.admin_panel_settings, color: Colors.red, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        isMm ? 'အဖွဲ့ စီမံခန့်ခွဲမှု' : 'Danger Zone',
+                        isMm ? 'မိသားစု အဖွဲ့ စီမံခန့်ခွဲမှု' : 'Family Group Danger Zone',
                         style: const TextStyle(
                           color: Colors.red,
                           fontWeight: FontWeight.bold,
